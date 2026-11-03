@@ -2,7 +2,7 @@
 
 ## Scope delivered
 
-- Second D1 binding `BOOK_DB` points to Cloudflare database `chapterandsounds-book-db` (`961d5433-d7f8-4b8c-b84a-d9cad1a9a56a`). Existing `DB` binding remains unchanged.
+- Second D1 binding `BOOK_DB` points to Cloudflare database `chapterandsound-book-db` (`961d5433-d7f8-4b8c-b84a-d9cad1a9a56a`). Existing `DB` binding remains unchanged.
 - `/api/catalogue-admin/*` uses existing Better Auth session, verified owner email, and persisted `site_roles.role='admin'` before accessing BOOK_DB.
 - All catalogue write operations reject a cross-origin browser request and use D1 `batch()` to combine the draft insert, revision and audit statement (or credit + audit).
 - `/admin` now has a **Book Catalogue** module. It shows a clear schema-not-installed message until BOOK_DB migrations have been applied.
@@ -26,7 +26,7 @@ npx wrangler d1 migrations apply BOOK_DB --remote
 npx wrangler deploy
 ```
 
-**Important:** Wrangler must display `chapterandsounds-book-db` as the target for catalogue migration. Do not use `DB` or manually run the app's `migrations/` SQL against BOOK_DB. The migration command is a real production D1 schema change; inspect the prompt before accepting. No seeded books or contributors are inserted by these migrations.
+**Important:** Wrangler must display `chapterandsound-book-db` as the target for catalogue migration. Do not use `DB` or manually run the app's `migrations/` SQL against BOOK_DB. The migration command is a real production D1 schema change; inspect the prompt before accepting. No seeded books or contributors are inserted by these migrations.
 
 Once deployed, log in as verified site administrator, open `/admin`, choose **Book Catalogue**, create a test *real* book as an unpublished draft, create its contributor, then assign an author credit. Check that both records persist after refresh. Don't publish to the public site until the legacy-ID migration and public-read service are implemented.
 
