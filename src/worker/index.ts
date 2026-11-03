@@ -10,7 +10,7 @@ import {authConfigured,createAuth} from './auth.js';
 import {memberAPI} from './member-api.js';
 import {communityAPI} from './community-api.js';
 interface D1Statement {bind(...values:(string|number|null)[]):D1Statement;all<T>():Promise<{results:T[]}>;first<T>():Promise<T|null>;run():Promise<unknown>;}
-interface D1Database {prepare(query:string):D1Statement;}
+interface D1Database {prepare(query:string):D1Statement;batch(statements:D1Statement[]):Promise<unknown[]>;}
 interface Env {DB?:D1Database; BOOK_DB?:D1Database; BETTER_AUTH_SECRET?:string;PUBLIC_ORIGIN?:string;MAIL_API_KEY?:string;MAIL_FROM?:string;ADMIN_EMAIL?:string;SIGNUP_MODE?:string;}
 const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 const missing=()=>json({error:'Cloud database is not configured',code:'DB_NOT_CONFIGURED'},503);
