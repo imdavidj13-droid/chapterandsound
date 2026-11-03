@@ -1,3 +1,4 @@
+import {AdminConsole} from './AdminConsole';
 import {ConfirmEmailPage} from './ConfirmEmailPage';
 import {PublicReaderPage} from './PublicReaderPage';
 import {ThemeShell,RoomHome,RoomShelf} from './themes/ThemeShell';
@@ -141,19 +142,39 @@ export function App(){
   const [member,setMember]=useState<Member|null>(null);
   const [theme,setTheme]=useState<ThemeId>('editorial');
   const [themeError,setThemeError]=useState('');
-  const [themeReady,setThemeReady]=useState(false);
-  useEffect(()=>{let cancelled=false;
-    fetch('/api/me',{credentials:'include'}).then(r=>r.ok?r.json():null).then(v=>{
-      if(!cancelled&&v?.member)setMember(v.member as Member);
-    }).catch(()=>{});
-    return()=>{cancelled=true;};
-  },[]);
-  useEffect(()=>{let active=true;if(!member?.verified){setThemeReady(true);return()=>{active=false};}setThemeReady(false);
-    apiGet<{themeId:ThemeId}>('/api/member/theme').then(v=>{if(active)setTheme(v.themeId==='reading-room'?'reading-room':'editorial')})
-      .catch(()=>{if(active)setThemeError('Your saved theme could not be loaded. Editorial is shown by default.')})
-      .finally(()=>{if(active)setThemeReady(true)});
+  const [bootReady,setBootReady]=useState(false);
+  // Session and persisted appearance load together. Render neither the sign-in
+  // placeholder nor the default Editorial shell before the result is known.
+  useEffect(()=>{
+    let active=true;
+    async function initialize(){
+      try{
+        const response=await fetch('/api/me',{credentials:'include',cache:'no-store'});
+        if(!response.ok)throw new Error('Unable to check your account session');
+        const payload=await response.json() as {member:Member|null};
+        if(!active)return;
+        if(payload.member){
+          setMember(payload.member);
+          if(payload.member.verified){
+            try{
+              const preference=await apiGet<{themeId:ThemeId}>('/api/member/theme');
+              if(active)setTheme(preference.themeId==='reading-room'?'reading-room':'editorial');
+            }catch{
+              if(active)setThemeError('Your saved theme could not be loaded; Editorial is shown until the connection is restored.');
+            }
+          }
+        }else{
+          setMember(null);
+        }
+      }catch{
+        if(active)setThemeError('Your session could not be checked. Refresh to reconnect.');
+      }finally{
+        if(active)setBootReady(true);
+      }
+    }
+    void initialize();
     return()=>{active=false};
-  },[member?.id,member?.verified]);
+  },[]);
   async function changeTheme(next:ThemeId){
     const prior=theme;setTheme(next);setThemeError('');
     if(member?.verified){
@@ -185,5 +206,10 @@ export function App(){
   else if(personal.includes(path)||['/add-book','/journal','/onboarding','/admin','/write-review'].includes(path))body=<MemberPage path={path} member={member} data={api}/>;
   else if(['/about','/privacy','/terms'].includes(path))body=<About path={path}/>;
   else body=<NotFound/>;
-  return <ThemeShell theme={theme} onThemeChange={changeTheme} member={member} path={path} isHome={path==='/'} error={themeError||(!themeReady?'Loading your saved appearance…':backendStatus==='offline'?'Live catalogue and review services are not connected. Content stays empty until verified records are available.':undefined)}>{body}</ThemeShell>;
+  // The verification component must mount immediately so it can consume its
+  // one-use token. Other routes wait for both session and saved theme.
+  if(!bootReady&&!verifyFromEmail)return <div className="cs-startup" role="status" aria-live="polite"><span className="cs-startup-brand">Chapter <em>&</em> Sound</span><span className="cs-startup-line">Opening your reading world…</span></div>;
+  if(path==='/admin'&&member?.verified&&member.role==='admin')return <AdminConsole/>;
+  if(path==='/admin'&&member?.verified&&member.role!=='admin')return <div className="cs-startup"><h1>Administrator access required</h1><p>This control centre is available only to authorised site administrators.</p><a href="/account">Return to account</a></div>;
+  return <ThemeShell theme={theme} onThemeChange={changeTheme} member={member} path={path} isHome={path==='/'} error={themeError||(backendStatus==='offline'?'Live catalogue and review services are not connected. Content stays empty until verified records are available.':undefined)}>{body}</ThemeShell>;
 }
