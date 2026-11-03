@@ -6,7 +6,7 @@
 - Cloudflare Worker connected to GitHub `imdavidj13-droid/chapterandsound`.
 - A dedicated D1 database for Chapter & Sound (**never** reuse another project's DB).
 - A public HTTPS Worker/domain URL used consistently as `PUBLIC_ORIGIN`.
-- A verified mail-sending domain and valid Resend API key with sender address.
+- For the initial owner-only test, a Resend account registered with `imdavidj13@gmail.com` can send to that same mailbox using the test sender `onboarding@resend.dev`. Public registration needs a verified sending domain.
 - A randomly generated `BETTER_AUTH_SECRET` at least 32 characters long.
 
 The intended bootstrap address is configured in `wrangler.jsonc` as **`ADMIN_EMAIL=imdavidj13@gmail.com`**. The site owner still must complete actual email verification. Typing that address into a form does not produce administrator permissions.
@@ -37,7 +37,7 @@ First validate the migrations using an isolated disposable staging database. Aft
 npx wrangler d1 migrations apply DB --remote
 ```
 
-The ordered migrations are `0000_auth.sql`, `0001_catalogue.sql`, `0002_community.sql`, `0003_review_moderation.sql`, `0004_moderation_roles.sql`, `0005_reader_profiles.sql`, `0006_member_themes.sql`.
+Migrations run in lexical filename order. The repository also contains `0003_community_extensions.sql`, `0004_images_profiles.sql`, and `0005_series_tags.sql`; run the disposable `npm run test:migrations` preflight before touching production.
 
 **Auth schema verification required:** compare the installed Better Auth 1.7.15 core schema against `0000_auth.sql` using Better Auth's schema checker before any live account data is written; ensure all generated/default types match Cloudflare D1. The application's separate plural `members` table is never treated as Better Auth's `user` table.
 
@@ -88,3 +88,7 @@ The next administration phase should have its own protected routes and API scope
 dashboard, members/roles, review moderation, reports, books/editions, authors/narrators, image rights/R2, categories/tags, homepage curation, challenges, clubs, announcements, website settings, and audit history. High-risk edits require explicit confirmation, server-side role checks and structured audit logging. Work on the control panel begins only after a verified owner account can sign in successfully.
 
 The present `/admin` route is a **moderation foundation**, not the complete admin console.
+
+## Owner-only rollout
+
+The Worker currently defaults to `SIGNUP_MODE=owner_only` and `MAIL_FROM=onboarding@resend.dev`. Until the email domain, legal policies and member support are ready, only the configured administrator mailbox can submit the signup endpoint. This does not establish administrator identity until the real email verification completes. Switching `SIGNUP_MODE` to `public` is a separate, deliberate production-launch change.
