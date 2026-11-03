@@ -8,7 +8,7 @@ import {apiGet,apiWrite} from './api';
 type Book={id:string;title:string;author?:string;formats?:string[]};
 type ShelfItem={id:string;workId:string;editionId?:string;bookTitle:string;status:string;format?:string;progressUnit?:string;progressValue?:number;privateNote?:string;privateRating?:number;finishedAt?:string};
 type Review={id:string;title?:string;bookTitle:string;bookId:string;status:string;visibility:string;storyRating?:number;audioRating?:number;body?:string;spoilers?:number;editionId?:string};
-type Props={path:string;books:Book[];member:{id:string;displayName:string;verified:boolean;role?:'admin'|'moderator'|null}};
+type Props={path:string;books:Book[];member:{id:string;displayName:string;verified:boolean;role?:'admin'|'moderator'|null;handle?:string|null}};
 const statusLabels:Record<string,string>={want_to_read:'Want to read',in_progress:'Currently reading',paused:'Paused',finished:'Finished',dnf:'Did not finish'};
 const formats=['paperback','hardback','ebook','audiobook'];
 const genreOptions=['Psychological thriller','Mystery','Crime','Suspense','Literary fiction','Romance','Fantasy','Science fiction','Historical fiction','Horror','Contemporary','Non-fiction'];
@@ -145,7 +145,7 @@ function AccountPanel({member}:{member:Props['member']}){
     window.location.assign('/');
   }catch(e){setError(e instanceof Error?e.message:'Sign out failed')}finally{setBusy(false)}};
   return <section className="member-account"><p className="eyebrow">Your Chapter & Sound account</p><h1>Account & privacy</h1>
-    <div className="panel"><h2>{member.displayName}</h2><p>Your email address has been verified. Your reading records are private unless you choose to publish or share them.</p>
+    <div className="panel"><h2>{member.handle?'@'+member.handle:member.displayName}</h2>{member.handle&&<p><a className="inline-link" href={'/reader/'+encodeURIComponent(member.handle)}>View your public reader profile</a></p>}<p>Your email address has been verified. Your reading records are private unless you choose to publish or share them.</p>
     {member.role==='admin'&&<p><strong>Site administrator</strong> · Your verified account has administrator access.</p>}
     {member.role==='moderator'&&<p><strong>Community moderator</strong></p>}
     <div className="actions"><a className="button secondary" href="/preferences">Reading preferences</a><a className="button secondary" href="/onboarding">Personalise my account</a>{member.role&&<a className="button" href="/admin">Open administration</a>}</div>
