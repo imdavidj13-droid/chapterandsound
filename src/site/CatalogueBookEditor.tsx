@@ -26,7 +26,12 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
  const [rightsHolder,setRightsHolder]=useState(''),[licenceName,setLicenceName]=useState(''),[sourceUrl,setSourceUrl]=useState('');
  const [permission,setPermission]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState('');
  const isAudio=format==='audiobook'||format==='audio_cd';
- const [suggestions,setSuggestions]=useState<string[]>([]);
+ const [suggestions,setSuggestions]=useState<Person[]>([]);
+ const [selectedAuthorId,setSelectedAuthorId]=useState('');
+ const [createAuthor,setCreateAuthor]=useState(false);
+ const [narratorSuggestions,setNarratorSuggestions]=useState<Person[]>([]);
+ const [selectedNarratorId,setSelectedNarratorId]=useState('');
+ const [createNarrator,setCreateNarrator]=useState(false);
  const [existingWorks,setExistingWorks]=useState<ExistingWork[]>([]);
  const [duplicateCheckError,setDuplicateCheckError]=useState('');
  const [duplicateCheckComplete,setDuplicateCheckComplete]=useState(false);
@@ -47,14 +52,26 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
  useEffect(()=>{setAllowSameTitle(false)},[title]);
  useEffect(()=>{
   let cancelled=false;
-  if(author.trim().length<2){setSuggestions(authors.slice(0,10).map(p=>p.name));return}
+  if(author.trim().length<2){setSuggestions(authors.slice(0,10));return}
   const id=window.setTimeout(()=>{
    apiGet<{items:Person[]}>('/api/catalogue-admin/author-suggestions?q='+encodeURIComponent(author)+'&limit=20')
-    .then(res=>{if(!cancelled)setSuggestions(res.items.map(p=>p.name))})
-    .catch(()=>{if(!cancelled)setSuggestions(authors.filter(p=>p.name.toLowerCase().includes(author.toLowerCase())).map(p=>p.name))});
+    .then(res=>{if(!cancelled)setSuggestions(res.items)})
+    .catch(()=>{if(!cancelled)setSuggestions(authors.filter(p=>p.name.toLowerCase().includes(author.toLowerCase())))});
   },220);
   return()=>{cancelled=true;window.clearTimeout(id)};
  },[author,authors]);
+ useEffect(()=>{
+  let active=true;
+  if(!isAudio||narrator.trim().length<2){setNarratorSuggestions([]);return}
+  const timer=window.setTimeout(()=>{
+   apiGet<{items:Person[]}>('/api/catalogue-admin/author-suggestions?q='+encodeURIComponent(narrator)+'&limit=20')
+    .then(res=>{if(active)setNarratorSuggestions(res.items)})
+    .catch(()=>{if(active)setNarratorSuggestions(authors.filter(p=>p.name.toLowerCase().includes(narrator.toLowerCase())))});
+  },220);
+  return()=>{active=false;window.clearTimeout(timer)};
+ },[narrator,isAudio,authors]);
+ const authorReady=!!selectedAuthorId||!!(createAuthor&&author.trim().length>=2);
+ const narratorReady=!isAudio||!narrator.trim()||!!selectedNarratorId||!!createNarrator;
  useEffect(()=>{
   if(!file){setPreview('');return}
   const next=URL.createObjectURL(file);setPreview(next);
@@ -67,16 +84,18 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
   if(!duplicateCheckComplete||duplicateCheckError){setError('Existing-book check is unavailable; the new book has not been saved.');return}
   if(duplicateBlocked){setError('A book with this title already exists. Review the matching records before creating another.');return}
   if(!isbn13Valid||!isbn10Valid){setError('Check the ISBN digits and checksum before saving.');return}
+  if(!authorReady){setError('Choose an existing author or confirm creation of a new contributor.');return}
+  if(!narratorReady){setError('Choose the existing narrator or confirm creation of a new contributor.');return}
   setSaving(true);setError('');
   try{
    if(file&&imageStorage&&!canUpload)throw new Error('Complete the image rights fields or remove the cover file before saving.');
    const edition=addEdition?{
     format,language:editionLanguage,pageCount:pages||null,publisherName:publisher,
     releaseDate,isbn13,isbn10,asin,
-    ...(isAudio?{audio:{performance,abridgement,durationMinutes:duration||null,narratorName:narrator}}:{})
+    ...(isAudio?{audio:{performance,abridgement,durationMinutes:duration||null,narratorName:narrator,narratorId:selectedNarratorId||undefined}}:{})
    }:null;
    const result=await apiWrite<Saved>('/api/catalogue-admin/works','POST',{
-    title,authorName:author,type,language,firstPublicationDate:firstPublished,synopsis,
+    title,authorName:author,authorId:selectedAuthorId||undefined,type,language,firstPublicationDate:firstPublished,synopsis,
     ...(edition?{edition}:{})
    });
    let message='Book saved with '+(addEdition?'its first edition':'its details')+' and linked author.';
@@ -100,8 +119,8 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
  }
  return <form className="cs-book-editor" onSubmit={submit}>
   <div className="cs-book-editor-heading">
-   <div><span className="cs-book-eyebrow">CHAPTER & SOUND / CATALOGUE</span><h2>Add a book</h2>
-   <p>One form for the book, author, first edition and audiobook details. Saved directly to the catalogue.</p></div>
+   <div><span className="cs-book-eyebrow">CHAPTER & SOUND / CATALOGUE</span><h2>Create a new book</h2>
+   <p>Book details and the first edition in one place. Contributors are selected from the same catalogue.</p></div>
    <button type="button" onClick={onCancel}>Close</button>
   </div>
   <div className="cs-book-editor-grid">
@@ -111,8 +130,14 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
      <label>Book title <span>*</span><input required maxLength={500} autoFocus value={title} onChange={e=>setTitle(e.target.value)} placeholder="Enter the book title"/></label>
      {possibleDuplicates.length>0&&<div className="cs-book-duplicate-warning" role="alert"><strong>Possible existing book</strong><p>Matches among the first 100 catalogue records. Review before adding: different editions should belong to the same book.</p>{possibleDuplicates.map(w=><div className="cs-book-duplicate-result" key={w.id}><span><strong>{w.title}</strong>{w.authors?' · '+w.authors:''}</span>{onEditExisting&&<button type="button" onClick={()=>onEditExisting(w.id)}>Open existing book</button>}</div>)}<label className="cs-book-editor-toggle"><input type="checkbox" checked={allowSameTitle} onChange={e=>setAllowSameTitle(e.target.checked)}/> I checked these records and this is genuinely a different book with the same title</label></div>}
      {duplicateCheckError&&<p className="cs-admin-error" role="alert">{duplicateCheckError}</p>}
-     <label>Author<input list="cas-author-suggestions" maxLength={500} value={author} onChange={e=>setAuthor(e.target.value)} placeholder="Search for or enter an author"/><datalist id="cas-author-suggestions">{suggestions.map(p=><option key={p} value={p}/>)}</datalist>
-     <small>An existing author will be linked automatically. A new author is created when needed.</small></label>
+     <div className="cs-book-person-picker"><label htmlFor="cas-author-search">Author <span>*</span></label>
+      <input id="cas-author-search" autoComplete="off" maxLength={500} value={author} onChange={e=>{setAuthor(e.target.value);setSelectedAuthorId('');setCreateAuthor(false)}} placeholder="Search existing catalogue authors" />
+      {selectedAuthorId?<div className="cs-book-selected">✓ Linked author: <strong>{author}</strong><button type="button" onClick={()=>{setSelectedAuthorId('');setAuthor('')}}>Change</button></div>:<>
+       {suggestions.length>0&&<div className="cs-book-person-results" aria-label="Matching authors">{suggestions.map(p=><button type="button" key={p.id} onClick={()=>{setAuthor(p.name);setSelectedAuthorId(p.id);setCreateAuthor(false)}}><span>{p.name}</span><small>ID {p.id.slice(0,8)}</small></button>)}</div>}
+       {author.trim().length>=2&&<label className="cs-book-editor-toggle"><input type="checkbox" checked={createAuthor} onChange={e=>setCreateAuthor(e.target.checked)}/> Create a new author named “{author.trim()}” if no matching identity exists</label>}
+      </>}
+      <small>Choose the correct author, not just a matching name. All contributors belong to one catalogue.</small>
+     </div>
      <div className="cs-book-editor-two">
       <label>Book type<select value={type} onChange={e=>setType(e.target.value)}>{workTypes.map(x=><option key={x} value={x}>{name(x)}</option>)}</select></label>
       <label>Original language<input maxLength={40} value={language} onChange={e=>setLanguage(e.target.value)} placeholder="en"/></label>
@@ -144,7 +169,13 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
     </section>
     {addEdition&&isAudio&&<section className="cs-book-editor-section">
      <header><span className="cs-book-section-number">03</span><div><h3>Audiobook details</h3><p>Displayed only for audio editions</p></div></header>
-     <label>Narrator<input maxLength={500} value={narrator} onChange={e=>setNarrator(e.target.value)} placeholder="Search for or enter narrator"/></label>
+     <div className="cs-book-person-picker"><label htmlFor="cas-narrator-search">Narrator</label>
+      <input id="cas-narrator-search" maxLength={500} autoComplete="off" value={narrator} onChange={e=>{setNarrator(e.target.value);setSelectedNarratorId('');setCreateNarrator(false)}} placeholder="Search existing catalogue narrators"/>
+      {selectedNarratorId?<div className="cs-book-selected">✓ Linked narrator: <strong>{narrator}</strong><button type="button" onClick={()=>{setSelectedNarratorId('');setNarrator('')}}>Change</button></div>:<>
+       {narratorSuggestions.length>0&&<div className="cs-book-person-results" aria-label="Matching narrators">{narratorSuggestions.map(p=><button key={p.id} type="button" onClick={()=>{setNarrator(p.name);setSelectedNarratorId(p.id);setCreateNarrator(false)}}><span>{p.name}</span><small>ID {p.id.slice(0,8)}</small></button>)}</div>}
+       {narrator.trim().length>=2&&<label className="cs-book-editor-toggle"><input type="checkbox" checked={createNarrator} onChange={e=>setCreateNarrator(e.target.checked)}/> Confirm creation if this is a new narrator</label>}
+      </>}
+     </div>
      <div className="cs-book-editor-two">
       <label>Performance<select value={performance} onChange={e=>setPerformance(e.target.value)}>{['single_narrator','multi_narrator','full_cast','dramatised','synthetic_voice','unknown'].map(x=><option key={x} value={x}>{name(x)}</option>)}</select></label>
       <label>Abridgement<select value={abridgement} onChange={e=>setAbridgement(e.target.value)}>{['unabridged','abridged','adapted','unknown'].map(x=><option key={x} value={x}>{name(x)}</option>)}</select></label>
@@ -165,11 +196,12 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
       <label className="cs-book-editor-toggle"><input type="checkbox" checked={permission} onChange={e=>setPermission(e.target.checked)}/> I have permission to display this image</label>
      </>}
     </section>
-    <div className="cs-book-editor-summary"><strong>Ready to save</strong><p>{totalFields} essential details entered. Saving creates one book record and its linked edition.</p></div>
+    <div className="cs-book-editor-summary"><strong>Publication status</strong><p>The current API saves directly as published. Draft and publish controls will be added after server-side permissions and status transitions are ready.</p></div>
+    <div className="cs-book-editor-summary"><strong>Quick checks</strong><ul><li>{title.trim()?'✓':'○'} Book title entered</li><li>{authorReady?'✓':'○'} Author identity confirmed</li><li>{isbn13Valid&&isbn10Valid?'✓':'○'} ISBNs valid (if supplied)</li><li>{duplicateCheckComplete&&!duplicateBlocked?'✓':'○'} Existing-title check complete</li><li>{isAudio?(narratorReady?'✓ Narrator resolved':'○ Narrator requires review'):'Print / digital edition'}</li></ul><small>{totalFields} details populated</small></div>
    </aside>
   </div>
   {error&&<p className="cs-admin-error" role="alert">{error}</p>}
   <div className="cs-book-editor-footer"><button type="button" disabled={saving} onClick={onCancel}>Cancel</button>
-   <button className="cs-book-save" disabled={saving||!title.trim()||!duplicateCheckComplete||!!duplicateCheckError||duplicateBlocked||!isbn13Valid||!isbn10Valid||(!!file&&imageStorage&&!canUpload)} type="submit">{saving?'Saving book…':!duplicateCheckComplete?'Checking catalogue…':'Save book to catalogue'}</button></div>
+   <button className="cs-book-save" disabled={saving||!title.trim()||!authorReady||!narratorReady||!duplicateCheckComplete||!!duplicateCheckError||duplicateBlocked||!isbn13Valid||!isbn10Valid||(!!file&&imageStorage&&!canUpload)} type="submit">{saving?'Saving book…':!duplicateCheckComplete?'Checking catalogue…':'Save book to catalogue'}</button></div>
  </form>;
 }
