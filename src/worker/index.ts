@@ -183,6 +183,7 @@ export default {
         const format=(url.searchParams.get('format')??'all').trim();
         const offset=Math.min(Math.max(Number(url.searchParams.get('offset')??0)||0,0),100000);
         if(!['all','paperback','hardback','ebook','audiobook'].includes(format))return json({error:'Invalid format filter'},400);
+        const combinedLimit=env.BOOK_DB?Math.min(offset+limit,500):limit;
         const {results}=await env.DB.prepare(`SELECT w.id,w.title,w.subtitle,w.synopsis AS summary,w.first_published AS year,
           (SELECT p.display_name FROM work_contributors wc JOIN people p ON p.id=wc.person_id WHERE wc.work_id=w.id AND wc.role='author' ORDER BY wc.ordinal LIMIT 1) AS author,
           (SELECT GROUP_CONCAT(DISTINCT e.format) FROM editions e WHERE e.work_id=w.id) AS editionFormats
@@ -192,7 +193,7 @@ export default {
             WHERE wa.work_id=w.id AND wa.role='author' AND instr(lower(pa.display_name),lower(?))>0))
           AND (?='all' OR EXISTS(SELECT 1 FROM editions ef WHERE ef.work_id=w.id AND ef.format=?))
           ORDER BY w.title,w.id LIMIT ? OFFSET ?`)
-          .bind(search,search,search,format,format,limit,offset).all<{
+          .bind(search,search,search,format,format,combinedLimit,env.BOOK_DB?0:offset).all<{
             id:string;title:string;subtitle:string|null;summary:string|null;year:number|null;author:string|null;editionFormats:string|null
           }>();
         const legacyItems=results.map(row=>({
@@ -202,12 +203,17 @@ export default {
         if(!env.BOOK_DB)return json({items:legacyItems});
         const newUrl=new URL('/api/catalogue-public/books',url.origin);
         newUrl.searchParams.set('q',search);newUrl.searchParams.set('format',format);
-        newUrl.searchParams.set('limit',String(limit));
+        newUrl.searchParams.set('limit',String(combinedLimit));
         const newResponse=await publicCatalogueAPI(new Request(newUrl),env.BOOK_DB);
         if(!newResponse.ok)return json({items:legacyItems});
         const newBooks=await newResponse.json() as {items:{id:string}[]};
-        const legacyIds=new Set(legacyItems.map(x=>x.id));
-        return json({items:[...legacyItems,...newBooks.items.filter(x=>!legacyIds.has(x.id))].slice(0,limit)});
+        const combined=new Map<string,(typeof legacyItems)[number]>();
+        for(const item of legacyItems)combined.set(item.id,item);
+        for(const item of newBooks.items){
+         if(!combined.has(item.id))combined.set(item.id,item as (typeof legacyItems)[number]);
+        }
+        const sorted=[...combined.values()].sort((a,b)=>a.title.localeCompare(b.title)||a.id.localeCompare(b.id));
+        return json({items:sorted.slice(offset,offset+limit)});
       }
       if(url.pathname==='/api/reviews'){
         const search=(url.searchParams.get('q')??'').trim().slice(0,120);
