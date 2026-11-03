@@ -238,3 +238,15 @@
 .theme-reading-room .reader-avatar{color:#33543e;background:#d0dec9}
 .theme-reading-room .reader-review{border-radius:16px}
 @media(max-width:720px){.reader-profile-hero{align-items:flex-start;flex-wrap:wrap}.reader-avatar{width:80px;height:80px;flex-basis:80px;font-size:2.6rem}.reader-profile-hero>button{width:100%}.reader-review-grid{grid-template-columns:1fr}}
+
+
+/* Verification handoff: same destination in both themes, safe on small screens */
+.confirm-email{min-height:min(65vh,620px);display:grid;place-items:center;padding:28px 16px}
+.confirm-email-panel{width:min(100%,660px);padding:clamp(24px,5vw,56px);text-align:center;display:grid;justify-items:center;gap:14px;border-radius:14px;background:#fffdf9}
+.confirm-email-panel h1{font:clamp(2rem,4vw,3.4rem)/1.2 Georgia,serif;color:var(--red);margin:0}
+.confirm-email-panel>p:not(.eyebrow){max-width:510px;line-height:1.6;margin:0}
+.confirm-email-panel .actions{justify-content:center;gap:12px;flex-wrap:wrap;margin-top:15px}
+.confirm-email-icon{width:86px;height:86px;border-radius:50%;display:grid;place-items:center;background:#e4e8db;color:var(--red);font:2.8rem Georgia,serif}
+.theme-reading-room .confirm-email-panel{background:#fffefa;border-radius:22px}
+.theme-reading-room .confirm-email-icon{background:#d6e5cf}
+@media(max-width:620px){.confirm-email-panel .actions{display:grid;width:100%}.confirm-email-panel .actions .button{width:100%}}
