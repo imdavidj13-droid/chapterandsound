@@ -19,7 +19,7 @@ try{
  assert.ok(usernameColumns.includes('username'),'Better Auth username field missing');
  const usernameIndexes=db.prepare("PRAGMA index_list('user')").all();
  assert.ok(usernameIndexes.some(x=>x.name==='idx_auth_user_username'),'Case-insensitive username uniqueness index missing');
- for(const table of ['user','session','account','verification','members','works','editions','people','reading_experiences','reviews','site_roles','member_theme_preferences']){
+ for(const table of ['user','session','account','verification','members','works','editions','people','reading_experiences','reviews','site_roles','member_theme_preferences','admin_audit_log','admin_site_notices']){
   assert.ok(tables.includes(table),'Missing expected table '+table);
  }
  const actionsColumns=db.prepare('PRAGMA table_info(moderation_actions)').all().map(x=>x.name);
