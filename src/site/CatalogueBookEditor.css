@@ -82,3 +82,36 @@
 @media(max-width:1000px){.cs-book-editor-grid{grid-template-columns:minmax(0,1fr)}.cs-book-editor-side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.cs-book-editor-side>section{grid-row:span 2}}
 @media(max-width:600px){.cs-book-editor-heading{padding:22px}.cs-book-editor-grid{padding:12px;gap:14px}.cs-book-editor-section{padding:17px}.cs-book-editor-side{display:flex}.cs-book-editor-two{grid-template-columns:1fr}.cs-book-person-results button{flex-wrap:wrap}.cs-book-editor-footer{padding:13px}.cs-book-editor-footer .cs-book-save{min-width:0}}
 @media(prefers-reduced-motion:reduce){.cs-book-editor *{scroll-behavior:auto}}
+
+/* Existing-book workspace: true tabbed editor, shared live BOOK_DB records. */
+.cs-book-edit-workspace{--cas-green:#214d3b;--cas-border:#d9e3d9;margin:24px 0;background:#f4f7f3;border:1px solid #d2ded4;border-radius:19px;overflow:hidden;box-shadow:0 13px 40px #14352417;color:#203c2b}
+.cs-book-edit-workspace *{box-sizing:border-box}
+.cs-book-edit-heading{background:linear-gradient(110deg,#073825,#1d5840);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:26px 30px}
+.cs-book-edit-heading h2{font-family:Georgia,serif;font-size:clamp(24px,2.6vw,34px);color:#fff;margin:8px 0}
+.cs-book-edit-heading p{color:#d9ebe0;line-height:1.45;margin:0;font-size:13px}
+.cs-book-edit-heading button{flex-shrink:0;border:1px solid #ffffff77;color:#fff;background:transparent;border-radius:9px;padding:11px 16px;cursor:pointer}
+.cs-book-edit-tabs{display:flex;align-items:center;gap:3px;overflow:auto;border-bottom:1px solid #d5e1d6;padding:0 20px;background:#fff}
+.cs-book-edit-tabs button{font:inherit;font-weight:700;font-size:13px;color:#55705e;border:0;border-bottom:3px solid transparent;background:none;padding:18px 20px;white-space:nowrap;cursor:pointer}
+.cs-book-edit-tabs button.active,.cs-book-edit-tabs button[aria-current=page]{color:#174b35;border-color:#20573d;background:#f2f7f2}
+.cs-book-edit-tabs button:focus-visible{outline:3px solid #4c8b65;outline-offset:-3px}
+.cs-book-edit-body{padding:22px;display:block}
+.cs-book-edit-columns{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(220px,.8fr);gap:20px}
+.cs-book-edit-panel{background:#fff;border:1px solid #d5e1d6;border-radius:14px;padding:24px;display:flex;flex-direction:column;gap:15px;min-width:0}
+.cs-book-edit-panel h3{font-size:21px;color:#173c2b;margin:0}
+.cs-book-edit-panel p{font-size:14px;line-height:1.6;margin:0}
+.cs-book-edit-panel label{display:flex;flex-direction:column;gap:8px;font-size:13px;font-weight:700;color:#294632}
+.cs-book-edit-panel input,.cs-book-edit-panel select,.cs-book-edit-panel textarea{width:100%;min-height:50px;border-radius:10px;background:#fff;color:#183e2b;border:1px solid #b9cabc;padding:11px 14px;font:inherit;font-size:15px;outline:none}
+.cs-book-edit-panel textarea{min-height:140px;resize:vertical}
+.cs-book-edit-panel input:focus-visible,.cs-book-edit-panel select:focus-visible,.cs-book-edit-panel textarea:focus-visible{border-color:#236949;box-shadow:0 0 0 3px #23694924}
+.cs-book-edit-panel ul{padding-left:20px;margin:0;line-height:1.8}
+.cs-book-edit-panel ul span{color:#667866}
+.cs-book-edit-status{background:#e7f0e9;padding:15px;border-radius:10px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px}
+.cs-book-edit-status span{color:#20523b;font-weight:800}
+.cs-book-edit-footer{padding-top:20px;display:flex;justify-content:flex-end}
+.cs-book-edit-footer button,.cs-book-edit-panel>.primary,.cs-book-edit-link{min-height:46px;border-radius:10px;padding:12px 20px;font-weight:750}
+.cs-book-edit-records{display:flex;flex-direction:column;gap:8px}
+.cs-book-edit-records>div{border:1px solid #d9e4d9;background:#f7faf7;border-radius:10px;padding:14px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.cs-book-edit-records span,.cs-book-edit-hint{color:#637466;font-size:12px!important}
+.cs-book-edit-link{display:inline-flex;align-items:center;align-self:flex-start;background:#204b37;color:white!important;text-decoration:none}
+@media(max-width:860px){.cs-book-edit-columns{grid-template-columns:1fr}.cs-book-edit-body{padding:14px}.cs-book-edit-panel{padding:17px}.cs-book-edit-heading{padding:20px}.cs-book-edit-tabs{padding:0 7px}.cs-book-edit-tabs button{padding:15px 12px}}
+@media(max-width:460px){.cs-book-edit-heading{flex-direction:column;align-items:flex-start}.cs-book-edit-tabs{gap:0}}
