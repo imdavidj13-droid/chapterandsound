@@ -1,3 +1,5 @@
+import {catalogueUploadImage} from './catalogue-media-api.js';
+import type {CatalogueImageBucket} from './catalogue-media-api.js';
 import {manualCatalogueAPI} from './catalogue-manual-api.js';
 import {authConfigured,createAuth} from './auth.js';
 import {isVerifiedSiteOwner} from './admin-role.js';
@@ -20,6 +22,7 @@ interface Database {
 interface Env {
   DB?:Database;
   BOOK_DB?:Database;
+  CATALOGUE_MEDIA?:CatalogueImageBucket;
   BETTER_AUTH_SECRET?:string;
   PUBLIC_ORIGIN?:string;
   MAIL_API_KEY?:string;
@@ -76,7 +79,8 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
  const segments=path.split('/').filter(Boolean);
  if(!db)return fail('The BOOK_DB catalogue binding is not configured yet',503);
  if(!await catalogueReady(db))return fail('The catalogue database has not had its dedicated migrations applied yet',503);
- if(path==='health'&&request.method==='GET')return json({ready:true,catalogue:'BOOK_DB',schema:'installed'});
+ if(path==='health'&&request.method==='GET')return json({ready:true,catalogue:'BOOK_DB',schema:'installed',imageStorage:!!env.CATALOGUE_MEDIA});
+ if(path==='upload-image'&&request.method==='POST')return catalogueUploadImage(request,db,env.CATALOGUE_MEDIA,session.user.id);
  if(segments[0]==='manual')return manualCatalogueAPI(request,db,session.user.id,path);
  try{
   if(request.method==='GET'){
