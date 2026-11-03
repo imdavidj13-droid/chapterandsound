@@ -58,7 +58,7 @@ export default {
         AND (? IS NULL OR (?='author' AND EXISTS(SELECT 1 FROM work_contributors wc WHERE wc.person_id=p.id AND wc.role='author'))
         OR (?='narrator' AND EXISTS(SELECT 1 FROM edition_contributors ec WHERE ec.person_id=p.id AND ec.role='narrator')))
         ORDER BY p.display_name LIMIT ?`)
-          .bind('%'+q.replace(/[\\%_]/g,'\\      if(url.pathname==='/api/books'){')+'%',role,role,role,limit).all();
+          .bind('%'+q.replace(/[\\%_]/g,'\\.bind('%'+q.replace(/[\\%_]/g,'\\      if(url.pathname==='/api/books'){')+'%',role,role,role,limit).all();')+'%',role,role,role,limit).all();
         return json({items:results});
       }
       if(url.pathname.startsWith('/api/person/')){
@@ -78,7 +78,7 @@ export default {
         if(!workId)return json({error:'workId required'},400);
         const {results}=await env.DB.prepare(`SELECT e.id,e.work_id AS workId,e.format,e.publisher,e.published_at AS publishedAt,
            e.language,e.isbn13,e.asin,e.page_count AS pageCount,
-           e.duration_minutes AS durationMinutes,e.abridged,e.verification_state AS verificationState
+           e.duration_minutes AS durationMinutes,e.abridged,e.verification_status AS verificationState
            FROM editions e WHERE e.work_id=? ORDER BY e.format,e.published_at`).bind(workId).all();
         return json({items:results});
       }
