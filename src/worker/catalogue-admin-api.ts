@@ -204,33 +204,36 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
    if(!validLanguage(language||''))return fail('Invalid BCP 47 language tag');
    const synopsis=body.synopsis===undefined?'':typeof body.synopsis==='string'?body.synopsis.trim():null;
    if(synopsis===null||synopsis.length>12000)return fail('Synopsis must be text of no more than 12,000 characters');
-   const authorId=str(body.authorId,100);
-   const legacyAuthorId=str(body.legacyAuthorId,100);
-   const newAuthorName=str(body.newAuthorName,500);
-   if([authorId,legacyAuthorId,newAuthorName].filter(Boolean).length>1)return fail('Select one author source, not several');
-   let selectedAuthorId=authorId||legacyAuthorId||'';
-   let authorName='';
+   // A single author field: resolve canonical BOOK_DB identities first, then
+   // existing website identities, and create only when no exact name exists.
+   const requestedAuthorName=str(body.authorName,500);
+   let selectedAuthorId='',authorName='';
    const statements:Statement[]=[];
-   if(authorId){
-    const author=await db.prepare('SELECT id,preferred_name AS name FROM people WHERE id=? AND identity_status NOT IN (\'merged\',\'suppressed\')').bind(authorId).first<{id:string;name:string}>();
-    if(!author)return fail('Selected catalogue author no longer exists',404);
-    authorName=author.name;
-   }
-   if(legacyAuthorId){
-    const existing=await env.DB.prepare('SELECT id,display_name AS name,biography AS bio FROM people WHERE id=?').bind(legacyAuthorId).first<{id:string;name:string;bio:string|null}>();
-    if(!existing)return fail('Website author no longer exists',404);
-    authorName=existing.name;
-    const already=await db.prepare('SELECT id FROM people WHERE id=?').bind(legacyAuthorId).first();
-    if(!already)statements.push(db.prepare('INSERT INTO people(id,preferred_name,bio) VALUES(?,?,?)').bind(legacyAuthorId,existing.name,existing.bio||null));
-   }
-   if(newAuthorName){
-    const match=await db.prepare('SELECT id,preferred_name AS name FROM people WHERE lower(preferred_name)=lower(?) LIMIT 1').bind(newAuthorName).first<{id:string;name:string}>();
-    if(match)return json({error:'A catalogue author with this name already exists. Select the existing author instead.',existingId:match.id},409);
-    // Check the website database as well; never silently duplicate old identities.
-    const legacy=await env.DB.prepare('SELECT id FROM people WHERE lower(display_name)=lower(?) LIMIT 1').bind(newAuthorName).first<{id:string}>();
-    if(legacy)return json({error:'This author already exists in Website Contributors. Choose that existing author to reuse their identity.',existingId:legacy.id},409);
-    selectedAuthorId=uuid();authorName=newAuthorName;
-    statements.push(db.prepare('INSERT INTO people(id,preferred_name) VALUES(?,?)').bind(selectedAuthorId,newAuthorName));
+   if(requestedAuthorName){
+    const {results:canonical}=await db.prepare(`SELECT id,preferred_name AS name FROM people
+      WHERE lower(trim(preferred_name))=lower(?) AND identity_status NOT IN ('merged','suppressed') LIMIT 3`)
+      .bind(requestedAuthorName).all<{id:string;name:string}>();
+    if(canonical.length>1)return fail('More than one author has that name. Resolve the duplicate author profiles before linking.',409);
+    if(canonical.length===1){
+     selectedAuthorId=canonical[0]!.id;authorName=canonical[0]!.name;
+    }else{
+     const {results:legacy}=await env.DB.prepare(`SELECT id,display_name AS name,biography AS bio FROM people
+       WHERE lower(trim(display_name))=lower(?) LIMIT 3`)
+       .bind(requestedAuthorName).all<{id:string;name:string;bio:string|null}>();
+     if(legacy.length>1)return fail('More than one existing author has that name. Review the matching profiles before linking.',409);
+     if(legacy.length===1){
+      const existing=legacy[0]!;
+      // Preserve the original contributor identity so historical links survive.
+      const collidingId=await db.prepare('SELECT id,preferred_name FROM people WHERE id=?').bind(existing.id).first<{id:string;preferred_name:string}>();
+      if(collidingId&&collidingId.preferred_name.toLocaleLowerCase()!==existing.name.toLocaleLowerCase())
+       return fail('An author identity conflict needs review before saving.',409);
+      selectedAuthorId=existing.id;authorName=existing.name;
+      if(!collidingId)statements.push(db.prepare('INSERT INTO people(id,preferred_name,bio) VALUES(?,?,?)').bind(existing.id,existing.name,existing.bio||null));
+     }else{
+      selectedAuthorId=uuid();authorName=requestedAuthorName;
+      statements.push(db.prepare('INSERT INTO people(id,preferred_name) VALUES(?,?)').bind(selectedAuthorId,requestedAuthorName));
+     }
+    }
    }
    if(selectedAuthorId){
     const dup=await db.prepare(`SELECT w.id FROM works w JOIN contributions c ON c.work_id=w.id
