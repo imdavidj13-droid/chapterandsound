@@ -1,3 +1,4 @@
+import {MissingBookRequests} from './MissingBookRequests';
 import {AdminModeration} from './AdminModeration';
 import {OnboardingWizard} from './OnboardingWizard';
 import {FavouriteOrbit} from './FavouriteOrbit';
@@ -84,6 +85,7 @@ function AddBook({books}:{books:Book[]}){
         <label className="add-edition-option"><input type="radio" name="edition" checked={!editionId} onChange={()=>setEditionId('')}/> My edition is not listed</label><div className="actions"><button type="button" className="button secondary" onClick={()=>setStep(1)}>Back</button><button type="button" className="button" onClick={()=>setStep(3)}>Continue</button></div></div>}
       {step===3&&<div className="panel"><p className="eyebrow">03 / Your shelf</p><h2>{chosen?.title}</h2><label>What would you like to do?<select value={status} onChange={e=>setStatus(e.target.value)}>{Object.entries(statusLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label><label>Private note (optional)<textarea rows={4} placeholder="Only you can see this" value={note} onChange={e=>setNote(e.target.value)}/></label></div>}
       <ErrorText message={error}/>{step===3&&<button type="submit" disabled={busy||!chosen} className="button">{busy?'Saving…':'Save to my bookshelf'}</button>}</form>}
+    {!saved&&step===1&&<MissingBookRequests initialTitle={term} compact/>}
   </>;
 }
 function MyReviews(){
