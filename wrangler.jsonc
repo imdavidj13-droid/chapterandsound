@@ -1,0 +1,10 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "chapterandsound",
+  "compatibility_date": "2026-11-03",
+  "main": "./src/worker/index.ts",
+  "assets": {"not_found_handling": "single-page-application"},
+  // Add a D1 database binding after explicitly creating a project-specific database.
+  // Do not copy the binding ID from another project.
+  // "d1_databases": [{"binding":"DB","database_name":"chapterandsound-db","database_id":"YOUR_NEW_D1_ID"}]
+}
