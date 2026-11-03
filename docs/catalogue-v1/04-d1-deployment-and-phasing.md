@@ -24,21 +24,23 @@
 
 The 59 names in [01-table-registry.md](01-table-registry.md) form the canonical **proposed table namespace**. Do not silently rename them while implementing. Domain roles are set. The set is comprehensive, but final columns, constraints, and physical implementation details remain a review candidate, not yet an executable schema.
 
-### First functional catalogue release (25 tables)
+### First functional catalogue release (28 tables — executable candidate)
 
-`works`, `work_titles`, `work_versions`, `editions`, `publication_events`, `audio_recordings`, `edition_recordings`, `people`, `person_names`, `contributions`, `organisations`, `publishers`, `imprints`, `series`, `series_memberships`, `identifier_schemes`, `entity_identifiers`, `media_assets`, `media_links`, `media_rights`, `metadata_licences`, `metadata_sources`, `source_records`, `field_claims`, `catalogue_audit_log`.
+`works`, `work_titles`, `work_versions`, `editions`, `publication_events`, `audio_recordings`, `edition_recordings`, `people`, `person_names`, `contributions`, `organisations`, `publishers`, `imprints`, `series`, `series_memberships`, `identifier_schemes`, `entity_identifiers`, `media_assets`, `media_links`, `media_rights`, `metadata_licences`, `metadata_sources`, `source_records`, `field_claims`, `catalogue_audit_log`, `text_content`, `record_revisions`, `verification_reviews`.
 
 Purpose: create a work, contributor, edition, audiobook recording, identifiers, cover and auditable source data. No blanket requirement to populate optional metadata, no fictional seed books.
 
 ### Later schema modules, still reserved in the 59-table design
 
 - Relationships and technical detail: `work_relationships`, `work_languages`, `edition_details`, `edition_relationships`, `edition_languages`, `audio_tracks`, `audio_recording_details`, `organisation_names`, `publisher_imprints`, `series_relationships`.
-- Extended discoverability: `classification_schemes`, `subjects`, `work_subjects`, `content_advisories`, `audience_descriptors`, `descriptor_definitions`, `record_descriptors`, `text_content`.
+- Extended discoverability: `classification_schemes`, `subjects`, `work_subjects`, `content_advisories`, `audience_descriptors`, `descriptor_definitions`, `record_descriptors`.
 - Media/distribution: `media_variants`, `territories`, `distribution_rights`, `product_offers`, `availability_events`.
-- Ingestion/review/record lifecycle: `record_aliases`, `import_batches`, `import_errors`, `verification_reviews`, `record_revisions`, `merge_events`, `editorial_overrides`.
+- Ingestion/review/record lifecycle: `record_aliases`, `import_batches`, `import_errors`, `merge_events`, `editorial_overrides`.
 - Future external API: `api_clients`, `api_keys`, `api_usage_daily`, `api_access_policies`.
 
-**Important:** Publishing and draft workflows need a reliable revision/version field from the first migration; `record_revisions` and `verification_reviews` might need moving forward into the first release when transactional design is reviewed. Likewise `text_content` must be moved forward if long-form descriptions or summaries are editable on day one. This is a release-scope proposal, not permission to omit required tables.
+**Updated:** `record_revisions`, `verification_reviews` and `text_content` have been moved into the 28-table executable staging candidate. The remaining 31 tables are reserved for later phases. All draft/publish transitions still require server-side atomic revision and rights checks before enabling writes.
+
+**Executable migration files:** `catalogue-migrations/0001_catalogue_core.sql` (15 tables) and `catalogue-migrations/0002_catalogue_metadata_media.sql` (13 tables). A separate `npm run test:catalogue-schema` command validates these in an ephemeral SQLite database. **Do not apply these to production until the remaining policy and security review is completed.**
 
 ## D1-specific constraints
 
