@@ -1,4 +1,5 @@
 import {authConfigured,createAuth} from './auth.js';
+import {memberAPI} from './member-api.js';
 interface D1Statement {bind(...values:(string|number|null)[]):D1Statement;all<T>():Promise<{results:T[]}>;first<T>():Promise<T|null>;run():Promise<unknown>;}
 interface D1Database {prepare(query:string):D1Statement;}
 interface Env {DB?:D1Database; BETTER_AUTH_SECRET?:string;PUBLIC_ORIGIN?:string;MAIL_API_KEY?:string;MAIL_FROM?:string;}
@@ -23,6 +24,7 @@ export default {
        .bind(user.id,user.email.toLowerCase(),user.name,user.emailVerified?new Date().toISOString():null).run();
       return json({member:{id:user.id,displayName:user.name,verified:user.emailVerified}});
     }
+    if(url.pathname.startsWith('/api/member/'))return memberAPI(request,env);
     if(request.method!=='GET') return json({error:'Write operations require verified member permissions and are not yet enabled'},503);
     if(url.pathname==='/api/health')return json({ok:true,database:env.DB?'bound':'not_configured'});
     if(!env.DB)return missing();
