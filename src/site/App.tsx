@@ -1,3 +1,6 @@
+import {ThemeShell,RoomHome,RoomShelf} from './themes/ThemeShell';
+import type {ThemeId} from './themes/ThemeShell';
+import {apiGet,apiWrite} from './api';
 import {PublicBookPage} from './PublicBookPage';
 import {PublicReviewPage} from './PublicReviewPage';
 import {PeopleAndSeries} from './PeopleAndSeries';
@@ -96,12 +99,28 @@ export function App(){
   const [api,setApi]=useState<ApiData>({books:[],reviews:[]});
   const [backendStatus,setBackendStatus]=useState<'loading'|'ready'|'offline'>('loading');
   const [member,setMember]=useState<Member|null>(null);
+  const [theme,setTheme]=useState<ThemeId>('editorial');
+  const [themeError,setThemeError]=useState('');
+  const [themeReady,setThemeReady]=useState(false);
   useEffect(()=>{let cancelled=false;
     fetch('/api/me',{credentials:'include'}).then(r=>r.ok?r.json():null).then(v=>{
       if(!cancelled&&v?.member)setMember(v.member as Member);
     }).catch(()=>{});
     return()=>{cancelled=true;};
   },[]);
+  useEffect(()=>{let active=true;if(!member?.verified){setThemeReady(true);return()=>{active=false};}setThemeReady(false);
+    apiGet<{themeId:ThemeId}>('/api/member/theme').then(v=>{if(active)setTheme(v.themeId==='reading-room'?'reading-room':'editorial')})
+      .catch(()=>{if(active)setThemeError('Your saved theme could not be loaded. Editorial is shown by default.')})
+      .finally(()=>{if(active)setThemeReady(true)});
+    return()=>{active=false};
+  },[member?.id,member?.verified]);
+  async function changeTheme(next:ThemeId){
+    const prior=theme;setTheme(next);setThemeError('');
+    if(member?.verified){
+      try{await apiWrite('/api/member/theme','PUT',{themeId:next})}
+      catch(e){setTheme(prior);setThemeError(e instanceof Error?e.message:'Could not save your theme choice')}
+    }
+  }
   useEffect(()=>{const change=()=>setPath(locationPath());window.addEventListener('popstate',change);return()=>window.removeEventListener('popstate',change);},[]);
   useEffect(()=>{let cancelled=false;Promise.all([fetch('/api/books').then(r=>{if(!r.ok)throw Error('books');return r.json();}),fetch('/api/reviews').then(r=>{if(!r.ok)throw Error('reviews');return r.json();})]).then(([books,reviews])=>{if(!cancelled){setApi({books:books.items??[],reviews:reviews.items??[]});setBackendStatus('ready');}}).catch(()=>{if(!cancelled)setBackendStatus('offline');});return()=>{cancelled=true;};},[]);
   const navigate=(to:string)=>{history.pushState({},'',to);setPath(locationPath());window.scrollTo(0,0);};
@@ -109,7 +128,7 @@ export function App(){
   const query=useMemo(()=>new URLSearchParams(window.location.search),[path]);
   const args:ScreenProps={path,query,data:api,member,navigate};
   let body:ReactNode;
-  if(path==='/')body=<Home data={api} member={member}/>;
+  if(path==='/')body=theme==='reading-room'?<RoomHome member={member} books={api.books??[]} reviews={api.reviews??[]}/>:<Home data={api} member={member}/>;
   else if(path==='/books')body=<FilteredBooks data={api}/>;
   else if(path==='/reviews')body=<Reviews data={api}/>;
   else if(path==='/search')body=<Search data={api}/>;
@@ -119,8 +138,9 @@ export function App(){
   else if(['/authors','/narrators','/series'].includes(path)||path.startsWith('/person/')||path.startsWith('/series/'))body=<PeopleAndSeries path={path}/>;
   else if(second.includes(path)||path==='/community')body=<Discovery path={path} data={api}/>;
   else if(['/signin','/signup','/reset-password','/verify'].includes(path))body=<Login path={path}/>;
+  else if(theme==='reading-room'&&path==='/shelf'&&member?.verified)body=<RoomShelf member={member}/>;
   else if(personal.includes(path)||['/add-book','/journal','/onboarding','/admin','/write-review'].includes(path))body=<MemberPage path={path} member={member} data={api}/>;
   else if(['/about','/privacy','/terms'].includes(path))body=<About path={path}/>;
   else body=<NotFound/>;
-  return <><a className="skip-link" href="#main">Skip to content</a><Header member={member}/>{backendStatus==='offline'&&<div className="backend-alert" role="status">Live catalogue and review services are not connected. Content areas will remain empty rather than showing invented data.</div>}<main id="main" className={path==='/'?'home-main':'page-container'}>{body}</main><Footer/></>;
+  return <ThemeShell theme={theme} onThemeChange={changeTheme} member={member} path={path} isHome={path==='/'} error={themeError||(!themeReady?'Loading your saved appearance…':backendStatus==='offline'?'Live catalogue and review services are not connected. Content stays empty until verified records are available.':undefined)}>{body}</ThemeShell>;
 }
