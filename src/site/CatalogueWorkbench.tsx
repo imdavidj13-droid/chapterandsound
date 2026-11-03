@@ -27,7 +27,7 @@ export function CatalogueWorkbench(){
  const [authorName,setAuthorName]=useState('');
  const [format,setFormat]=useState('paperback'),[pageCount,setPageCount]=useState('');
  const [performance,setPerformance]=useState('unknown'),[abridgement,setAbridgement]=useState('unknown'),[durationHours,setDurationHours]=useState(''),[durationMinutes,setDurationMinutes]=useState('');
- const [activeForm,setActiveForm]=useState<RecordType|null>(null);
+ const [activeForm,setActiveForm]=useState<RecordType|null>('works');
  const [editingId,setEditingId]=useState(''),[editRevision,setEditRevision]=useState(0);
  const [editSynopsis,setEditSynopsis]=useState(''),[editCredits,setEditCredits]=useState<WorkDetails['credits']>([]);
  const [opening,setOpening]=useState(false);
@@ -109,11 +109,8 @@ export function CatalogueWorkbench(){
  if(ready===null)return <section className="cs-admin-form"><h2>Catalogue</h2><p role="status">Checking dedicated Cloudflare catalogue database…</p></section>;
  if(ready===false)return <section className="cs-admin-form"><h2>Catalogue database setup</h2><p>The catalogue editor will become available once the separate BOOK_DB migrations are installed.</p><p role="alert" className="cs-admin-error">{error}</p><p>No member database records have been changed.</p><button type="button" onClick={refresh}>Check again</button></section>;
  return <div className="cs-catalogue">
-  <div className="cs-admin-metrics">
-   {([{label:'Books',value:works.length},{label:'Contributors',value:people.length},{label:'Editions',value:editions.length},{label:'Recordings',value:recordings.length}]).map(x=><div key={x.label} className="cs-admin-metric"><span>{x.label} in first 100 results</span><strong>{x.value}</strong></div>)}
-  </div>
-  <div className="cs-admin-heading cs-catalogue-intro"><div><p className="cs-admin-eyebrow">LIBRARY MANAGEMENT</p><h2>Your book catalogue</h2><p>Create and edit books, editions and audiobooks in one catalogue. Advanced metadata tools are available below when needed.</p></div><button type="button" onClick={refresh} disabled={loading}>↻ Refresh catalogue</button></div>
-  <p className="cs-catalogue-intro-note">Books appear once, with formats and recordings attached to their existing catalogue record.</p>
+
+  <div className="cs-catalogue-primary-bar"><div><p className="cs-admin-eyebrow">BOOK CATALOGUE</p><h2>{editingId?'Edit existing book':activeForm==='works'?'Create a new book':'Your books'}</h2><p>One catalogue. Every edition, narrator and format belongs to its book.</p></div><div className="cs-catalogue-primary-actions"><button type="button" className={activeForm==='works'?'selected':''} onClick={()=>{setEditingId('');setActiveForm('works')}}>+ New book</button><button type="button" className={!editingId&&activeForm!=='works'?'selected':''} onClick={()=>{setActiveForm(null);setEditingId('')}}>Browse books</button><button type="button" onClick={refresh} disabled={loading}>Refresh</button></div></div>
   {error&&<p role="alert" className="cs-admin-error">{error}</p>}
   {notice&&<p role="status" className="cs-admin-success">{notice}</p>}
   {editingId&&tab==='works'&&<section className="cs-book-edit-workspace" aria-label="Edit catalogue book">
@@ -166,13 +163,12 @@ export function CatalogueWorkbench(){
     <a className="cs-book-edit-link" href={'/book/'+encodeURIComponent(editingId)}>Open public book page</a>
    </div></div>}
   </section>}
-  <div className="cs-admin-heading cs-catalogue-list-head" style={{marginTop:22}}><div><h3>Books in the catalogue</h3><p>Select a book to edit it, or create a new one with its first edition.</p></div>
-   <button className="primary" type="button" onClick={()=>{setEditingId('');setActiveForm(v=>v==='works'?null:'works')}}>{activeForm==='works'?'Close new book form':'+ Create a new book'}</button></div>
+  {activeForm!=='works'&&<div className="cs-admin-heading cs-catalogue-list-head" style={{marginTop:22}}><div><h3>Books in the catalogue</h3><p>Choose a book to edit its details and linked editions.</p></div><span>{works.length} loaded books</span></div>}
   {activeForm==='works'&&<CatalogueBookEditor authors={people} imageStorage={mediaReady}
      onCancel={()=>setActiveForm(null)} onEditExisting={(bookId)=>{setActiveForm(null);void openWork(bookId)}} onSaved={(bookId,message)=>{
       setActiveForm(null);setNotice(message+' Book ID: '+bookId);void load();
      }}/>}
-  <div className="cs-admin-data cs-admin-table-scroll">
+  {activeForm!=='works'&&<div className="cs-admin-data cs-admin-table-scroll">
    <table><thead><tr><th>Name or title</th><th>Status / detail</th><th>Record ID</th></tr></thead><tbody>
     {(tab==='works'?works.map(x=>({id:x.id,name:x.title,status:(x.status==='draft'?'Existing unfinished record':x.status==='published'?'Saved':x.status)+' · '+(x.authors||'Author not yet added')})):
      tab==='people'?people.map(x=>({id:x.id,name:x.name,status:x.status})):
@@ -181,13 +177,13 @@ export function CatalogueWorkbench(){
     ).map(x=><tr key={x.id}><td>{x.name}</td><td>{x.status}</td><td><code title={x.id}>{short(x.id)}</code>{tab==='works'&&<button type="button" disabled={opening||saving} onClick={()=>void openWork(x.id)} style={{marginLeft:8}}>Edit</button>}</td></tr>)}
    </tbody></table>
    {!loading&&(tab==='works'?works:tab==='people'?people:tab==='editions'?editions:recordings).length===0&&<p className="cs-admin-empty">No catalogue records yet.</p>}
-  </div>
-  <section className="cs-catalogue-advanced">
+  </div>}
+  {activeForm!=='works'&&<section className="cs-catalogue-advanced">
    <div><h3>Advanced catalogue tools</h3><p>Manage authors, additional editions, recording credits, genres, publishers, series and identifiers without creating a second catalogue.</p></div>
    <button type="button" aria-expanded={showAdvanced} onClick={()=>setShowAdvanced(v=>!v)}>{showAdvanced?'Hide advanced tools':'Open advanced tools'}</button>
-  </section>
-  {showAdvanced&&<CatalogueManualManager/>}
-  <section id="cs-catalogue-media" className="cs-admin-form" style={{marginTop:20}}>
+  </section>}
+  {activeForm!=='works'&&showAdvanced&&<CatalogueManualManager/>}
+  {activeForm!=='works'&&<section id="cs-catalogue-media" className="cs-admin-form" style={{marginTop:20}}>
    <h3>Book covers and contributor portraits</h3>
    {!mediaReady?<p>Cloudflare R2 is not connected yet. Images will be available here once the CATALOGUE_MEDIA bucket is created and bound. No files are stored in the browser.</p>:
    <form onSubmit={uploadMedia} className="cs-admin-form">
@@ -206,6 +202,6 @@ export function CatalogueWorkbench(){
     <label><input type="checkbox" checked={rightsConfirmed} onChange={e=>setRightsConfirmed(e.target.checked)}/> I confirm I have permission to display this image publicly on Chapter & Sound.</label>
     <button type="submit" className="primary" disabled={!mediaFile||!mediaId||!rightsConfirmed||uploading}>{uploading?'Uploading…':'Upload and link image'}</button>
    </form>}
-  </section>
+  </section>}
  </div>;
 }
