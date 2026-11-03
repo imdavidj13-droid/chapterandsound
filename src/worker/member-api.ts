@@ -39,6 +39,32 @@ export async function memberAPI(request:Request,env:MemberEnv):Promise<Response>
   await db.prepare('INSERT OR IGNORE INTO members(id,email_normalized,display_name,email_verified_at) VALUES(?,?,?,?)')
     .bind(userId,session.user.email.toLowerCase(),session.user.name,new Date().toISOString()).run();
   try {
+    if(path==='/api/member/favourites'){
+      if(method==='GET'){
+        const {results}=await db.prepare(`SELECT f.person_id AS id,p.display_name AS name,f.role
+        FROM favourite_people f JOIN people p ON p.id=f.person_id
+        WHERE f.member_id=? ORDER BY p.display_name LIMIT 300`).bind(userId).all();
+        return reply({items:results});
+      }
+      if(method==='POST'){
+        const v=await input(request);const id=asString(v.personId,80),role=asString(v.role,20);
+        if(!['author','narrator'].includes(role)||!id)return bad('Choose a valid person and role');
+        const table=role==='author'?'work_contributors':'edition_contributors';
+        const found=await db.prepare('SELECT person_id FROM '+table+' WHERE person_id=? AND role=? LIMIT 1')
+          .bind(id,role).first();
+        if(!found)return bad('This identity is not confirmed for that role',404);
+        await db.prepare('INSERT OR IGNORE INTO favourite_people(member_id,person_id,role) VALUES(?,?,?)')
+          .bind(userId,id,role).run();
+        return reply({saved:true});
+      }
+    }
+    if(path.startsWith('/api/member/favourites/')&&method==='DELETE'){
+      const [, , ,role,id]=path.split('/');
+      if(!['author','narrator'].includes(role??'')||!id)return bad('Invalid selection');
+      await db.prepare('DELETE FROM favourite_people WHERE member_id=? AND person_id=? AND role=?')
+        .bind(userId,id,role!).run();
+      return reply({removed:true});
+    }
     if(path==='/api/member/preferences'){
       if(method==='GET'){
         const row=await db.prepare('SELECT format_json,genre_json,mood_json,onboarding_step,onboarding_completed_at FROM preferences WHERE member_id=?').bind(userId).first();
