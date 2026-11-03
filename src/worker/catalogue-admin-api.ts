@@ -251,9 +251,27 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
    // A single author field: resolve canonical BOOK_DB identities first, then
    // existing website identities, and create only when no exact name exists.
    const requestedAuthorName=str(body.authorName,500);
+   const requestedAuthorId=str(body.authorId,100);
    let selectedAuthorId='',authorName='';
    const statements:Statement[]=[];
-   if(requestedAuthorName){
+   if(requestedAuthorId){
+    if(!safeId(requestedAuthorId))return fail('Invalid author identity');
+    const selected=await db.prepare("SELECT id,preferred_name AS name FROM people WHERE id=? AND identity_status NOT IN ('merged','suppressed')")
+     .bind(requestedAuthorId).first<{id:string;name:string}>();
+    if(selected){selectedAuthorId=selected.id;authorName=selected.name;}
+    else{
+     const legacy=await env.DB.prepare("SELECT id,display_name AS name,biography AS bio FROM people WHERE id=?")
+      .bind(requestedAuthorId).first<{id:string;name:string;bio:string|null}>();
+     if(!legacy)return fail('Selected author no longer exists. Search again.',409);
+     const conflict=await db.prepare("SELECT id FROM people WHERE lower(trim(preferred_name))=lower(?) AND identity_status NOT IN ('merged','suppressed') LIMIT 1")
+      .bind(legacy.name).first<{id:string}>();
+     if(conflict)return fail('This author also exists in the catalogue. Select its existing catalogue identity.',409);
+     selectedAuthorId=legacy.id;authorName=legacy.name;
+     statements.push(db.prepare('INSERT INTO people(id,preferred_name,bio) VALUES(?,?,?)').bind(legacy.id,legacy.name,legacy.bio||null));
+    }
+    if(requestedAuthorName&&requestedAuthorName.toLocaleLowerCase()!==authorName.toLocaleLowerCase())
+     return fail('Selected author and submitted name do not match. Search again.',409);
+   }else if(requestedAuthorName){
     const {results:canonical}=await db.prepare(`SELECT id,preferred_name AS name FROM people
       WHERE lower(trim(preferred_name))=lower(?) AND identity_status NOT IN ('merged','suppressed') LIMIT 3`)
       .bind(requestedAuthorName).all<{id:string;name:string}>();
@@ -351,7 +369,16 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
       .bind(recordingId,id,editionLanguage,performance,abridgement,duration===null?null:duration*60));
      statements.push(db.prepare("INSERT INTO edition_recordings(edition_id,recording_id,primary_recording) VALUES(?,?,1)").bind(newEditionId,recordingId));
      const narratorName=str(audio.narratorName,500);
-     if(narratorName){
+     const narratorId=str(audio.narratorId,100);
+     if(narratorId){
+      if(!safeId(narratorId))return fail('Invalid narrator identity');
+      const selected=await db.prepare("SELECT id,preferred_name AS name FROM people WHERE id=? AND identity_status NOT IN ('merged','suppressed')")
+       .bind(narratorId).first<{id:string;name:string}>();
+      if(!selected)return fail('Selected narrator is unavailable. Choose an existing catalogue contributor.',409);
+      if(narratorName&&selected.name.toLocaleLowerCase()!==narratorName.toLocaleLowerCase())
+       return fail('Selected narrator and submitted name do not match. Search again.',409);
+      statements.push(db.prepare("INSERT INTO contributions(id,person_id,recording_id,role_code) VALUES(?,?,?,'narrator')").bind(uuid(),selected.id,recordingId));
+     }else if(narratorName){
       let narrator=await db.prepare("SELECT id FROM people WHERE lower(trim(preferred_name))=lower(?) AND identity_status NOT IN ('merged','suppressed') LIMIT 1")
        .bind(narratorName).first<{id:string}>();
       if(!narrator&&narratorName.toLocaleLowerCase()===authorName.toLocaleLowerCase()&&selectedAuthorId)narrator={id:selectedAuthorId};
