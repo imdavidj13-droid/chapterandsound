@@ -101,3 +101,18 @@
 @media(max-width:1100px){.public-book-hero{grid-template-columns:165px minmax(0,1fr);gap:30px}.public-book-hero aside{grid-column:2}.edition-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.public-book-hero{grid-template-columns:110px minmax(0,1fr);gap:18px}.public-book-hero aside{grid-column:1/-1}.public-book-copy h1{font-size:2rem}.public-book-copy .button{width:100%}.edition-grid{grid-template-columns:1fr}.book-section{margin:40px 0}.book-tabs{margin-top:40px}.book-tabs button{padding:10px 8px}}
 @media(max-width:410px){.public-book-hero{grid-template-columns:1fr}.book-detail-cover{max-width:150px}.public-book-hero aside{grid-column:1}.book-tabs button{font-size:.73rem}}
+
+
+/* Add a book: mandatory three-step selection, responsive cards, persistent status */
+.add-flow-steps{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;align-items:center;margin:18px 0 36px}
+.add-flow-steps span{font-size:.82rem;color:var(--muted);border-bottom:2px solid var(--border);padding:10px 18px}
+.add-flow-steps span.active{border-color:var(--red);color:var(--red);font-weight:700}
+.add-flow .wizard{max-width:950px;margin:auto}
+.add-flow .panel{display:grid;gap:18px}
+.add-flow .panel>p{margin:0}
+.add-edition-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.add-edition-option{display:flex;align-items:center;gap:12px;padding:16px;border:1px solid var(--border);border-radius:8px;background:#fffdf9;cursor:pointer}
+.add-edition-option input{min-width:18px;width:18px;height:18px;accent-color:var(--red)}
+.add-edition-option:has(input:checked){border-color:var(--red);background:#f9f3f1}
+.theme-reading-room .add-edition-option:has(input:checked){background:#e9f0e4}
+@media(max-width:760px){.add-edition-list{grid-template-columns:1fr}.add-flow-steps span{padding:9px 10px}}
