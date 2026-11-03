@@ -134,3 +134,47 @@
 .theme-reading-room .auth-panel{border-radius:16px}
 @media(max-width:860px){.auth-experience{grid-template-columns:1fr;gap:18px;margin:15px auto 30px}.auth-description h1{font-size:2.6rem}.auth-promise-grid{margin:20px 0}.theme-reading-room .auth-description{padding:24px}}
 @media(max-width:460px){.auth-promise-grid{grid-template-columns:1fr}.auth-promise-grid>div{display:flex;gap:15px;align-items:center;padding:9px 0}.auth-promise-grid strong{font-size:1.2rem}.auth-description h1{font-size:2.35rem}}
+
+
+/* Reading Room book details: sidebar-based two-column composition, independent from Editorial tabs */
+.room-breadcrumb{display:flex;align-items:center;gap:12px;margin:0 0 25px;color:#728378;font-size:.79rem}
+.room-breadcrumb a{color:#355b42;text-decoration:underline;text-underline-offset:3px}
+.room-book-banner{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:25px;background:linear-gradient(110deg,#f8fbf5,#dfeade);border:1px solid #d2dfd0;border-radius:17px;padding:clamp(20px,3vw,36px);margin-bottom:20px}
+.room-book-identity{display:flex;gap:26px;align-items:center;min-width:0}
+.room-book-placeholder{flex:0 0 145px;aspect-ratio:2/3;display:grid;place-items:center;background:linear-gradient(145deg,#476953,#183729);box-shadow:4px 9px 16px #10241528;color:#ecf1df;text-align:center;border-radius:4px}
+.room-book-placeholder span{font:1.4rem/1.25 Georgia,serif}
+.room-book-identity h1{font-size:clamp(2.1rem,3.4vw,3.6rem);color:#173525;margin:0 0 12px}
+.room-book-identity h2{font:1.25rem Georgia,serif;color:#576c5b;margin-bottom:12px}
+.room-book-identity .eyebrow{color:#42664b}
+.room-book-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:25px;align-items:center}
+.room-book-actions .room-primary-link{margin:0}
+.room-outline-link{border:1px solid #a9c0ac;border-radius:9px;background:transparent;color:#31533b;padding:10px 13px;font-size:.85rem;display:inline-block}
+.room-book-score{border-radius:13px;background:#fffefa;padding:22px;border:1px solid #dbe5d9;align-self:stretch;display:flex;flex-direction:column;justify-content:center}
+.room-book-score strong{font:1.9rem Georgia,serif;color:#2e5b3d}
+.room-book-score p{margin:5px 0;font-size:.8rem}
+.room-book-sections{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,340px);gap:20px}
+.room-book-main,.room-book-side{display:grid;align-content:start;gap:20px;min-width:0}
+.room-book-panel{background:#fffefa;border:1px solid #dce5d9;border-radius:15px;padding:clamp(20px,2vw,30px)}
+.room-book-panel h2{font:1.8rem Georgia,serif;margin-bottom:18px}
+.room-book-panel>p{line-height:1.85}
+.room-book-panel .room-section-heading h2{margin:0}
+.room-book-reviews{display:grid;gap:13px}
+.room-book-review{border-top:1px solid #e0e7db;padding:20px 0 8px}
+.room-book-review>div{display:flex;justify-content:space-between;gap:12px}
+.room-book-review h3{font-size:1.25rem;margin:8px 0}
+.room-book-review p{line-height:1.6}
+.room-book-review .room-inline-cta{display:block;margin-top:15px}
+.room-book-format{display:grid;gap:7px;font-size:.78rem;color:#536c57;margin:0 0 17px}
+.room-book-format select{width:100%;min-height:44px;border:1px solid #cbdbcc;border-radius:8px;background:#fff;padding:8px;color:#223c2b}
+.room-edition-list{display:grid;gap:10px}
+.room-edition-row{background:#f5f8f3;border:1px solid #e0e9db;border-radius:10px;padding:16px}
+.room-edition-row p{margin:7px 0;font-size:.83rem;line-height:1.55;color:#667568}
+.room-edition-row a{color:#2a5839;text-decoration:underline}
+.room-edition-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.room-edition-head span{font-size:.71rem;color:#738477}
+.room-book-empty{padding:24px;border:1px dashed #c6d5c4;border-radius:12px;font-size:.9rem}
+.room-book-invite{background:#e4eddf}
+.room-book-invite .room-primary-link{margin:10px 0 0}
+@media(max-width:1100px){.room-book-banner{grid-template-columns:1fr}.room-book-score{max-width:100%}.room-book-sections{grid-template-columns:minmax(0,1fr) 280px}}
+@media(max-width:760px){.room-book-sections{grid-template-columns:1fr}.room-book-identity{align-items:flex-start}.room-book-placeholder{flex-basis:100px}.room-book-identity h1{font-size:2rem}.room-book-panel{padding:20px}}
+@media(max-width:430px){.room-book-identity{flex-direction:column}.room-book-placeholder{width:100px}.room-book-banner{padding:19px}}
