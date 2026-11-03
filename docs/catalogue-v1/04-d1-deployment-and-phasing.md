@@ -1,6 +1,6 @@
-# Catalogue v0.2 — Concrete database identity and initial release scope
+# Catalogue v0.3 — Complete 59-table catalogue migration plan
 
-**Status:** Approved database target, **proposed structure pending v1.0 freeze**. This document is a deployment plan, not a migration script.
+**Status:** Complete 59-table SQL schema prepared in five additive migrations. The user reports that migrations 0001 and 0002 were already applied to the dedicated production D1. **Migrations 0003–0005 are pending remote application and validation.**
 **Date:** 2026-11-03.
 **User-created Cloudflare D1:** `chapterandsounds-book-db`.
 **Database UUID:** `11535995-4a05-4770-9268-32f89d0b29bf`.
@@ -30,7 +30,7 @@ The 59 names in [01-table-registry.md](01-table-registry.md) form the canonical 
 
 Purpose: create a work, contributor, edition, audiobook recording, identifiers, cover and auditable source data. No blanket requirement to populate optional metadata, no fictional seed books.
 
-### Later schema modules, still reserved in the 59-table design
+### Extension modules (31 additional tables, now implemented as SQL migrations)
 
 - Relationships and technical detail: `work_relationships`, `work_languages`, `edition_details`, `edition_relationships`, `edition_languages`, `audio_tracks`, `audio_recording_details`, `organisation_names`, `publisher_imprints`, `series_relationships`.
 - Extended discoverability: `classification_schemes`, `subjects`, `work_subjects`, `content_advisories`, `audience_descriptors`, `descriptor_definitions`, `record_descriptors`.
@@ -38,9 +38,9 @@ Purpose: create a work, contributor, edition, audiobook recording, identifiers, 
 - Ingestion/review/record lifecycle: `record_aliases`, `import_batches`, `import_errors`, `merge_events`, `editorial_overrides`.
 - Future external API: `api_clients`, `api_keys`, `api_usage_daily`, `api_access_policies`.
 
-**Updated:** `record_revisions`, `verification_reviews` and `text_content` have been moved into the 28-table executable staging candidate. The remaining 31 tables are reserved for later phases. All draft/publish transitions still require server-side atomic revision and rights checks before enabling writes.
+**Updated:** `record_revisions`, `verification_reviews` and `text_content` have been moved into the 28-table executable staging candidate. The remaining 31 tables are now defined in new additive migrations; their corresponding features remain for later application development. All draft/publish transitions still require server-side atomic revision and rights checks before enabling writes.
 
-**Executable migration files:** `catalogue-migrations/0001_catalogue_core.sql` (15 tables) and `catalogue-migrations/0002_catalogue_metadata_media.sql` (13 tables). A separate `npm run test:catalogue-schema` command validates these in an ephemeral SQLite database. **Do not apply these to production until the remaining policy and security review is completed.**
+**Migration sequence:** `0001_catalogue_core.sql` (15 tables), `0002_catalogue_metadata_media.sql` (13 tables), `0003_catalogue_relationships.sql` (10 tables), `0004_catalogue_discovery_distribution.sql` (12 tables), `0005_catalogue_import_api.sql` (9 tables). `npm run test:catalogue-schema` validates all five in isolated SQLite, asserting 28 tables after the first two and exactly 59 after the final migration. These additional tables do **not** activate public API access or import jobs.
 
 ## D1-specific constraints
 
@@ -75,13 +75,13 @@ Purpose: create a work, contributor, edition, audiobook recording, identifiers, 
 
 If using a separate Worker configuration instead, only bind `BOOK_DB` to that dedicated service and communicate via authenticated service bindings. This is preferred for the future external API and stronger isolation.
 
-## Before running the first migration
+## Before applying extension migrations 0003–0005
 
-1. Approve v1.0 table/column list, including the foundational revision and source/licensing tables.
-2. Confirm migration directory, Worker isolation, backup/restore and dedicated **staging catalogue DB** (not the production UUID above).
-3. Generate executable SQL from the schema specification; run in disposable SQLite with FK, CHECK, duplicate and right-to-delete tests.
-4. Verify manual edit → edition/recording → media link → public read end-to-end with no dummy live content.
-5. Apply staged migrations to staging, measure real indexes/storage, and inspect schema by SQL introspection.
-6. With explicit go-ahead, back up the production DB, apply only the validated catalogue migrations to `BOOK_DB`, and wire up read-only routes before enabling writes.
+1. Check `git pull origin main` and run `npm run test:catalogue-schema` locally; CI must pass.
+2. Run `npx wrangler d1 migrations list BOOK_DB --remote` and verify **only** 0003, 0004 and 0005 are pending (if 0001/0002 unexpectedly pending, stop and investigate rather than assuming their presence).
+3. Create a D1 backup/snapshot using the Cloudflare dashboard or a supported export workflow before production modifications.
+4. Run `npx wrangler d1 migrations apply BOOK_DB --remote` once, confirming the target `chapterandsounds-book-db` with UUID `11535995-4a05-4770-9268-32f89d0b29bf`. Do not touch `DB`.
+5. Verify `npx wrangler d1 migrations list BOOK_DB --remote` reports no pending migrations and `npx wrangler d1 execute BOOK_DB --remote --command "SELECT COUNT(*) AS table_count FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name <> 'd1_migrations';"` returns 59. Cloudflare-managed migration/internal tables must be excluded from the count.
+6. Do not rerun the old application migrations. Recheck the admin workbench; its existing functionality should continue to work unchanged.
 
-**Current operational status:** new database created by user; catalogue tables, R2 integration and bindings have not been installed as part of this planning step.
+**Operational boundary:** user reports original 28 tables deployed to BOOK_DB. The additional 31 tables are committed as pending migrations, but their remote application is not verified here. The existing application `DB` is untouched by this extension work. No R2 integration, bulk catalogue import or external API endpoint is enabled.
