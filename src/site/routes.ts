@@ -1,0 +1,33 @@
+export type Route = {path:string;label:string;group:'primary'|'discover'|'member'|'community'|'admin'|'support';auth?:boolean};
+export const routes:Route[] = [
+{path:'/',label:'Home',group:'primary'},
+{path:'/reviews',label:'Community reviews',group:'primary'},
+{path:'/books',label:'Books',group:'primary'},
+{path:'/community',label:'Community',group:'primary'},
+{path:'/lists',label:'Lists',group:'primary'},
+{path:'/search',label:'Search',group:'discover'},
+{path:'/authors',label:'Authors',group:'discover'},
+{path:'/narrators',label:'Narrators',group:'discover'},
+{path:'/series',label:'Series',group:'discover'},
+{path:'/recommendations',label:'Recommendations',group:'community'},
+{path:'/discussions',label:'Discussions',group:'community'},
+{path:'/clubs',label:'Book clubs',group:'community'},
+{path:'/challenges',label:'Challenges',group:'community'},
+{path:'/shelf',label:'My bookshelf',group:'member',auth:true},
+{path:'/reading-year',label:'My reading year',group:'member',auth:true},
+{path:'/my-reviews',label:'My reviews',group:'member',auth:true},
+{path:'/preferences',label:'Reading preferences',group:'member',auth:true},
+{path:'/account',label:'My account',group:'member',auth:true},
+{path:'/add-book',label:'Add a book',group:'member',auth:true},
+{path:'/journal',label:'Reading journal',group:'member',auth:true},
+{path:'/admin',label:'Admin console',group:'admin',auth:true},
+{path:'/about',label:'About & rating guide',group:'support'},
+{path:'/privacy',label:'Privacy',group:'support'},
+{path:'/terms',label:'Terms',group:'support'},
+{path:'/signin',label:'Sign in',group:'support'},
+{path:'/signup',label:'Create account',group:'support'},
+{path:'/verify',label:'Verify email',group:'support'},
+{path:'/reset-password',label:'Reset password',group:'support'},
+{path:'/onboarding',label:'Make it yours',group:'support',auth:true}
+];
+export function locationPath(){return window.location.pathname.replace(/\/$/,'')||'/';}
