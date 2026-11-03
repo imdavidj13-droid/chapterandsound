@@ -29,7 +29,14 @@ export default {
       }
     }
     if(url.pathname==='/api/auth/verification-result'&&request.method==='GET'){
-      return verificationResultPage(request);
+      let verified=false;
+      if(authConfigured(env as Parameters<typeof authConfigured>[0])){
+        try{
+          const session=await createAuth(env as unknown as Parameters<typeof createAuth>[0]).api.getSession({headers:request.headers});
+          verified=session?.user.emailVerified===true;
+        }catch{verified=false;}
+      }
+      return verificationResultPage(request,verified);
     }
     if(isVerificationDocumentNavigation(request)){
       if(!authConfigured(env as Parameters<typeof authConfigured>[0]))return json({error:'Authentication unavailable'},503);
