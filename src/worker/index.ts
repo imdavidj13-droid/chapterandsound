@@ -32,6 +32,41 @@ export default {
     if(!env.DB)return missing();
     try{
       const limit=Math.min(Math.max(Number(url.searchParams.get('limit')??30)||30,1),60);
+      if(url.pathname==='/api/people'){
+        const q=(url.searchParams.get('q')??'').trim().slice(0,100);
+        const role=url.searchParams.get('role');
+        if(role&&!['author','narrator'].includes(role))return json({error:'Unknown contributor role'},400);
+        const {results}=await env.DB.prepare(`SELECT p.id,p.display_name AS name,p.biography,
+        CASE WHEN EXISTS(SELECT 1 FROM work_contributors wc WHERE wc.person_id=p.id AND wc.role='author') THEN 1 ELSE 0 END AS isAuthor,
+        CASE WHEN EXISTS(SELECT 1 FROM edition_contributors ec WHERE ec.person_id=p.id AND ec.role='narrator') THEN 1 ELSE 0 END AS isNarrator
+        FROM people p WHERE p.display_name LIKE ? ESCAPE '\\'
+        AND (? IS NULL OR (?='author' AND EXISTS(SELECT 1 FROM work_contributors wc WHERE wc.person_id=p.id AND wc.role='author'))
+        OR (?='narrator' AND EXISTS(SELECT 1 FROM edition_contributors ec WHERE ec.person_id=p.id AND ec.role='narrator')))
+        ORDER BY p.display_name LIMIT ?`)
+          .bind('%'+q.replace(/[\\%_]/g,'\\      if(url.pathname==='/api/books'){')+'%',role,role,role,limit).all();
+        return json({items:results});
+      }
+      if(url.pathname.startsWith('/api/person/')){
+        const id=decodeURIComponent(url.pathname.slice('/api/person/'.length));
+        const person=await env.DB.prepare('SELECT id,display_name AS name,biography FROM people WHERE id=?').bind(id).first();
+        if(!person)return json({error:'Person not found'},404);
+        const {results:works}=await env.DB.prepare(`SELECT w.id,w.title,'author' AS contribution
+         FROM works w JOIN work_contributors wc ON wc.work_id=w.id
+         WHERE wc.person_id=? AND wc.role='author' ORDER BY w.title`).bind(id).all();
+        const {results:recordings}=await env.DB.prepare(`SELECT e.id,e.format,w.id AS workId,w.title,'narrator' AS contribution
+         FROM editions e JOIN edition_contributors ec ON ec.edition_id=e.id
+         JOIN works w ON w.id=e.work_id WHERE ec.person_id=? AND ec.role='narrator' ORDER BY w.title`).bind(id).all();
+        return json({person,works,recordings});
+      }
+      if(url.pathname==='/api/editions'){
+        const workId=(url.searchParams.get('workId')??'').slice(0,80);
+        if(!workId)return json({error:'workId required'},400);
+        const {results}=await env.DB.prepare(`SELECT e.id,e.work_id AS workId,e.format,e.publisher,e.published_at AS publishedAt,
+           e.language,e.isbn13,e.asin,e.page_count AS pageCount,
+           e.duration_minutes AS durationMinutes,e.abridged,e.verification_state AS verificationState
+           FROM editions e WHERE e.work_id=? ORDER BY e.format,e.published_at`).bind(workId).all();
+        return json({items:results});
+      }
       if(url.pathname==='/api/books'){
         const search=(url.searchParams.get('q')??'').trim().slice(0,120);
         const {results}=search
