@@ -31,6 +31,7 @@ export function CatalogueWorkbench(){
  const [editingId,setEditingId]=useState(''),[editRevision,setEditRevision]=useState(0);
  const [editSynopsis,setEditSynopsis]=useState(''),[editCredits,setEditCredits]=useState<WorkDetails['credits']>([]);
  const [opening,setOpening]=useState(false);
+ const [showAdvanced,setShowAdvanced]=useState(false);
  const [editView,setEditView]=useState<'details'|'editions'|'images'|'preview'>('details');
  const [mediaReady,setMediaReady]=useState(false),[mediaKind,setMediaKind]=useState<'work'|'edition'|'person'>('edition');
  const [mediaId,setMediaId]=useState(''),[mediaFile,setMediaFile]=useState<File|null>(null);
@@ -111,10 +112,8 @@ export function CatalogueWorkbench(){
   <div className="cs-admin-metrics">
    {([{label:'Books',value:works.length},{label:'Contributors',value:people.length},{label:'Editions',value:editions.length},{label:'Recordings',value:recordings.length}]).map(x=><div key={x.label} className="cs-admin-metric"><span>{x.label} in first 100 results</span><strong>{x.value}</strong></div>)}
   </div>
-  <div className="cs-admin-heading" style={{marginTop:24}}><div><h2>Catalogue management</h2><p>Real records from the separate BOOK_DB database. Manual additions are saved directly to BOOK_DB. Records can be edited later and published catalogue entries are included in public search.</p></div><button type="button" onClick={refresh} disabled={loading}>Refresh database</button></div>
-  <div className="cs-admin-actions" role="tablist" aria-label="Book catalogue">
-   <strong>Books</strong> <span>Use the detailed catalogue management panel below for authors, editions, audiobooks and related information.</span>
-  </div>
+  <div className="cs-admin-heading cs-catalogue-intro"><div><p className="cs-admin-eyebrow">LIBRARY MANAGEMENT</p><h2>Your book catalogue</h2><p>Create and edit books, editions and audiobooks in one catalogue. Advanced metadata tools are available below when needed.</p></div><button type="button" onClick={refresh} disabled={loading}>↻ Refresh catalogue</button></div>
+  <p className="cs-catalogue-intro-note">Books appear once, with formats and recordings attached to their existing catalogue record.</p>
   {error&&<p role="alert" className="cs-admin-error">{error}</p>}
   {notice&&<p role="status" className="cs-admin-success">{notice}</p>}
   {editingId&&tab==='works'&&<section className="cs-book-edit-workspace" aria-label="Edit catalogue book">
@@ -167,9 +166,9 @@ export function CatalogueWorkbench(){
     <a className="cs-book-edit-link" href={'/book/'+encodeURIComponent(editingId)}>Open public book page</a>
    </div></div>}
   </section>}
-  <div className="cs-admin-heading" style={{marginTop:22}}><div><h3>{tab==='works'?'Books':tab==='people'?'Contributors':tab==='editions'?'Editions':'Audiobook recordings'}</h3></div>
-   <button className="primary" type="button" onClick={()=>setActiveForm(v=>v===tab?null:tab)}>{activeForm===tab?'Cancel':'+ Add book'}</button></div>
-  {activeForm===tab&&tab==='works'&&<CatalogueBookEditor authors={people} imageStorage={mediaReady}
+  <div className="cs-admin-heading cs-catalogue-list-head" style={{marginTop:22}}><div><h3>Books in the catalogue</h3><p>Select a book to edit it, or create a new one with its first edition.</p></div>
+   <button className="primary" type="button" onClick={()=>{setEditingId('');setActiveForm(v=>v==='works'?null:'works')}}>{activeForm==='works'?'Close new book form':'+ Create a new book'}</button></div>
+  {activeForm==='works'&&<CatalogueBookEditor authors={people} imageStorage={mediaReady}
      onCancel={()=>setActiveForm(null)} onEditExisting={(bookId)=>{setActiveForm(null);void openWork(bookId)}} onSaved={(bookId,message)=>{
       setActiveForm(null);setNotice(message+' Book ID: '+bookId);void load();
      }}/>}
@@ -183,7 +182,11 @@ export function CatalogueWorkbench(){
    </tbody></table>
    {!loading&&(tab==='works'?works:tab==='people'?people:tab==='editions'?editions:recordings).length===0&&<p className="cs-admin-empty">No catalogue records yet.</p>}
   </div>
-  <CatalogueManualManager/>
+  <section className="cs-catalogue-advanced">
+   <div><h3>Advanced catalogue tools</h3><p>Manage authors, additional editions, recording credits, genres, publishers, series and identifiers without creating a second catalogue.</p></div>
+   <button type="button" aria-expanded={showAdvanced} onClick={()=>setShowAdvanced(v=>!v)}>{showAdvanced?'Hide advanced tools':'Open advanced tools'}</button>
+  </section>
+  {showAdvanced&&<CatalogueManualManager/>}
   <section id="cs-catalogue-media" className="cs-admin-form" style={{marginTop:20}}>
    <h3>Book covers and contributor portraits</h3>
    {!mediaReady?<p>Cloudflare R2 is not connected yet. Images will be available here once the CATALOGUE_MEDIA bucket is created and bound. No files are stored in the browser.</p>:
