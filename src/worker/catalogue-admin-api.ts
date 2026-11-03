@@ -124,12 +124,11 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
      db.prepare("SELECT id,preferred_name AS name FROM people WHERE identity_status NOT IN ('merged','suppressed') AND (?='' OR instr(lower(preferred_name),lower(?))>0) ORDER BY preferred_name LIMIT ?").bind(q,q,l).all<{id:string;name:string}>(),
      env.DB.prepare("SELECT id,display_name AS name FROM people WHERE (?='' OR instr(lower(display_name),lower(?))>0) ORDER BY display_name LIMIT ?").bind(q,q,l).all<{id:string;name:string}>()
     ]);
+    // Do not merge distinct people simply because their display names match.
     const unique=new Map<string,{id:string;name:string}>();
-    for(const row of [...catalogue,...existing]){
-     const key=row.name.trim().toLocaleLowerCase('en-GB');
-     if(key&&!unique.has(key))unique.set(key,row);
-    }
-    const items=[...unique.values()].filter(v=>!name||v.name.toLocaleLowerCase('en-GB').includes(name)).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,l);
+    for(const row of [...catalogue,...existing])if(row.id&&!unique.has(row.id))unique.set(row.id,row);
+    const items=[...unique.values()].filter(v=>!name||v.name.toLocaleLowerCase('en-GB').includes(name))
+     .sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id)).slice(0,l);
     return json({items});
    }
    if(path==='legacy-people'){
