@@ -1,3 +1,4 @@
+import {bookDetailsAPI} from './book-details-api.js';
 import {moderationAPI} from './moderation-api.js';
 import {publicReviewAPI} from './public-review-api.js';
 import {authConfigured,createAuth} from './auth.js';
@@ -28,6 +29,7 @@ export default {
       return json({member:{id:user.id,displayName:user.name,verified:user.emailVerified}});
     }
     if(url.pathname.startsWith('/api/member/'))return memberAPI(request,env);
+    if(url.pathname.startsWith('/api/book/'))return bookDetailsAPI(request,env);
     if(url.pathname.startsWith('/api/moderation/'))return moderationAPI(request,env);
     if(url.pathname.startsWith('/api/public-reviews/'))return publicReviewAPI(request,env);
     if(['/api/discussions','/api/recommendations','/api/clubs','/api/challenges','/api/lists'].some(p=>url.pathname===p||url.pathname.startsWith(p+'/')))return communityAPI(request,env);
