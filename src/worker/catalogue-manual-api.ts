@@ -199,7 +199,7 @@ export async function manualCatalogueAPI(request:Request,db:ManualDB,actor:strin
   }
   case 'identifiers':{
    const schemeId=required(body.schemeId,100),entityKind=enumValue(body.entityKind,identifierKinds,'entity kind'),entityId=required(body.entityId,100);
-   if(!await exists(db,'identifier_schemes',schemeId)||!await exists(db,targetTable[entityKind],entityId))return reject('Select existing identifier scheme and target');
+   if(!await exists(db,'identifier_schemes',schemeId)||!await exists(db,targetTable[entityKind]!,entityId))return reject('Select existing identifier scheme and target');
    const scheme=await db.prepare('SELECT code,entity_scope AS scope,uniqueness_scope AS uniqueness FROM identifier_schemes WHERE id=?').bind(schemeId).first<{code:string;scope:string;uniqueness:string}>();
    if(scheme?.scope!=='multiple'&&scheme?.scope!==entityKind)return reject('Identifier scheme cannot be used for this target');
    const value=required(body.value,200),market=txt(body.market,12).toUpperCase(),issuer=txt(body.issuer,100);
@@ -268,7 +268,7 @@ export async function manualCatalogueAPI(request:Request,db:ManualDB,actor:strin
    const personId=required(body.personId,100),role=enumValue(body.role,relationKinds,'contributor role');
    const target=enumValue(body.target,new Set(['work','edition','recording']),'credit target');
    const targetId=required(body.targetId,100);
-   if(!await exists(db,'people',personId)||!await exists(db,targetTable[target],targetId))return reject('Select an existing person and target record');
+   if(!await exists(db,'people',personId)||!await exists(db,targetTable[target]!,targetId))return reject('Select an existing person and target record');
    if(['narrator','cast','audio_engineer'].includes(role)&&target!=='recording')return reject('Narrator and cast credits belong to a recording');
    const column=target==='work'?'work_id':target==='edition'?'edition_id':'recording_id';
    inserts=[db.prepare('INSERT INTO contributions(id,person_id,'+column+',role_code,credit_name,credit_order) VALUES(?,?,?,?,?,?)').bind(id,personId,targetId,role,txt(body.creditName)||null,positive(body.order,true)||0)];
