@@ -58,7 +58,7 @@ export default {
         AND (? IS NULL OR (?='author' AND EXISTS(SELECT 1 FROM work_contributors wc WHERE wc.person_id=p.id AND wc.role='author'))
         OR (?='narrator' AND EXISTS(SELECT 1 FROM edition_contributors ec WHERE ec.person_id=p.id AND ec.role='narrator')))
         ORDER BY p.display_name LIMIT ?`)
-          .bind('%'+q.replace(/[\\%_]/g,'\\.bind('%'+q.replace(/[\\%_]/g,'\\      if(url.pathname==='/api/books'){')+'%',role,role,role,limit).all();')+'%',role,role,role,limit).all();
+          .bind('%'+q.replace(/[\\%_]/g, '\\$&')+'%',role,role,role,limit).all();
         return json({items:results});
       }
       if(url.pathname.startsWith('/api/person/')){
