@@ -1,6 +1,6 @@
 # Dedicated Catalogue Architecture — Design Pack v0.2
 
-**Staging-candidate SQL written and tested — no production tables, Worker bindings, R2 resources or website code were changed.** The user has created an empty dedicated D1 target, `chapterandsound-book-db` (`961d5433-d7f8-4b8c-b84a-d9cad1a9a56a`). Its proposed binding is `BOOK_DB`.
+**Staging-candidate SQL written and tested — no production tables, Worker bindings, R2 resources or website code were changed.** The user has created an empty dedicated D1 target, `chapterandsounds-book-db` (`11535995-4a05-4770-9268-32f89d0b29bf`). Its proposed binding is `BOOK_DB`.
 
 This folder defines a standalone, API-capable book and audiobook catalogue for Chapter & Sound. It is a **review candidate**, not an executed database schema. Existing member data remains in `chapterandsound-db`.
 
