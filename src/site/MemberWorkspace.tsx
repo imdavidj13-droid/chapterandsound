@@ -124,7 +124,31 @@ function ReviewEditor({books}:{books:Book[]}){
   const [spoilers,setSpoilers]=useState(false);
   const [preview,setPreview]=useState(false);const [savedId,setSavedId]=useState(id);
   const [published,setPublished]=useState(false);const [error,setError]=useState('');const [busy,setBusy]=useState(false);
-  const book=books.find(b=>b.id===bookId);
+  const [searchTerm,setSearchTerm]=useState(''),[searchItems,setSearchItems]=useState<Book[]>([]);
+  const [selectedBook,setSelectedBook]=useState<Book|null>(null),[searching,setSearching]=useState(false);
+  const book=selectedBook?.id===bookId?selectedBook:searchItems.find(b=>b.id===bookId)||books.find(b=>b.id===bookId);
+  useEffect(()=>{
+    if(!searchTerm.trim()){setSearchItems([]);return}
+    const controller=new AbortController();let active=true;
+    const timer=setTimeout(async()=>{
+      setSearching(true);
+      try{
+        const response=await fetch('/api/books?q='+encodeURIComponent(searchTerm.trim())+'&limit=60',{credentials:'include',signal:controller.signal});
+        if(!response.ok)throw Error('Could not search the live catalogue');
+        const result=await response.json() as {items:Book[]};
+        if(active)setSearchItems(result.items||[]);
+      }catch(e){if(active&&!controller.signal.aborted)setError(e instanceof Error?e.message:'Book search unavailable')}
+      finally{if(active)setSearching(false)}
+    },250);
+    return()=>{active=false;controller.abort();clearTimeout(timer)}
+  },[searchTerm]);
+  useEffect(()=>{
+    if(!bookId||books.some(b=>b.id===bookId)||searchItems.some(b=>b.id===bookId))return;
+    let active=true;
+    apiGet<{book:Book}>('/api/book/'+encodeURIComponent(bookId)).then(data=>{if(active)setSelectedBook(data.book)})
+      .catch(e=>{if(active)setError(e instanceof Error?e.message:'Selected book unavailable')});
+    return()=>{active=false};
+  },[bookId,books,searchItems]);
   useEffect(()=>{if(!id)return;apiGet<{items:Review[]}>('/api/member/reviews').then(v=>{const r=v.items.find(x=>x.id===id);
     if(!r){setError('Draft not found');return;}setBookId(r.bookId);setTitle(r.title??'');setBody(r.body??'');setStoryRating(r.storyRating==null?'':String(r.storyRating));setNarrationRating(r.audioRating==null?'':String(r.audioRating));setSpoilers(Boolean(r.spoilers));}).catch(e=>setError(e instanceof Error?e.message:'Could not load draft'));},[id]);
   const record=()=>({bookId,title,body,storyRating:storyRating===''?null:Number(storyRating),
@@ -137,7 +161,12 @@ function ReviewEditor({books}:{books:Book[]}){
   const publish=async()=>{const key=await draft();if(!key)return;setBusy(true);try{await apiWrite('/api/member/reviews/'+key,'PATCH',{action:'publish'});setPublished(true);}catch(e){setError(e instanceof Error?e.message:'Publish failed');}finally{setBusy(false);}};
   if(published)return <div className="panel success-panel"><p className="eyebrow">Published</p><h1>Your review is now public</h1><p>It has been confirmed by the server and can be read by the community.</p><div className="actions"><a className="button" href={'/review/'+savedId}>View my review</a><a className="button secondary" href="/my-reviews">My Reviews</a></div></div>;
   return <><p className="eyebrow">Your thoughts · {preview?'Preview':'Private draft'}</p><h1>{preview?'Before you share':'Write a review'}</h1><p className="intro">A review belongs to you. Saving a draft never makes it public; publishing is a separate action.</p><ErrorText message={error}/>
-    {preview?<div className="panel review-preview"><p className="eyebrow">Not published · Preview</p><h2>{title||book?.title||'Untitled review'}</h2><p className="muted">Reviewing {book?.title??'an unselected book'}</p>{storyRating&&<p className="stars">★ Story {storyRating}/5</p>}{spoilers?<details><summary>Contains spoilers — reveal review text</summary><p className="article-body">{body}</p></details>:<p className="article-body">{body}</p>}<div className="actions"><button className="button secondary" onClick={()=>setPreview(false)}>Back to editing</button><button className="button" onClick={publish} disabled={busy}>{busy?'Working…':'Publish review'}</button></div></div>:<div className="wizard"><div className="panel"><label>Book<select value={bookId} onChange={e=>setBookId(e.target.value)}><option value="">Choose a book</option>{books.map(b=><option key={b.id} value={b.id}>{b.title}</option>)}</select></label><p className="small muted">Narration rating will be available after selecting a verified audiobook recording. No audio scores are assigned to print or ebook formats.</p></div><div className="panel"><label>Story rating (optional)<select value={storyRating} onChange={e=>setStoryRating(e.target.value)}><option value="">Not rated</option>{Array.from({length:11},(_,i)=>i*.5).map(n=><option key={n} value={n}>{n}/5</option>)}</select></label><label>Review title (optional)<input value={title} onChange={e=>setTitle(e.target.value)} placeholder="A few words to sum it up"/></label><label>Your public review (optional for rating-only)<textarea rows={10} value={body} onChange={e=>setBody(e.target.value)} placeholder="What did you think?"/></label><label className="choice"><input type="checkbox" checked={spoilers} onChange={e=>setSpoilers(e.target.checked)}/><span>This review contains spoilers</span></label></div><div className="actions"><button className="button secondary" disabled={busy} onClick={()=>{void draft();}}>Save private draft</button><button className="button" onClick={()=>setPreview(true)}>Preview review</button></div></div>}</>;
+    {preview?<div className="panel review-preview"><p className="eyebrow">Not published · Preview</p><h2>{title||book?.title||'Untitled review'}</h2><p className="muted">Reviewing {book?.title??'an unselected book'}</p>{storyRating&&<p className="stars">★ Story {storyRating}/5</p>}{spoilers?<details><summary>Contains spoilers — reveal review text</summary><p className="article-body">{body}</p></details>:<p className="article-body">{body}</p>}<div className="actions"><button className="button secondary" onClick={()=>setPreview(false)}>Back to editing</button><button className="button" onClick={publish} disabled={busy}>{busy?'Working…':'Publish review'}</button></div></div>:<div className="wizard"><div className="panel"><label>Find a book in the cloud catalogue<input type="search" value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} placeholder="Search by title or author"/></label>
+      {searching&&<p role="status" className="small muted">Searching D1 catalogue…</p>}
+      {book&&<p className="notice">Selected book: <strong>{book.title}</strong></p>}
+      {searchTerm.trim()&&<div className="selection-list" aria-label="Live book search results">{searchItems.length?searchItems.map(b=><button type="button" key={b.id} className={'candidate '+(bookId===b.id?'chosen':'')} onClick={()=>{setBookId(b.id);setSelectedBook(b);setSearchTerm('');setSearchItems([])}}>{b.title}{b.author?' — '+b.author:''}</button>):!searching&&<p className="muted small">No matching books in the current catalogue.</p>}</div>}
+      {!book&&<p className="muted small">Choose a book from search before saving a review.</p>}
+      <p className="small muted">Narration ratings require a verified audiobook edition. No audio scores are assigned to print or ebook formats.</p></div><div className="panel"><label>Story rating (optional)<select value={storyRating} onChange={e=>setStoryRating(e.target.value)}><option value="">Not rated</option>{Array.from({length:11},(_,i)=>i*.5).map(n=><option key={n} value={n}>{n}/5</option>)}</select></label><label>Review title (optional)<input value={title} onChange={e=>setTitle(e.target.value)} placeholder="A few words to sum it up"/></label><label>Your public review (optional for rating-only)<textarea rows={10} value={body} onChange={e=>setBody(e.target.value)} placeholder="What did you think?"/></label><label className="choice"><input type="checkbox" checked={spoilers} onChange={e=>setSpoilers(e.target.checked)}/><span>This review contains spoilers</span></label></div><div className="actions"><button className="button secondary" disabled={busy} onClick={()=>{void draft();}}>Save private draft</button><button className="button" onClick={()=>setPreview(true)}>Preview review</button></div></div>}</>;
 }
 function AccountPanel({member}:{member:Props['member']}){
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
