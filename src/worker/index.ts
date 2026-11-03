@@ -1,3 +1,4 @@
+import {publicCatalogueAPI} from './catalogue-public-api.js';
 import {catalogueAdminAPI} from './catalogue-admin-api.js';
 import {adminAPI} from './admin-api.js';
 import {isVerificationDocumentNavigation,verifyEmailDocument,verificationResultPage} from './email-verification-flow.js';
@@ -64,10 +65,16 @@ export default {
       return json({member:{id:user.id,displayName:handle?'@'+handle:user.name,handle,verified:user.emailVerified,role}});
     }
     if(url.pathname.startsWith('/api/member/'))return memberAPI(request,env);
-    if(url.pathname.startsWith('/api/book/'))return bookDetailsAPI(request,env);
+    if(url.pathname.startsWith('/api/book/')){
+      // Keep legacy record IDs (and therefore member reviews/shelves) authoritative.
+      const legacy=await bookDetailsAPI(request,env);
+      if(legacy.status!==404||!env.BOOK_DB)return legacy;
+      return publicCatalogueAPI(new Request(new URL('/api/catalogue-public/book/'+encodeURIComponent(decodeURIComponent(url.pathname.slice('/api/book/'.length))),url.origin),request),env.BOOK_DB);
+    }
     if(url.pathname.startsWith('/api/reader/'))return readerAPI(request,env);
     if(url.pathname.startsWith('/api/moderation/'))return moderationAPI(request,env);
     if(url.pathname.startsWith('/api/catalogue-admin/'))return catalogueAdminAPI(request,env);
+    if(url.pathname.startsWith('/api/catalogue-public/'))return publicCatalogueAPI(request,env.BOOK_DB);
     if(url.pathname.startsWith('/api/admin/'))return adminAPI(request,env);
     if(url.pathname.startsWith('/api/public-reviews/'))return publicReviewAPI(request,env);
     if(['/api/discussions','/api/recommendations','/api/clubs','/api/challenges','/api/lists'].some(p=>url.pathname===p||url.pathname.startsWith(p+'/')))return communityAPI(request,env);
@@ -103,11 +110,18 @@ export default {
         const {results}=await env.DB.prepare(`SELECT s.id,s.title,s.description,
         (SELECT count(*) FROM series_works sw WHERE sw.series_id=s.id) AS bookCount
         FROM series s ORDER BY s.title LIMIT ?`).bind(limit).all();
-        return json({items:results});
+        if(!env.BOOK_DB)return json({items:results});
+        const more=await publicCatalogueAPI(new Request(new URL('/api/catalogue-public/series',url.origin)),env.BOOK_DB);
+        if(!more.ok)return json({items:results});
+        const extra=await more.json() as {items:unknown[]};
+        const seen=new Set(results.map((x:{id:string})=>x.id));
+        return json({items:[...results,...extra.items.filter((x:unknown)=>!seen.has((x as {id:string}).id))].slice(0,limit)});
       }
       if(url.pathname.startsWith('/api/series/')){
         const id=decodeURIComponent(url.pathname.slice('/api/series/'.length));
         const series=await env.DB.prepare('SELECT id,title,description FROM series WHERE id=?').bind(id).first();
+        if(!series&&env.BOOK_DB)return publicCatalogueAPI(
+          new Request(new URL('/api/catalogue-public/series/'+encodeURIComponent(id),url.origin)),env.BOOK_DB);
         if(!series)return json({error:'Series not found'},404);
         const {results}=await env.DB.prepare(`SELECT w.id,w.title,sw.sequence_number AS sequenceNumber,sw.label
         FROM series_works sw JOIN works w ON w.id=sw.work_id
@@ -126,11 +140,23 @@ export default {
         OR (?='narrator' AND EXISTS(SELECT 1 FROM edition_contributors ec WHERE ec.person_id=p.id AND ec.role='narrator')))
         ORDER BY p.display_name LIMIT ?`)
           .bind('%'+q.replace(/[\\%_]/g, '\\$&')+'%',role,role,role,limit).all();
-        return json({items:results});
+        if(!env.BOOK_DB)return json({items:results});
+        const extraUrl=new URL('/api/catalogue-public/people',url.origin);
+        extraUrl.searchParams.set('q',q);if(role)extraUrl.searchParams.set('role',role);
+        extraUrl.searchParams.set('limit',String(limit));
+        const extraResponse=await publicCatalogueAPI(new Request(extraUrl),env.BOOK_DB);
+        if(!extraResponse.ok)return json({items:results});
+        const extra=await extraResponse.json() as {items:({id:string;name:string})[]};
+        // Do not hide distinct identities sharing a name: identical-name
+        // cross-database identities need explicit resolution during migration.
+        const ids=new Set(results.map((x:{id:string})=>x.id));
+        return json({items:[...results,...extra.items.filter(x=>!ids.has(x.id))].slice(0,limit)});
       }
       if(url.pathname.startsWith('/api/person/')){
         const id=decodeURIComponent(url.pathname.slice('/api/person/'.length));
         const person=await env.DB.prepare('SELECT id,display_name AS name,biography FROM people WHERE id=?').bind(id).first();
+        if(!person&&env.BOOK_DB)return publicCatalogueAPI(
+          new Request(new URL('/api/catalogue-public/person/'+encodeURIComponent(id),url.origin)),env.BOOK_DB);
         if(!person)return json({error:'Person not found'},404);
         const {results:works}=await env.DB.prepare(`SELECT w.id,w.title,'author' AS contribution
          FROM works w JOIN work_contributors wc ON wc.work_id=w.id
@@ -166,10 +192,19 @@ export default {
           .bind(search,search,search,format,format,limit,offset).all<{
             id:string;title:string;subtitle:string|null;summary:string|null;year:number|null;author:string|null;editionFormats:string|null
           }>();
-        return json({items:results.map(row=>({
+        const legacyItems=results.map(row=>({
           id:row.id,title:row.title,subtitle:row.subtitle,summary:row.summary,year:row.year,author:row.author,
           formats:row.editionFormats?row.editionFormats.split(','):[]
-        }))});
+        }));
+        if(!env.BOOK_DB)return json({items:legacyItems});
+        const newUrl=new URL('/api/catalogue-public/books',url.origin);
+        newUrl.searchParams.set('q',search);newUrl.searchParams.set('format',format);
+        newUrl.searchParams.set('limit',String(limit));
+        const newResponse=await publicCatalogueAPI(new Request(newUrl),env.BOOK_DB);
+        if(!newResponse.ok)return json({items:legacyItems});
+        const newBooks=await newResponse.json() as {items:{id:string}[]};
+        const legacyIds=new Set(legacyItems.map(x=>x.id));
+        return json({items:[...legacyItems,...newBooks.items.filter(x=>!legacyIds.has(x.id))].slice(0,limit)});
       }
       if(url.pathname==='/api/reviews'){
         const search=(url.searchParams.get('q')??'').trim().slice(0,120);
