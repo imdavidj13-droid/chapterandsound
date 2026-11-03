@@ -7,9 +7,9 @@ type Person={id:string;name:string};
 type Saved={id:string;editionId:string|null;recordingId:string|null;saved:boolean};
 type ExistingWork={id:string;title:string;authors?:string|null;status?:string};
 type Props={authors:Person[];imageStorage:boolean;onSaved:(id:string,notice:string)=>void;onCancel:()=>void;onEditExisting?:(id:string)=>void};
-function validIsbn13(raw:string){if(!raw)return true;const digits=raw.replace(/[ -]/g,'');if(!/^\\d{13}$/.test(digits))return false;return [...digits].reduce((total,d,index)=>total+Number(d)*(index%2?3:1),0)%10===0}
-function validIsbn10(raw:string){if(!raw)return true;const digits=raw.replace(/[ -]/g,'').toUpperCase();if(!/^\\d{9}[\\dX]$/.test(digits))return false;return [...digits].reduce((total,d,index)=>total+(10-index)*(d==='X'?10:Number(d)),0)%11===0}
-const normalize=(value:string)=>value.normalize('NFKC').toLocaleLowerCase().replace(/[^\\p{L}\\p{N}]+/gu,' ').trim();
+function validIsbn13(raw:string){if(!raw)return true;const digits=raw.replace(/[ -]/g,'');if(!/^\d{13}$/.test(digits))return false;return [...digits].reduce((total,d,index)=>total+Number(d)*(index%2?3:1),0)%10===0}
+function validIsbn10(raw:string){if(!raw)return true;const digits=raw.replace(/[ -]/g,'').toUpperCase();if(!/^\d{9}[\dX]$/.test(digits))return false;return [...digits].reduce((total,d,index)=>total+(10-index)*(d==='X'?10:Number(d)),0)%11===0}
+const normalize=(value:string)=>value.normalize('NFKC').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
 
 const workTypes=['book','short_story','collection','graphic_novel','comic','poetry','play','reference','other'];
 const formats=['paperback','hardback','ebook','audiobook','audio_cd','other_print','other_digital','unknown'];
@@ -109,7 +109,7 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
     <section className="cs-book-editor-section">
      <header><span className="cs-book-section-number">01</span><div><h3>Book details</h3><p>The shared information for every edition</p></div></header>
      <label>Book title <span>*</span><input required maxLength={500} autoFocus value={title} onChange={e=>setTitle(e.target.value)} placeholder="Enter the book title"/></label>
-     {possibleDuplicates.length>0&&<div className="cs-book-duplicate-warning" role="alert"><strong>Possible existing book</strong><p>Review these catalogue records first. Different editions should belong to the same book.</p>{possibleDuplicates.map(w=><div className="cs-book-duplicate-result" key={w.id}><span><strong>{w.title}</strong>{w.authors?' · '+w.authors:''}</span>{onEditExisting&&<button type="button" onClick={()=>onEditExisting(w.id)}>Open existing book</button>}</div>)}<label className="cs-book-editor-toggle"><input type="checkbox" checked={allowSameTitle} onChange={e=>setAllowSameTitle(e.target.checked)}/> I checked these records and this is genuinely a different book with the same title</label></div>}
+     {possibleDuplicates.length>0&&<div className="cs-book-duplicate-warning" role="alert"><strong>Possible existing book</strong><p>Matches among the first 100 catalogue records. Review before adding: different editions should belong to the same book.</p>{possibleDuplicates.map(w=><div className="cs-book-duplicate-result" key={w.id}><span><strong>{w.title}</strong>{w.authors?' · '+w.authors:''}</span>{onEditExisting&&<button type="button" onClick={()=>onEditExisting(w.id)}>Open existing book</button>}</div>)}<label className="cs-book-editor-toggle"><input type="checkbox" checked={allowSameTitle} onChange={e=>setAllowSameTitle(e.target.checked)}/> I checked these records and this is genuinely a different book with the same title</label></div>}
      {duplicateCheckError&&<p className="cs-admin-error" role="alert">{duplicateCheckError}</p>}
      <label>Author<input list="cas-author-suggestions" maxLength={500} value={author} onChange={e=>setAuthor(e.target.value)} placeholder="Search for or enter an author"/><datalist id="cas-author-suggestions">{suggestions.map(p=><option key={p} value={p}/>)}</datalist>
      <small>An existing author will be linked automatically. A new author is created when needed.</small></label>
