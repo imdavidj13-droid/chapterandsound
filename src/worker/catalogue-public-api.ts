@@ -45,7 +45,10 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
    CASE WHEN EXISTS(SELECT 1 FROM contributions c WHERE c.person_id=p.id AND c.role_code='narrator') THEN 1 ELSE 0 END AS isNarrator
    FROM people p WHERE p.identity_status NOT IN ('merged','suppressed')
    AND (?='' OR instr(lower(p.preferred_name),lower(?))>0)
-   AND (?='' OR (?='author' AND EXISTS(SELECT 1 FROM contributions c WHERE c.person_id=p.id AND c.role_code IN ('author','coauthor')))
+   AND (?='' OR (?='author' AND (
+      EXISTS(SELECT 1 FROM contributions c WHERE c.person_id=p.id AND c.role_code IN ('author','coauthor'))
+      OR NOT EXISTS(SELECT 1 FROM contributions c WHERE c.person_id=p.id AND c.role_code IN ('narrator','cast'))
+     ))
                   OR (?='narrator' AND EXISTS(SELECT 1 FROM contributions c WHERE c.person_id=p.id AND c.role_code='narrator')))
    ORDER BY p.preferred_name LIMIT ?`).bind(q,q,role,role,role,l).all();
   return json({items:results});
