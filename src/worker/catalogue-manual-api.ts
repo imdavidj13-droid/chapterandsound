@@ -156,6 +156,9 @@ export async function manualCatalogueAPI(request:Request,db:ManualDB,actor:strin
   switch(kind){
   case 'people':{
    const name=required(body.name),sort=txt(body.sortName)||null,bio=txt(body.bio,12000)||null;
+   const duplicates=await db.prepare("SELECT id FROM people WHERE lower(trim(preferred_name))=lower(?) AND identity_status NOT IN ('merged','suppressed') LIMIT 1")
+    .bind(name).first<{id:string}>();
+   if(duplicates)return reply({error:'This contributor already exists. Open their profile instead.',existingId:duplicates.id},409);
    const birth=date(body.birthDate),death=date(body.deathDate);
    inserts=[db.prepare('INSERT INTO people(id,preferred_name,sort_name,bio,birth_date,death_date) VALUES(?,?,?,?,?,?)').bind(id,name,sort,bio,birth,death)];
    info={name,sort,bio,birth,death};break;
