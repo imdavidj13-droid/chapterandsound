@@ -32,6 +32,21 @@ export default {
     if(!env.DB)return missing();
     try{
       const limit=Math.min(Math.max(Number(url.searchParams.get('limit')??30)||30,1),60);
+      if(url.pathname==='/api/series'){
+        const {results}=await env.DB.prepare(`SELECT s.id,s.title,s.description,
+        (SELECT count(*) FROM series_works sw WHERE sw.series_id=s.id) AS bookCount
+        FROM series s ORDER BY s.title LIMIT ?`).bind(limit).all();
+        return json({items:results});
+      }
+      if(url.pathname.startsWith('/api/series/')){
+        const id=decodeURIComponent(url.pathname.slice('/api/series/'.length));
+        const series=await env.DB.prepare('SELECT id,title,description FROM series WHERE id=?').bind(id).first();
+        if(!series)return json({error:'Series not found'},404);
+        const {results}=await env.DB.prepare(`SELECT w.id,w.title,sw.sequence_number AS sequenceNumber,sw.label
+        FROM series_works sw JOIN works w ON w.id=sw.work_id
+        WHERE sw.series_id=? ORDER BY sw.sequence_number,w.title`).bind(id).all();
+        return json({series,books:results});
+      }
       if(url.pathname==='/api/people'){
         const q=(url.searchParams.get('q')??'').trim().slice(0,100);
         const role=url.searchParams.get('role');
