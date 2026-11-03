@@ -1,8 +1,9 @@
+import {RoomReviewView} from './themes/RoomReviewView';
 import {useEffect,useState} from 'react';
 import type {FormEvent} from 'react';
 import {apiGet,apiWrite} from './api';
 
-interface Review {
+export interface Review {
  id:string;title:string|null;body:string|null;storyRating:number|null;audioRating:number|null;
  spoilers:number;publishedAt:string|null;bookId:string;editionId:string|null;
  bookTitle:string;format:string|null;authorId:string;authorHandle:string|null;
@@ -10,7 +11,7 @@ interface Review {
 }
 interface DetailResponse {item:Review;viewerHelpful:boolean}
 interface ActionResponse {helpful:boolean;helpfulCount:number}
-export function PublicReviewPage({id,verified}:{id:string;verified:boolean}){
+export function PublicReviewPage({id,verified,theme='editorial'}:{id:string;verified:boolean;theme?:'editorial'|'reading-room'}){
  const [review,setReview]=useState<Review|null>(null);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState('');
@@ -48,6 +49,7 @@ export function PublicReviewPage({id,verified}:{id:string;verified:boolean}){
  }
  if(loading)return <section className="reading-article"><p role="status">Loading review…</p></section>;
  if(!review)return <section className="reading-article"><h1>Review not available</h1><p role="alert">{error||'This review is not publicly accessible.'}</p><a className="inline-link" href="/reviews">Return to community reviews</a></section>;
+ if(theme==='reading-room')return <RoomReviewView review={review} verified={verified} revealed={revealed} setRevealed={setRevealed} helpful={helpful} toggleHelpful={toggleHelpful} reportOpen={reportOpen} setReportOpen={setReportOpen} submitted={submitted} reason={reason} setReason={setReason} report={report} busy={busy} error={error}/>;
  return <article className="reading-article public-review">
   <p className="eyebrow"><a href="/reviews">Community reviews</a> · {review.format??'Unspecified format'}</p>
   <h1>{review.title||review.bookTitle}</h1>
