@@ -276,9 +276,91 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
    statements.push(db.prepare("INSERT INTO works(id,canonical_title,work_type,original_language,first_publication_date,status) VALUES(?,?,?,?,?,'published')").bind(id,title,type,language,date));
    if(selectedAuthorId)statements.push(db.prepare("INSERT INTO contributions(id,person_id,work_id,role_code) VALUES(?,?,?,'author')").bind(uuid(),selectedAuthorId,id));
    if(synopsis)statements.push(db.prepare("INSERT INTO text_content(id,entity_kind,entity_id,content_type,body,visibility) VALUES(?,'work',?,'synopsis',?,'public')").bind(uuid(),id,synopsis));
+   // The first edition and its audiobook recording are created with the
+   // book in one atomic D1 batch. This is the standard manual-entry workflow.
+   const edition=fields(body.edition);
+   let newEditionId:string|null=null,recordingId:string|null=null;
+   if(edition){
+    const fmt=str(edition.format,40),editionLanguage=str(edition.language,40)||null;
+    const pages=edition.pageCount===null||edition.pageCount===undefined||edition.pageCount===''?null:Number(edition.pageCount);
+    const released=str(edition.releaseDate,10)||null;
+    if(!formats.has(fmt))return fail('Choose a valid first edition format');
+    if(!validLanguage(editionLanguage||''))return fail('Invalid edition language');
+    if(pages!==null&&(!Number.isInteger(pages)||pages<=0||pages>100000))return fail('Page count must be a positive whole number');
+    if(!validPartialDate(released||''))return fail('Invalid release date');
+    const publisherName=str(edition.publisherName,500);
+    let publisherId:string|null=null;
+    if(publisherName){
+     const {results:publishers}=await db.prepare("SELECT o.id FROM organisations o JOIN publishers p ON p.organisation_id=o.id WHERE lower(trim(o.name))=lower(?) LIMIT 3")
+      .bind(publisherName).all<{id:string}>();
+     if(publishers.length>1)return fail('Publisher name is ambiguous; use the existing publisher editor first',409);
+     if(publishers.length===1)publisherId=publishers[0]!.id;
+     else{
+      publisherId=uuid();
+      statements.push(db.prepare("INSERT INTO organisations(id,name,organisation_type) VALUES(? ,?,'publisher')").bind(publisherId,publisherName));
+      statements.push(db.prepare("INSERT INTO publishers(organisation_id) VALUES(?)").bind(publisherId));
+     }
+    }
+    newEditionId=uuid();
+    statements.push(db.prepare("INSERT INTO editions(id,work_id,format,language,page_count,publication_status,verification_status) VALUES(?,?,?,?,?,'published','published')")
+      .bind(newEditionId,id,fmt,editionLanguage,pages));
+    const identifiers=[['ISBN13',str(edition.isbn13,40)],['ISBN10',str(edition.isbn10,40)],['ASIN',str(edition.asin,40)]] as const;
+    for(const [schemeCode,raw] of identifiers){
+     if(!raw)continue;
+     const normalized=raw.replace(/[\\s-]/g,'').toUpperCase();
+     if(schemeCode==='ISBN13'&&(!/^(978|979)\\d{10}$/.test(normalized)||([...normalized].slice(0,12).reduce((sum,char,index)=>sum+Number(char)*(index%2?3:1),0)+Number(normalized[12]))%10!==0))
+      return fail('Enter a valid ISBN-13 with its correct checksum');
+     if(schemeCode==='ISBN10'&&(!/^\\d{9}[\\dX]$/.test(normalized)||[...normalized].reduce((sum,char,index)=>sum+(char==='X'?10:Number(char))*(10-index),0)%11!==0))
+      return fail('Enter a valid ISBN-10 with its correct checksum');
+     if(schemeCode==='ASIN'&&!/^[A-Z0-9]{10}$/.test(normalized))return fail('ASIN must contain exactly 10 letters or numbers');
+     const duplicate=await db.prepare("SELECT id FROM entity_identifiers WHERE normalized_value=? AND scheme_id IN (SELECT id FROM identifier_schemes WHERE code=?) LIMIT 1")
+      .bind(normalized,schemeCode).first<{id:string}>();
+     if(duplicate)return json({error:schemeCode+' is already assigned to a catalogue edition. Open the existing record instead.',existingId:duplicate.id},409);
+     let scheme=await db.prepare('SELECT id FROM identifier_schemes WHERE code=?').bind(schemeCode).first<{id:string}>();
+     if(!scheme){
+      scheme={id:uuid()};
+      statements.push(db.prepare("INSERT INTO identifier_schemes(id,code,entity_scope,uniqueness_scope) VALUES(? ,?,'edition','global')").bind(scheme.id,schemeCode));
+     }
+     statements.push(db.prepare("INSERT INTO entity_identifiers(id,scheme_id,entity_kind,entity_id,value,normalized_value) VALUES(?,?,'edition',?, ?,?)")
+       .bind(uuid(),scheme.id,newEditionId,raw,normalized));
+    }
+    if(released||publisherId)statements.push(db.prepare("INSERT INTO publication_events(id,edition_id,event_type,date_value,publisher_id) VALUES(? ,?,'released',?,?)")
+      .bind(uuid(),newEditionId,released,publisherId));
+    if(fmt==='audiobook'||fmt==='audio_cd'){
+     const audio=fields(edition.audio)||{};
+     const performance=str(audio.performance,40)||'unknown',abridgement=str(audio.abridgement,40)||'unknown';
+     const duration=audio.durationMinutes===null||audio.durationMinutes===undefined||audio.durationMinutes===''?null:Number(audio.durationMinutes);
+     if(!performances.has(performance)||!abridgements.has(abridgement))return fail('Invalid audiobook performance or abridgement');
+     if(duration!==null&&(!Number.isInteger(duration)||duration<=0||duration>1000000))return fail('Audiobook duration must be a positive whole number of minutes');
+     recordingId=uuid();
+     statements.push(db.prepare("INSERT INTO audio_recordings(id,work_id,language,performance_type,abridgement,duration_seconds,verification_status) VALUES(?,?,?,?,?,?,'published')")
+      .bind(recordingId,id,editionLanguage,performance,abridgement,duration===null?null:duration*60));
+     statements.push(db.prepare("INSERT INTO edition_recordings(edition_id,recording_id,primary_recording) VALUES(?,?,1)").bind(newEditionId,recordingId));
+     const narratorName=str(audio.narratorName,500);
+     if(narratorName){
+      let narrator=await db.prepare("SELECT id FROM people WHERE lower(trim(preferred_name))=lower(?) AND identity_status NOT IN ('merged','suppressed') LIMIT 1")
+       .bind(narratorName).first<{id:string}>();
+      if(!narrator&&narratorName.toLocaleLowerCase()===authorName.toLocaleLowerCase()&&selectedAuthorId)narrator={id:selectedAuthorId};
+      if(!narrator){
+       const {results:oldNarrators}=await env.DB.prepare("SELECT id,display_name AS name,biography AS bio FROM people WHERE lower(trim(display_name))=lower(?) LIMIT 2")
+        .bind(narratorName).all<{id:string;name:string;bio:string|null}>();
+       if(oldNarrators.length>1)return fail('Narrator name is ambiguous; review the existing contributors first',409);
+       if(oldNarrators.length===1){
+        narrator={id:oldNarrators[0]!.id};
+        const exists=await db.prepare('SELECT id FROM people WHERE id=?').bind(narrator.id).first();
+        if(!exists)statements.push(db.prepare('INSERT INTO people(id,preferred_name,bio) VALUES(?,?,?)').bind(narrator.id,narratorName,oldNarrators[0]!.bio||null));
+       }else{
+        narrator={id:uuid()};
+        statements.push(db.prepare('INSERT INTO people(id,preferred_name) VALUES(?,?)').bind(narrator.id,narratorName));
+       }
+      }
+      statements.push(db.prepare("INSERT INTO contributions(id,person_id,recording_id,role_code) VALUES(?,?,?,'narrator')").bind(uuid(),narrator.id,recordingId));
+     }
+    }
+   }
    statements.push(revision(db,actor,'work',id,details),audit(db,actor,'create','work',id,details));
    await db.batch(statements);
-   return json({id,saved:true,status:'published'},201);
+   return json({id,saved:true,editionId:newEditionId,recordingId,status:'published'},201);
   }
   if(path==='people'){
    const name=str(body.name,500);if(!name)return fail('Contributor name is required');
