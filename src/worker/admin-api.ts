@@ -126,7 +126,10 @@ export async function adminAPI(request:Request,env:AdminEnv):Promise<Response>{
     return respond({items});
    }
    if(section==='settings'){
-    const items=await list(db,'SELECT setting_key AS key,setting_json AS json,updated_at AS updatedAt FROM site_settings ORDER BY setting_key');
+    const saved=await list<{key:string;json:string;updatedAt:string}>(db,'SELECT setting_key AS key,setting_json AS json,updated_at AS updatedAt FROM site_settings ORDER BY setting_key');
+    const values=new Map(saved.map(x=>[x.key,x]));
+    const defaults:Record<string,string>={homepage_heading:'',homepage_intro:'',guest_default_theme:'editorial'};
+    const items=Object.keys(defaults).map(key=>values.get(key)??{key,json:JSON.stringify(defaults[key]),updatedAt:null});
     return respond({items,readOnlyRuntime:{signupMode:env.SIGNUP_MODE==='public'?'public':'owner_only',origin:env.PUBLIC_ORIGIN,mailConfigured:Boolean(env.MAIL_API_KEY)}});
    }
    if(section==='audit'){
