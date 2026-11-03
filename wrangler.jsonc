@@ -2,6 +2,7 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "chapterandsound",
   "compatibility_date": "2026-11-03",
+  "compatibility_flags": ["nodejs_compat"],
   "main": "./src/worker/index.ts",
   "assets": {"not_found_handling": "single-page-application"},
   // Add a D1 database binding after explicitly creating a project-specific database.
