@@ -36,7 +36,7 @@ export default {
     if(url.pathname.startsWith('/api/public-reviews/'))return publicReviewAPI(request,env);
     if(['/api/discussions','/api/recommendations','/api/clubs','/api/challenges','/api/lists'].some(p=>url.pathname===p||url.pathname.startsWith(p+'/')))return communityAPI(request,env);
     if(request.method!=='GET') return json({error:'Write operations require verified member permissions and are not yet enabled'},503);
-    if(url.pathname==='/api/health')return json({ok:true,database:env.DB?'bound':'not_configured'});
+    if(url.pathname==='/api/health')return json({ok:true,database:env.DB?'bound':'not_configured',authentication:authConfigured(env as Parameters<typeof authConfigured>[0])?'configured':'not_configured'});
     if(!env.DB)return missing();
     try{
       const limit=Math.min(Math.max(Number(url.searchParams.get('limit')??30)||30,1),60);
