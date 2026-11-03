@@ -38,5 +38,35 @@ try{
  assert.throws(()=>db.prepare("UPDATE member_theme_preferences SET theme_id='invented-theme' WHERE member_id=?").run(member));
  db.prepare("INSERT INTO site_roles(member_id,role,granted_by) VALUES(?,?,'test')").run(member,'admin');
  assert.equal(db.prepare('SELECT role FROM site_roles WHERE member_id=?').get(member).role,'admin');
- console.log('PASS: '+filenames.length+' migrations, '+tables.length+' tables, foreign keys, theme choice and verified role prerequisites');
+ // Disposable cloud-schema integration fixtures; never added to production D1.
+ db.prepare('INSERT INTO works(id,title) VALUES(?,?)').run('test-work','A Real Test Book');
+ db.prepare('INSERT INTO people(id,display_name) VALUES(?,?)').run('test-author','Test Author');
+ db.prepare("INSERT INTO work_contributors(work_id,person_id,role) VALUES(?,?,'author')").run('test-work','test-author');
+ db.prepare("INSERT INTO editions(id,work_id,format,isbn13) VALUES(?,?,'audiobook',?)")
+   .run('test-audio','test-work','9780123456789');
+ db.prepare("INSERT INTO reading_experiences(id,member_id,work_id,edition_id,status) VALUES(?,?,?,?,'in_progress')")
+   .run('test-reading',member,'test-work','test-audio');
+ db.prepare("INSERT INTO reviews(id,member_id,book_id,edition_id,title,body,status,visibility,published_at) VALUES(?,?,?,?,?,?,'published','public',CURRENT_TIMESTAMP)")
+   .run('test-review',member,'test-work','test-audio','Test opinion','A published test review');
+ db.prepare("INSERT INTO missing_book_requests(id,member_id,requested_title,state) VALUES(?,?,?,'pending')")
+   .run('test-request',member,'A Missing Book');
+ db.prepare("INSERT INTO admin_site_notices(id,title,body,updated_by) VALUES(?,?,?,?)")
+   .run('test-notice','Test notice','Stored in the database',member);
+ db.prepare("INSERT INTO admin_audit_log(id,actor_id,action,entity_type,entity_id) VALUES(?,?,?,?,?)")
+   .run('test-audit',member,'create','notice','test-notice');
+ assert.equal(db.prepare("SELECT COUNT(*) AS count FROM reading_experiences WHERE member_id=?").get(member).count,1);
+ assert.equal(db.prepare("SELECT COUNT(*) AS count FROM reviews WHERE status='published' AND visibility='public'").get().count,1);
+ assert.equal(db.prepare("SELECT state FROM missing_book_requests WHERE id=?").get('test-request').state,'pending');
+ assert.equal(db.prepare("SELECT body FROM admin_site_notices WHERE id=?").get('test-notice').body,'Stored in the database');
+ assert.equal(db.prepare("SELECT entity_id FROM admin_audit_log WHERE actor_id=?").get(member).entity_id,'test-notice');
+ const catalogue=db.prepare(`SELECT w.id,w.title,
+   (SELECT GROUP_CONCAT(DISTINCT e.format) FROM editions e WHERE e.work_id=w.id) AS editionFormats
+   FROM works w WHERE instr(lower(w.title),lower(?))>0`).get('real test');
+ assert.equal(catalogue?.editionFormats,'audiobook');
+ const communityReview=db.prepare(`SELECT r.id,w.title AS bookTitle,m.display_name AS authorName
+   FROM reviews r JOIN works w ON w.id=r.book_id JOIN members m ON m.id=r.member_id
+   WHERE r.status='published' AND r.visibility='public'`).get();
+ assert.equal(communityReview?.bookTitle,'A Real Test Book');
+
+ console.log('PASS: '+filenames.length+' migrations, '+tables.length+' tables, foreign keys, site identity, reading records, public reviews, missing requests, audited admin writes and cloud search');
 }finally{db.close()}
