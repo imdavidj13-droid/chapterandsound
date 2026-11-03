@@ -9,6 +9,10 @@ const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'Cac
 const str=(v:string|null,max=120)=>(v||'').trim().slice(0,max);
 const limit=(s:string|null)=>Math.min(Math.max(Number(s)||30,1),60);
 const idOk=(s:string)=>/^[a-zA-Z0-9_-]{1,100}$/.test(s);
+function image(kind:'work'|'edition'|'person',idColumn:string,role:string){
+ return `(SELECT '/api/catalogue-media/'||l.asset_id FROM media_links l
+ WHERE l.entity_kind='${kind}' AND l.entity_id=${idColumn} AND l.role='${role}' AND l.is_primary=1 LIMIT 1)`;
+}
 function synopsis(){return `(SELECT t.body FROM text_content t
  WHERE t.entity_kind='work' AND t.entity_id=w.id AND t.content_type='synopsis'
  AND t.visibility='public' ORDER BY t.rowid DESC LIMIT 1)`}
@@ -22,6 +26,7 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
    const format=str(u.searchParams.get('format'))||'all';
    if(!['all','paperback','hardback','ebook','audiobook'].includes(format))return json({error:'Invalid format'},400);
    const {results}=await db.prepare(`SELECT w.id,w.canonical_title AS title,NULL AS subtitle,
+    ${image('work','w.id','representative_cover')} AS coverUrl,
     ${synopsis()} AS summary,w.first_publication_date AS year,
     (SELECT p.preferred_name FROM contributions c JOIN people p ON p.id=c.person_id
       WHERE c.work_id=w.id AND c.role_code IN ('author','coauthor') ORDER BY c.credit_order,c.id LIMIT 1) AS author,
@@ -41,6 +46,7 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
   const role=str(u.searchParams.get('role'));
   if(role&&!['author','narrator'].includes(role))return json({error:'Unknown role'},400);
   const {results}=await db.prepare(`SELECT p.id,p.preferred_name AS name,p.bio AS biography,
+   ${image('person','p.id','portrait')} AS portraitUrl,
    CASE WHEN EXISTS(SELECT 1 FROM contributions c WHERE c.person_id=p.id AND c.role_code IN ('author','coauthor')) THEN 1 ELSE 0 END AS isAuthor,
    CASE WHEN EXISTS(SELECT 1 FROM contributions c WHERE c.person_id=p.id AND c.role_code='narrator') THEN 1 ELSE 0 END AS isNarrator
    FROM people p WHERE p.identity_status NOT IN ('merged','suppressed')
@@ -55,7 +61,8 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
  }
  if(path.startsWith('person/')){
   const id=path.slice(7);if(!idOk(id))return json({error:'Invalid ID'},400);
-  const person=await db.prepare("SELECT id,preferred_name AS name,bio AS biography FROM people WHERE id=? AND identity_status NOT IN ('merged','suppressed')").bind(id).first();
+  const person=await db.prepare(`SELECT p.id,p.preferred_name AS name,p.bio AS biography,
+     ${image('person','p.id','portrait')} AS portraitUrl FROM people p WHERE p.id=? AND p.identity_status NOT IN ('merged','suppressed')`).bind(id).first();
   if(!person)return json({error:'Person not found'},404);
   const {results:works}=await db.prepare(`SELECT w.id,w.canonical_title AS title,'author' AS contribution FROM works w
    JOIN contributions c ON c.work_id=w.id WHERE c.person_id=? AND c.role_code IN ('author','coauthor')
@@ -84,12 +91,14 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
  if(path.startsWith('book/')){
   const id=path.slice(5);if(!idOk(id))return json({error:'Invalid ID'},400);
   const book=await db.prepare(`SELECT w.id,w.canonical_title AS title,NULL AS subtitle,
+    ${image('work','w.id','representative_cover')} AS coverUrl,
     ${synopsis()} AS summary,w.first_publication_date AS year,w.status AS verificationStatus,
     (SELECT p.preferred_name FROM contributions c JOIN people p ON p.id=c.person_id
      WHERE c.work_id=w.id AND c.role_code IN ('author','coauthor') ORDER BY c.credit_order LIMIT 1) AS author
     FROM works w WHERE w.id=? AND w.status IN ('published','verified')`).bind(id).first();
   if(!book)return json({error:'Book not found'},404);
   const {results:editions}=await db.prepare(`SELECT e.id,e.format,
+    ${image('edition','e.id','front_cover')} AS coverUrl,
     (SELECT o.name FROM publication_events p JOIN organisations o ON o.id=p.publisher_id WHERE p.edition_id=e.id ORDER BY p.rowid DESC LIMIT 1) AS publisher,
     (SELECT p.date_value FROM publication_events p WHERE p.edition_id=e.id AND p.event_type='released' ORDER BY p.rowid DESC LIMIT 1) AS publishedAt,
     e.language,e.page_count AS pageCount,
