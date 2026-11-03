@@ -1,3 +1,4 @@
+import {isVerificationDocumentNavigation,verifyEmailDocument,verificationResultPage} from './email-verification-flow.js';
 import {readerAPI} from './reader-api.js';
 import {syncSiteRole} from './admin-role.js';
 import {bookDetailsAPI} from './book-details-api.js';
@@ -26,6 +27,13 @@ export default {
       if(typeof handle!=='string'||!/^[a-zA-Z][a-zA-Z0-9_]{2,29}$/.test(handle)||fields?.name!==handle){
         return json({error:'Choose a username of 3–30 letters, numbers or underscores, starting with a letter.'},400);
       }
+    }
+    if(url.pathname==='/api/auth/verification-result'&&request.method==='GET'){
+      return verificationResultPage(request);
+    }
+    if(isVerificationDocumentNavigation(request)){
+      if(!authConfigured(env as Parameters<typeof authConfigured>[0]))return json({error:'Authentication unavailable'},503);
+      return verifyEmailDocument(request,req=>createAuth(env as unknown as Parameters<typeof createAuth>[0]).handler(req));
     }
     if(url.pathname.startsWith('/api/auth/')){
       if(!authConfigured(env as Parameters<typeof authConfigured>[0]))return json({error:'Secure authentication and mail delivery are not yet configured'},503);
