@@ -84,7 +84,7 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
       (SELECT count(*) FROM editions) AS editions,
       (SELECT count(*) FROM audio_recordings) AS recordings,
       (SELECT count(*) FROM people) AS contributors,
-      (SELECT count(*) FROM works WHERE status='draft') AS drafts`).first();
+      (SELECT count(*) FROM works WHERE status='published') AS catalogueBooks`).first();
     return json({counts});
    }
    if(path==='works'){
@@ -146,7 +146,7 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
     original_language AS language,first_publication_date AS firstPublicationDate,
     status,revision FROM works WHERE id=?`).bind(workId).first<{id:string;title:string;type:string;language:string|null;firstPublicationDate:string|null;status:string;revision:number}>();
    if(!old)return fail('Book not found',404);
-   if(!['draft','needs_review'].includes(old.status))return fail('Only drafts and records needing review can be edited here',409);
+   if(['withdrawn','suppressed'].includes(old.status))return fail('Withdrawn or suppressed records cannot be edited from this form',409);
    if(old.revision!==expected)return json({error:'This book was changed elsewhere. Reload before saving.',currentRevision:old.revision},409);
    const title=str(body.title,500),type=str(body.type,40),language=str(body.language,40)||null;
    const date=str(body.firstPublicationDate,10)||null;
@@ -164,7 +164,7 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
    const statements:Statement[]=[
     db.prepare(`UPDATE works SET canonical_title=?,work_type=?,original_language=?,
       first_publication_date=?,revision=revision+1,updated_at=CURRENT_TIMESTAMP
-      WHERE id=? AND revision=? AND status IN ('draft','needs_review')`)
+      WHERE id=? AND revision=? AND status NOT IN ('withdrawn','suppressed')`)
      .bind(title,type,language,date,workId,expected)
    ];
    if(priorSyn){
@@ -188,12 +188,16 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
    if(!workTypes.has(type))return fail('Invalid work type');
    if(!validPartialDate(date||''))return fail('Publication date must be a year, year-month or date');
    if(!validLanguage(language||''))return fail('Invalid BCP 47 language tag');
-   const id=uuid(),details={id,title,type,language,firstPublicationDate:date,status:'draft'};
-   await db.batch([
-    db.prepare("INSERT INTO works(id,canonical_title,work_type,original_language,first_publication_date) VALUES(?,?,?,?,?)").bind(id,title,type,language,date),
-    revision(db,actor,'work',id,details),audit(db,actor,'create','work',id,details)
-   ]);
-   return json({id,saved:true,status:'draft'},201);
+   const synopsis=body.synopsis===undefined?'':typeof body.synopsis==='string'?body.synopsis.trim():null;
+   if(synopsis===null||synopsis.length>12000)return fail('Synopsis must be text of no more than 12,000 characters');
+   const id=uuid(),details={id,title,type,language,firstPublicationDate:date,synopsis,status:'published'};
+   const statements:Statement[]=[
+    db.prepare("INSERT INTO works(id,canonical_title,work_type,original_language,first_publication_date,status) VALUES(?,?,?,?,?,'published')").bind(id,title,type,language,date)
+   ];
+   if(synopsis)statements.push(db.prepare("INSERT INTO text_content(id,entity_kind,entity_id,content_type,body,visibility) VALUES(?,'work',?,'synopsis',?,'private')").bind(uuid(),id,synopsis));
+   statements.push(revision(db,actor,'work',id,details),audit(db,actor,'create','work',id,details));
+   await db.batch(statements);
+   return json({id,saved:true,status:'published'},201);
   }
   if(path==='people'){
    const name=str(body.name,500);if(!name)return fail('Contributor name is required');
@@ -210,9 +214,9 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
    if(!formats.has(format))return fail('Choose a valid edition format');
    const pageCount=body.pageCount===null||body.pageCount===undefined||body.pageCount===''?null:Number(body.pageCount);
    if(pageCount!==null&&(!Number.isInteger(pageCount)||pageCount<=0))return fail('Page count must be a positive whole number');
-   const id=uuid(),details={id,workId,format,pageCount,status:'draft'};
+   const id=uuid(),details={id,workId,format,pageCount,status:'published'};
    await db.batch([
-    db.prepare('INSERT INTO editions(id,work_id,format,page_count) VALUES(?,?,?,?)').bind(id,workId,format,pageCount),
+    db.prepare("INSERT INTO editions(id,work_id,format,page_count,publication_status,verification_status) VALUES(?,?,? ,?,'published','published')").bind(id,workId,format,pageCount),
     revision(db,actor,'edition',id,details),audit(db,actor,'create','edition',id,details)
    ]);
    return json({id,saved:true},201);
@@ -224,9 +228,9 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
    if(!performances.has(performanceType)||!abridgements.has(abridgement))return fail('Invalid recording details');
    const duration=body.durationSeconds===null||body.durationSeconds===undefined||body.durationSeconds===''?null:Number(body.durationSeconds);
    if(duration!==null&&(!Number.isInteger(duration)||duration<=0))return fail('Recording duration must be positive whole seconds');
-   const id=uuid(),details={id,workId,performanceType,abridgement,durationSeconds:duration,status:'draft'};
+   const id=uuid(),details={id,workId,performanceType,abridgement,durationSeconds:duration,status:'published'};
    await db.batch([
-    db.prepare('INSERT INTO audio_recordings(id,work_id,performance_type,abridgement,duration_seconds) VALUES(?,?,?,?,?)').bind(id,workId,performanceType,abridgement,duration),
+    db.prepare("INSERT INTO audio_recordings(id,work_id,performance_type,abridgement,duration_seconds,verification_status) VALUES(?,?,?,?,?,'published')").bind(id,workId,performanceType,abridgement,duration),
     revision(db,actor,'recording',id,details),audit(db,actor,'create','recording',id,details)
    ]);
    return json({id,saved:true},201);
