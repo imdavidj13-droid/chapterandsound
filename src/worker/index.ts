@@ -103,7 +103,7 @@ export default {
           ?await env.DB.prepare(`SELECT w.id,w.title,w.subtitle,w.synopsis AS summary,w.first_published AS year,
           (SELECT p.display_name FROM work_contributors wc JOIN people p ON p.id=wc.person_id WHERE wc.work_id=w.id AND wc.role='author' ORDER BY wc.ordinal LIMIT 1) AS author
           FROM works w WHERE w.title LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM work_contributors wa JOIN people pa ON pa.id=wa.person_id WHERE wa.work_id=w.id AND wa.role='author' AND pa.display_name LIKE ? ESCAPE '\\') ORDER BY w.title LIMIT ?`)
-            .bind('%'+search.replace(/[\\%_]/g,'\\.bind('%'+search.replace(/[\\%_]/g,'\\$&')+'%',limit).all()')+'%','%'+search.replace(/[\\%_]/g,'\\.bind('%'+search.replace(/[\\%_]/g,'\\$&')+'%',limit).all()')+'%',limit).all()
+            .bind('%'+search+'%','%'+search+'%',limit).all()
           :await env.DB.prepare(`SELECT w.id,w.title,w.subtitle,w.synopsis AS summary,w.first_published AS year,
           (SELECT p.display_name FROM work_contributors wc JOIN people p ON p.id=wc.person_id WHERE wc.work_id=w.id AND wc.role='author' ORDER BY wc.ordinal LIMIT 1) AS author
           FROM works w ORDER BY w.title LIMIT ?`).bind(limit).all();
