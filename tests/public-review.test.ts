@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {publicReviewAPI} from '../src/worker/public-review-api.js';
+import type {PublicReviewEnv} from '../src/worker/public-review-api.js';
 
 const published={id:'review-1',title:'A thoughtful review',body:'A genuine reader opinion',
   storyRating:4,audioRating:null,spoilers:0,publishedAt:'2026-11-03 00:00:00',
@@ -17,7 +18,7 @@ function database(rows:Record<string,unknown>){
        async run(){return {}}
      };
    }};
- }};
+ }} as unknown as NonNullable<PublicReviewEnv['DB']>;
 }
 test('anonymous visitors can read only published public review details',async()=>{
  const result=await publicReviewAPI(new Request('https://chapterandsound.test/api/public-reviews/review-1'),{DB:database({review:published})});
