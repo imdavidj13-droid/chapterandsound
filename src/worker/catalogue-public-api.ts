@@ -7,11 +7,20 @@ interface Statement{bind(...values:Param[]):Statement;first<T>():Promise<T|null>
 interface Database{prepare(sql:string):Statement}
 const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'public,max-age=20','X-Content-Type-Options':'nosniff'}});
 const str=(v:string|null,max=120)=>(v||'').trim().slice(0,max);
-const limit=(s:string|null)=>Math.min(Math.max(Number(s)||30,1),60);
+const limit=(s:string|null)=>Math.min(Math.max(Number(s)||30,1),500);
 const idOk=(s:string)=>/^[a-zA-Z0-9_-]{1,100}$/.test(s);
 function image(kind:'work'|'edition'|'person',idColumn:string,role:string){
  return `(SELECT '/api/catalogue-media/'||l.asset_id FROM media_links l
  WHERE l.entity_kind='${kind}' AND l.entity_id=${idColumn} AND l.role='${role}' AND l.is_primary=1 LIMIT 1)`;
+}
+function workCover(){
+ return `COALESCE(
+   ${image('work','w.id','representative_cover')},
+   (SELECT '/api/catalogue-media/'||l.asset_id FROM editions e
+    JOIN media_links l ON l.entity_kind='edition' AND l.entity_id=e.id
+    WHERE e.work_id=w.id AND l.role='front_cover' AND l.is_primary=1
+    ORDER BY e.created_at,e.id LIMIT 1)
+ )`;
 }
 function synopsis(){return `(SELECT t.body FROM text_content t
  WHERE t.entity_kind='work' AND t.entity_id=w.id AND t.content_type='synopsis'
@@ -26,7 +35,7 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
    const format=str(u.searchParams.get('format'))||'all';
    if(!['all','paperback','hardback','ebook','audiobook'].includes(format))return json({error:'Invalid format'},400);
    const {results}=await db.prepare(`SELECT w.id,w.canonical_title AS title,NULL AS subtitle,
-    ${image('work','w.id','representative_cover')} AS coverUrl,
+    ${workCover()} AS coverUrl,
     ${synopsis()} AS summary,w.first_publication_date AS year,
     (SELECT p.preferred_name FROM contributions c JOIN people p ON p.id=c.person_id
       WHERE c.work_id=w.id AND c.role_code IN ('author','coauthor') ORDER BY c.credit_order,c.id LIMIT 1) AS author,
@@ -91,7 +100,7 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
  if(path.startsWith('book/')){
   const id=path.slice(5);if(!idOk(id))return json({error:'Invalid ID'},400);
   const book=await db.prepare(`SELECT w.id,w.canonical_title AS title,NULL AS subtitle,
-    ${image('work','w.id','representative_cover')} AS coverUrl,
+    ${workCover()} AS coverUrl,
     ${synopsis()} AS summary,w.first_publication_date AS year,w.status AS verificationStatus,
     (SELECT p.preferred_name FROM contributions c JOIN people p ON p.id=c.person_id
      WHERE c.work_id=w.id AND c.role_code IN ('author','coauthor') ORDER BY c.credit_order LIMIT 1) AS author
