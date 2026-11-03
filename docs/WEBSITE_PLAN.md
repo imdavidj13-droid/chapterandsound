@@ -60,3 +60,7 @@
 ## Unfinished external setup
 
 Cloudflare D1 has **not** been created or connected for this repository. No R2 bucket, real mail-sending service or secrets have been configured. The project must not borrow infrastructure or credentials from other apps. The site must not be claimed to be live or complete. Public deployment requires explicit approval.
+
+## Locked visual-design requirement (reconfirmed 3 November 2026)
+
+Read **[LOCKED_VISUAL_THEMES.md](LOCKED_VISUAL_THEMES.md)** before implementing or reviewing any screen. Editorial and Reading Room are two distinct full layouts with shared functionality, not palette switches. The latest supplied screenshots are visual targets. Neither theme is currently marked visually accepted, and Reading Room remains to be implemented. Maintain website-first / catalogue-last priority.
