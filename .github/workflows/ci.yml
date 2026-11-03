@@ -14,5 +14,6 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run test:migrations
+      - run: npm run test:catalogue-schema
       - run: npm run test:cloud
       - run: npm run build
