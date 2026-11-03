@@ -98,7 +98,7 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
     return json({items:results});
    }
    if(segments.length===2&&segments[0]==='works'){
-    const workId=segments[1];
+    const workId=segments[1]??'';
     if(!safeId(workId))return fail('Invalid catalogue ID');
     const work=await db.prepare(`SELECT id,canonical_title AS title,work_type AS type,status,revision,
      original_language AS language,first_publication_date AS firstPublicationDate,
@@ -139,7 +139,7 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
   if(!body)return fail('Provide a JSON object');
   const actor=session.user.id;
   if(request.method==='PATCH'&&segments.length===2&&segments[0]==='works'){
-   const workId=segments[1],expected=body.expectedRevision;
+   const workId=segments[1]??'',expected=body.expectedRevision;
    if(!safeId(workId))return fail('Invalid catalogue ID');
    if(!Number.isInteger(expected)||Number(expected)<1)return fail('A valid expectedRevision is required');
    const old=await db.prepare(`SELECT id,canonical_title AS title,work_type AS type,
