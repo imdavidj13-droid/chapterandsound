@@ -112,7 +112,7 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
     if(!work)return fail('Book not found',404);
     const synopsis=await db.prepare(`SELECT id,body FROM text_content
       WHERE entity_kind='work' AND entity_id=? AND content_type='synopsis'
-      AND visibility='private' AND source_claim_id IS NULL ORDER BY rowid DESC LIMIT 1`).bind(workId).first<{id:string;body:string}>();
+      AND source_claim_id IS NULL ORDER BY rowid DESC LIMIT 1`).bind(workId).first<{id:string;body:string}>();
     const {results:credits}=await db.prepare(`SELECT c.id,c.role_code AS role,p.id AS personId,
       p.preferred_name AS name FROM contributions c JOIN people p ON p.id=c.person_id
       WHERE c.work_id=? ORDER BY c.credit_order,c.id`).bind(workId).all();
@@ -171,7 +171,7 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
    if(typeof body.synopsis!=='string'||body.synopsis.length>12000)return fail('Synopsis must be text of no more than 12,000 characters');
    const synopsis=body.synopsis.trim(),nextRev=old.revision+1;
    const priorSyn=await db.prepare(`SELECT id,body FROM text_content WHERE entity_kind='work' AND entity_id=? AND
-    content_type='synopsis' AND visibility='private' AND source_claim_id IS NULL
+    content_type='synopsis' AND source_claim_id IS NULL
     ORDER BY rowid DESC LIMIT 1`).bind(workId).first<{id:string;body:string}>();
    const before={...old,synopsis:priorSyn?.body??''};
    const after={...old,title,type,language,firstPublicationDate:date,synopsis,revision:nextRev};
@@ -182,11 +182,11 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
      .bind(title,type,language,date,workId,expected)
    ];
    if(priorSyn){
-    if(synopsis)statements.push(db.prepare('UPDATE text_content SET body=? WHERE id=?').bind(synopsis,priorSyn.id));
+    if(synopsis)statements.push(db.prepare("UPDATE text_content SET body=?,visibility='public' WHERE id=?").bind(synopsis,priorSyn.id));
     else statements.push(db.prepare('DELETE FROM text_content WHERE id=?').bind(priorSyn.id));
    }else if(synopsis){
     statements.push(db.prepare(`INSERT INTO text_content(id,entity_kind,entity_id,content_type,body,visibility)
-       VALUES(?,'work',?,'synopsis',?,'private')`).bind(uuid(),workId,synopsis));
+       VALUES(?,'work',?,'synopsis',?,'public')`).bind(uuid(),workId,synopsis));
    }
    statements.push(db.prepare(`INSERT INTO record_revisions(id,entity_kind,entity_id,revision,before_json,after_json,actor_external_id,reason)
     VALUES(?,'work',?,?,?,?,?,?)`).bind(uuid(),workId,nextRev,JSON.stringify(before),JSON.stringify(after),actor,'Metadata edit'));
