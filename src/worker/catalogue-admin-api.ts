@@ -195,6 +195,36 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
    if(result[0]?.meta?.changes===0)return json({error:'This book was changed elsewhere. Reload before saving.'},409);
    return json({saved:true,id:workId,revision:nextRev});
   }
+  if(path==='consolidate-people'){
+   // Idempotent, non-destructive bridge: copy existing website author/narrator
+   // profiles into the canonical BOOK_DB using the original IDs.
+   // Member reviews and their foreign keys in DB are never altered.
+   const {results:legacy}=await env.DB.prepare('SELECT id,display_name AS name,biography AS bio FROM people ORDER BY id LIMIT 5000')
+     .all<{id:string;name:string;bio:string|null}>();
+   const {results:current}=await db.prepare('SELECT id,preferred_name AS name FROM people LIMIT 5000')
+     .all<{id:string;name:string}>();
+   const ids=new Set(current.map(p=>p.id));
+   const names=new Map(current.map(p=>[p.name.trim().toLocaleLowerCase('en'),p.id]));
+   let copied=0,conflicts=0,skipped=0;
+   const pending:Statement[]=[];
+   for(const person of legacy){
+    const id=person.id,name=person.name.trim();
+    if(!safeId(id)||!name){conflicts++;continue;}
+    if(ids.has(id)){skipped++;continue;}
+    const other=names.get(name.toLocaleLowerCase('en'));
+    if(other&&other!==id){conflicts++;continue;}
+    const details={id,name,bio:person.bio,origin:'existing-website-profile'};
+    pending.push(
+      db.prepare('INSERT INTO people(id,preferred_name,bio) VALUES(?,?,?)').bind(id,name,person.bio||null),
+      revision(db,actor,'person',id,details),
+      audit(db,actor,'preserve_existing_profile','person',id,details)
+    );
+    ids.add(id);names.set(name.toLocaleLowerCase('en'),id);copied++;
+   }
+   // Bounded transactional batches avoid oversized D1 batch calls.
+   for(let index=0;index<pending.length;index+=45)await db.batch(pending.slice(index,index+45));
+   return json({saved:true,copied,skipped,conflicts,moreMayExist:legacy.length===5000});
+  }
   if(path==='works'){
    const title=str(body.title,500),type=str(body.type,40)||'book';
    const language=str(body.language,40)||null,date=str(body.firstPublicationDate,10)||null;
