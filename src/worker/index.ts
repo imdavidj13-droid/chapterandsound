@@ -7,13 +7,20 @@ import {memberAPI} from './member-api.js';
 import {communityAPI} from './community-api.js';
 interface D1Statement {bind(...values:(string|number|null)[]):D1Statement;all<T>():Promise<{results:T[]}>;first<T>():Promise<T|null>;run():Promise<unknown>;}
 interface D1Database {prepare(query:string):D1Statement;}
-interface Env {DB?:D1Database; BETTER_AUTH_SECRET?:string;PUBLIC_ORIGIN?:string;MAIL_API_KEY?:string;MAIL_FROM?:string;ADMIN_EMAIL?:string;}
+interface Env {DB?:D1Database; BETTER_AUTH_SECRET?:string;PUBLIC_ORIGIN?:string;MAIL_API_KEY?:string;MAIL_FROM?:string;ADMIN_EMAIL?:string;SIGNUP_MODE?:string;}
 const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 const missing=()=>json({error:'Cloud database is not configured',code:'DB_NOT_CONFIGURED'},503);
 export default {
   async fetch(request:Request,env:Env):Promise<Response>{
     const url=new URL(request.url);
     if(!url.pathname.startsWith('/api/')) return new Response('Not found',{status:404});
+    if(url.pathname==='/api/auth/sign-up/email'&&request.method==='POST'&&env.SIGNUP_MODE!=='public'){
+      const data:unknown=await request.clone().json().catch(()=>null);
+      const email=data&&typeof data==='object'&&!Array.isArray(data)?(data as {email?:unknown}).email:null;
+      if(typeof email!=='string'||!env.ADMIN_EMAIL||email.trim().toLowerCase()!==env.ADMIN_EMAIL.trim().toLowerCase()){
+        return json({error:'Public signup is not open yet. The administrator is completing verification.'},403);
+      }
+    }
     if(url.pathname.startsWith('/api/auth/')){
       if(!authConfigured(env as Parameters<typeof authConfigured>[0]))return json({error:'Secure authentication and mail delivery are not yet configured'},503);
       return createAuth(env as unknown as Parameters<typeof createAuth>[0]).handler(request);
