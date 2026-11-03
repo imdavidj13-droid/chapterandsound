@@ -18,6 +18,8 @@ try{
  for(const table of ['user','session','account','verification','members','works','editions','people','reading_experiences','reviews','site_roles','member_theme_preferences']){
   assert.ok(tables.includes(table),'Missing expected table '+table);
  }
+ const actionsColumns=db.prepare('PRAGMA table_info(moderation_actions)').all().map(x=>x.name);
+ assert.ok(actionsColumns.includes('actor_id'),'Moderation audit table must include actor_id; got '+actionsColumns.join(','));
  const mistakes=db.prepare('PRAGMA foreign_key_check').all();
  assert.equal(mistakes.length,0,'Foreign key violations following migrations');
  const user='fixture-auth-user',member='fixture-member';
