@@ -36,8 +36,11 @@ export async function memberAPI(request:Request,env:MemberEnv):Promise<Response>
   const userId=session.user.id;
   const url=new URL(request.url);const path=url.pathname;
   // Prevent empty user FK rows if a session is used before the /api/me bootstrap call.
-  await db.prepare('INSERT OR IGNORE INTO members(id,email_normalized,display_name,email_verified_at) VALUES(?,?,?,?)')
-    .bind(userId,session.user.email.toLowerCase(),session.user.name,new Date().toISOString()).run();
+  const handle=(session.user as typeof session.user & {username?:string|null}).username?.toLowerCase()??null;
+  await db.prepare('INSERT OR IGNORE INTO members(id,email_normalized,display_name,handle,email_verified_at) VALUES(?,?,?,?,?)')
+    .bind(userId,session.user.email.toLowerCase(),handle?'@'+handle:session.user.name,handle,new Date().toISOString()).run();
+  if(handle)await db.prepare("UPDATE members SET handle=?,display_name=? WHERE id=? AND (handle IS NULL OR handle=?)")
+    .bind(handle,'@'+handle,userId,handle).run();
   try {
     if(path==='/api/member/theme'){
       if(method==='GET'){
