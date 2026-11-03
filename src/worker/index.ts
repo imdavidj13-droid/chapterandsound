@@ -1,3 +1,5 @@
+import {cataloguePublicImage} from './catalogue-media-api.js';
+import type {CatalogueImageBucket} from './catalogue-media-api.js';
 import {publicCatalogueAPI} from './catalogue-public-api.js';
 import {catalogueAdminAPI} from './catalogue-admin-api.js';
 import {adminAPI} from './admin-api.js';
@@ -12,7 +14,7 @@ import {memberAPI} from './member-api.js';
 import {communityAPI} from './community-api.js';
 interface D1Statement {bind(...values:(string|number|null)[]):D1Statement;all<T>():Promise<{results:T[]}>;first<T>():Promise<T|null>;run():Promise<{meta?:{changes?:number}}>;}
 interface D1Database {prepare(query:string):D1Statement;batch(statements:D1Statement[]):Promise<unknown[]>;}
-interface Env {DB?:D1Database; BOOK_DB?:D1Database; BETTER_AUTH_SECRET?:string;PUBLIC_ORIGIN?:string;MAIL_API_KEY?:string;MAIL_FROM?:string;ADMIN_EMAIL?:string;SIGNUP_MODE?:string;}
+interface Env {DB?:D1Database; BOOK_DB?:D1Database; CATALOGUE_MEDIA?:CatalogueImageBucket; BETTER_AUTH_SECRET?:string;PUBLIC_ORIGIN?:string;MAIL_API_KEY?:string;MAIL_FROM?:string;ADMIN_EMAIL?:string;SIGNUP_MODE?:string;}
 const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 const missing=()=>json({error:'Cloud database is not configured',code:'DB_NOT_CONFIGURED'},503);
 export default {
@@ -75,6 +77,7 @@ export default {
     if(url.pathname.startsWith('/api/moderation/'))return moderationAPI(request,env);
     if(url.pathname.startsWith('/api/catalogue-admin/'))return catalogueAdminAPI(request,env);
     if(url.pathname.startsWith('/api/catalogue-public/'))return publicCatalogueAPI(request,env.BOOK_DB);
+    if(url.pathname.startsWith('/api/catalogue-media/'))return cataloguePublicImage(request,env.BOOK_DB,env.CATALOGUE_MEDIA);
     if(url.pathname.startsWith('/api/admin/'))return adminAPI(request,env);
     if(url.pathname.startsWith('/api/public-reviews/'))return publicReviewAPI(request,env);
     if(['/api/discussions','/api/recommendations','/api/clubs','/api/challenges','/api/lists'].some(p=>url.pathname===p||url.pathname.startsWith(p+'/')))return communityAPI(request,env);
