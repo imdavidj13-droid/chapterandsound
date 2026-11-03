@@ -1,4 +1,5 @@
 import {betterAuth} from 'better-auth';
+import {username} from 'better-auth/plugins';
 
 export interface AuthEnv {
   DB: D1Database;
@@ -41,6 +42,7 @@ export function createAuth(env:AuthEnv){
       autoSignInAfterVerification:true,
       sendVerificationEmail:async ({user,url})=>sendMail(env,user.email,'Verify your Chapter & Sound email',url),
     },
+    plugins:[username({displayUsername:false,immutableUsername:true,minUsernameLength:3,maxUsernameLength:30,usernameValidator:(value)=>/^[a-zA-Z][a-zA-Z0-9_]{2,29}$/.test(value)&&!['admin','administrator','moderator','support','chapterandsound','chapter_and_sound','staff','system','official'].includes(value.toLowerCase())})],
     advanced:{cookiePrefix:'chapterandsound'},
   });
 }
