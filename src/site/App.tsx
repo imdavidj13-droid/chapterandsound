@@ -1,3 +1,4 @@
+import {PeopleAndSeries} from './PeopleAndSeries';
 import {CommunityWorkspace} from './CommunityWorkspace';
 import {MemberWorkspace} from './MemberWorkspace';
 import {useEffect,useMemo,useState} from 'react';
@@ -113,6 +114,7 @@ export function App(){
   else if(path.startsWith('/book/'))body=<BookDetail data={api} id={decodeURIComponent(path.slice(6))}/>;
   else if(path.startsWith('/review/'))body=<ReviewDetail data={api} id={decodeURIComponent(path.slice(8))}/>;
   else if(['/discussions','/recommendations','/clubs','/challenges','/lists'].includes(path)||['/discussion/','/recommendation/','/club/','/challenge/','/list/'].some(p=>path.startsWith(p)))body=<CommunityWorkspace path={path} books={api.books??[]} member={member}/>;
+  else if(['/authors','/narrators','/series'].includes(path)||path.startsWith('/person/')||path.startsWith('/series/'))body=<PeopleAndSeries path={path}/>;
   else if(second.includes(path)||path==='/community')body=<Discovery path={path} data={api}/>;
   else if(['/signin','/signup','/reset-password','/verify'].includes(path))body=<Login path={path}/>;
   else if(personal.includes(path)||['/add-book','/journal','/onboarding','/admin','/write-review'].includes(path))body=<MemberPage path={path} member={member} data={api}/>;
