@@ -27,15 +27,18 @@ export function createAuth(env:AuthEnv){
   return betterAuth({
     database:env.DB,
     baseURL:env.PUBLIC_ORIGIN,
+    trustedOrigins:[env.PUBLIC_ORIGIN],
     secret:env.BETTER_AUTH_SECRET,
     emailAndPassword:{
       enabled:true,
       requireEmailVerification:true,
+      minPasswordLength:12,
       sendResetPassword:async ({user,url})=>sendMail(env,user.email,'Reset your Chapter & Sound password',url),
     },
     emailVerification:{
       sendOnSignUp:true,
       sendOnSignIn:true,
+      autoSignInAfterVerification:true,
       sendVerificationEmail:async ({user,url})=>sendMail(env,user.email,'Verify your Chapter & Sound email',url),
     },
     advanced:{cookiePrefix:'chapterandsound'},
