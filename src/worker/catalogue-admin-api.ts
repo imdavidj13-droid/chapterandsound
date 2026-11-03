@@ -114,6 +114,14 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
       WHERE c.work_id=? ORDER BY c.credit_order,c.id`).bind(workId).all();
     return json({work:{...work,synopsis:synopsis?.body??''},credits});
    }
+   if(path==='legacy-people'){
+    // Read-only lookup: offer an explicit reuse of existing website author IDs
+    // instead of creating another contributor with the same name.
+    const {results}=await env.DB.prepare(
+      "SELECT id,display_name AS name,biography FROM people WHERE (?='' OR instr(lower(display_name),lower(?))>0) ORDER BY display_name LIMIT ?"
+    ).bind(q,q,l).all();
+    return json({items:results});
+   }
    if(path==='people'){
     const {results}=await db.prepare(`SELECT id,preferred_name AS name,identity_status AS status
       FROM people WHERE (?='' OR instr(lower(preferred_name),lower(?))>0)
@@ -192,11 +200,45 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
    if(!validLanguage(language||''))return fail('Invalid BCP 47 language tag');
    const synopsis=body.synopsis===undefined?'':typeof body.synopsis==='string'?body.synopsis.trim():null;
    if(synopsis===null||synopsis.length>12000)return fail('Synopsis must be text of no more than 12,000 characters');
-   const id=uuid(),details={id,title,type,language,firstPublicationDate:date,synopsis,status:'published'};
-   const statements:Statement[]=[
-    db.prepare("INSERT INTO works(id,canonical_title,work_type,original_language,first_publication_date,status) VALUES(?,?,?,?,?,'published')").bind(id,title,type,language,date)
-   ];
-   if(synopsis)statements.push(db.prepare("INSERT INTO text_content(id,entity_kind,entity_id,content_type,body,visibility) VALUES(?,'work',?,'synopsis',?,'private')").bind(uuid(),id,synopsis));
+   const authorId=str(body.authorId,100);
+   const legacyAuthorId=str(body.legacyAuthorId,100);
+   const newAuthorName=str(body.newAuthorName,500);
+   if([authorId,legacyAuthorId,newAuthorName].filter(Boolean).length>1)return fail('Select one author source, not several');
+   let selectedAuthorId=authorId||legacyAuthorId||'';
+   let authorName='';
+   const statements:Statement[]=[];
+   if(authorId){
+    const author=await db.prepare('SELECT id,preferred_name AS name FROM people WHERE id=? AND identity_status NOT IN (\'merged\',\'suppressed\')').bind(authorId).first<{id:string;name:string}>();
+    if(!author)return fail('Selected catalogue author no longer exists',404);
+    authorName=author.name;
+   }
+   if(legacyAuthorId){
+    const existing=await env.DB.prepare('SELECT id,display_name AS name,biography AS bio FROM people WHERE id=?').bind(legacyAuthorId).first<{id:string;name:string;bio:string|null}>();
+    if(!existing)return fail('Website author no longer exists',404);
+    authorName=existing.name;
+    const already=await db.prepare('SELECT id FROM people WHERE id=?').bind(legacyAuthorId).first();
+    if(!already)statements.push(db.prepare('INSERT INTO people(id,preferred_name,bio) VALUES(?,?,?)').bind(legacyAuthorId,existing.name,existing.bio||null));
+   }
+   if(newAuthorName){
+    const match=await db.prepare('SELECT id,preferred_name AS name FROM people WHERE lower(preferred_name)=lower(?) LIMIT 1').bind(newAuthorName).first<{id:string;name:string}>();
+    if(match)return json({error:'A catalogue author with this name already exists. Select the existing author instead.',existingId:match.id},409);
+    // Check the website database as well; never silently duplicate old identities.
+    const legacy=await env.DB.prepare('SELECT id FROM people WHERE lower(display_name)=lower(?) LIMIT 1').bind(newAuthorName).first<{id:string}>();
+    if(legacy)return json({error:'This author already exists in Website Contributors. Choose that existing author to reuse their identity.',existingId:legacy.id},409);
+    selectedAuthorId=uuid();authorName=newAuthorName;
+    statements.push(db.prepare('INSERT INTO people(id,preferred_name) VALUES(?,?)').bind(selectedAuthorId,newAuthorName));
+   }
+   if(selectedAuthorId){
+    const dup=await db.prepare(`SELECT w.id FROM works w JOIN contributions c ON c.work_id=w.id
+      WHERE lower(w.canonical_title)=lower(?) AND c.person_id=? AND c.role_code IN ('author','coauthor') LIMIT 1`)
+      .bind(title,selectedAuthorId).first<{id:string}>();
+    if(dup)return json({error:'This author already has a catalogue book with the same title. Open the existing book instead.',existingId:dup.id},409);
+   }
+   const id=uuid(),details={id,title,type,language,firstPublicationDate:date,synopsis,authorId:selectedAuthorId||null,authorName:authorName||null,status:'published'};
+   // Batch creates the optional author, work, credit, synopsis and audit together.
+   statements.push(db.prepare("INSERT INTO works(id,canonical_title,work_type,original_language,first_publication_date,status) VALUES(?,?,?,?,?,'published')").bind(id,title,type,language,date));
+   if(selectedAuthorId)statements.push(db.prepare("INSERT INTO contributions(id,person_id,work_id,role_code) VALUES(?,?,?,'author')").bind(uuid(),selectedAuthorId,id));
+   if(synopsis)statements.push(db.prepare("INSERT INTO text_content(id,entity_kind,entity_id,content_type,body,visibility) VALUES(?,'work',?,'synopsis',?,'public')").bind(uuid(),id,synopsis));
    statements.push(revision(db,actor,'work',id,details),audit(db,actor,'create','work',id,details));
    await db.batch(statements);
    return json({id,saved:true,status:'published'},201);
