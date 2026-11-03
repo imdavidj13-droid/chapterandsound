@@ -56,12 +56,15 @@ function Shelf({member}:{member:Props['member']}){
 function AddBook({books}:{books:Book[]}){
   const [term,setTerm]=useState('');const [bookId,setBookId]=useState('');
   const [status,setStatus]=useState('want_to_read');const [note,setNote]=useState('');
+  const [editions,setEditions]=useState<Array<{id:string;format:string;publisher?:string;pageCount?:number;durationMinutes?:number;verificationState?:string}>>([]);
+  const [editionId,setEditionId]=useState('');const [step,setStep]=useState<1|2|3|4>(1);
   const [busy,setBusy]=useState(false);const [error,setError]=useState('');
   const [saved,setSaved]=useState(false);
   const found=books.filter(b=>(b.title+' '+(b.author??'')).toLowerCase().includes(term.toLowerCase()));
+  const selectBook=async(id:string)=>{setBookId(id);setEditionId('');setBusy(true);setError('');try{const r=await apiGet<{items:typeof editions}>('/api/editions?workId='+encodeURIComponent(id));setEditions(r.items);setStep(2)}catch(e){setError(e instanceof Error?e.message:'Edition search is unavailable')}finally{setBusy(false)}};
   const chosen=books.find(b=>b.id===bookId);
   const save=async(e:FormEvent)=>{e.preventDefault();if(!chosen){setError('Choose a book first');return;}setBusy(true);setError('');
-    try{await apiWrite('/api/member/shelf','POST',{workId:chosen.id,status,privateNote:note});setSaved(true);}
+    try{await apiWrite('/api/member/shelf','POST',{workId:chosen.id,editionId:editionId||undefined,status,privateNote:note});setSaved(true);}
     catch(e){setError(e instanceof Error?e.message:'Could not add book');}finally{setBusy(false);}};
   return <><p className="eyebrow">Your bookshelf · Add a book</p><h1>Every story begins somewhere.</h1><p className="intro">Find the correct work, confirm its edition, then choose how it belongs on your shelf.</p>
     {saved?<div className="panel success-panel"><h2>Added to your bookshelf</h2><p>{chosen?.title} was saved to your private shelf.</p><div className="actions"><a className="button" href="/shelf">View my bookshelf</a><button className="button secondary" onClick={()=>{setBookId('');setSaved(false);setTerm('');setNote('');}}>Add another book</button></div></div>:
