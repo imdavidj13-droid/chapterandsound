@@ -37,6 +37,9 @@ const performances=new Set(['single_narrator','multi_narrator','full_cast','dram
 const abridgements=new Set(['unabridged','abridged','adapted','unknown']);
 const roles=new Set(['author','coauthor','narrator','cast','translator','editor','illustrator','cover_artist','foreword','afterword','adapter','producer','director','audio_engineer','other']);
 const statuses=new Set(['draft','needs_review','verified','published','withdrawn','suppressed']);
+const validPartialDate=(s:string)=>!s||/^\d{4}(?:-(?:0[1-9]|1[0-2])(?:-(?:0[1-9]|[12]\d|3[01]))?)?$/.test(s);
+const validLanguage=(s:string)=>!s||/^[a-zA-Z]{2,8}(?:-[a-zA-Z0-9]{1,8})*$/.test(s);
+const safeId=(s:string)=>s.length>=1&&s.length<=100&&/^[A-Za-z0-9_-]+$/.test(s);
 const limit=(u:URL)=>Math.min(Math.max(Number(u.searchParams.get('limit'))||40,1),100);
 const offset=(u:URL)=>Math.min(Math.max(Number(u.searchParams.get('offset'))||0,0),100000);
 function audit(db:Database,actor:string,action:string,type:string,id:string,details:unknown){
@@ -65,10 +68,11 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
  const role=await env.DB.prepare("SELECT role FROM site_roles WHERE member_id=? AND role='admin'").bind(session.user.id).first<{role:string}>();
  if(!role)return fail('An administrator role is required',403);
  const url=new URL(request.url);
- if(!['GET','POST'].includes(request.method))return fail('Method not supported',405);
- if(request.method==='POST'&&request.headers.get('Origin')!==url.origin)return fail('Cross-origin writes are forbidden',403);
+ if(!['GET','POST','PATCH'].includes(request.method))return fail('Method not supported',405);
+ if(request.method!=='GET'&&request.headers.get('Origin')!==url.origin)return fail('Cross-origin writes are forbidden',403);
  const db=env.BOOK_DB;
  const path=url.pathname.slice('/api/catalogue-admin/'.length);
+ const segments=path.split('/').filter(Boolean);
  if(!db)return fail('The BOOK_DB catalogue binding is not configured yet',503);
  if(!await catalogueReady(db))return fail('The catalogue database has not had its dedicated migrations applied yet',503);
  if(path==='health'&&request.method==='GET')return json({ready:true,catalogue:'BOOK_DB',schema:'installed'});
@@ -92,6 +96,21 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
     FROM works w WHERE (?='' OR instr(lower(w.canonical_title),lower(?))>0)
     ORDER BY w.created_at DESC,w.id DESC LIMIT ? OFFSET ?`).bind(q,q,l,o).all();
     return json({items:results});
+   }
+   if(segments.length===2&&segments[0]==='works'){
+    const workId=segments[1];
+    if(!safeId(workId))return fail('Invalid catalogue ID');
+    const work=await db.prepare(`SELECT id,canonical_title AS title,work_type AS type,status,revision,
+     original_language AS language,first_publication_date AS firstPublicationDate,
+     updated_at AS updatedAt FROM works WHERE id=?`).bind(workId).first();
+    if(!work)return fail('Book not found',404);
+    const synopsis=await db.prepare(`SELECT id,body FROM text_content
+      WHERE entity_kind='work' AND entity_id=? AND content_type='synopsis'
+      AND visibility='private' AND source_claim_id IS NULL ORDER BY rowid DESC LIMIT 1`).bind(workId).first<{id:string;body:string}>();
+    const {results:credits}=await db.prepare(`SELECT c.id,c.role_code AS role,p.id AS personId,
+      p.preferred_name AS name FROM contributions c JOIN people p ON p.id=c.person_id
+      WHERE c.work_id=? ORDER BY c.credit_order,c.id`).bind(workId).all();
+    return json({work:{...work,synopsis:synopsis?.body??''},credits});
    }
    if(path==='people'){
     const {results}=await db.prepare(`SELECT id,preferred_name AS name,identity_status AS status
@@ -119,12 +138,56 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
   const body=fields(await request.json().catch(()=>null));
   if(!body)return fail('Provide a JSON object');
   const actor=session.user.id;
+  if(request.method==='PATCH'&&segments.length===2&&segments[0]==='works'){
+   const workId=segments[1],expected=body.expectedRevision;
+   if(!safeId(workId))return fail('Invalid catalogue ID');
+   if(!Number.isInteger(expected)||Number(expected)<1)return fail('A valid expectedRevision is required');
+   const old=await db.prepare(`SELECT id,canonical_title AS title,work_type AS type,
+    original_language AS language,first_publication_date AS firstPublicationDate,
+    status,revision FROM works WHERE id=?`).bind(workId).first<{id:string;title:string;type:string;language:string|null;firstPublicationDate:string|null;status:string;revision:number}>();
+   if(!old)return fail('Book not found',404);
+   if(!['draft','needs_review'].includes(old.status))return fail('Only drafts and records needing review can be edited here',409);
+   if(old.revision!==expected)return json({error:'This book was changed elsewhere. Reload before saving.',currentRevision:old.revision},409);
+   const title=str(body.title,500),type=str(body.type,40),language=str(body.language,40)||null;
+   const date=str(body.firstPublicationDate,10)||null;
+   if(!title)return fail('Book title is required');
+   if(!workTypes.has(type))return fail('Invalid work type');
+   if(!validPartialDate(date||''))return fail('Publication date must be YYYY, YYYY-MM or YYYY-MM-DD');
+   if(!validLanguage(language||''))return fail('Invalid BCP 47 language tag');
+   if(typeof body.synopsis!=='string'||body.synopsis.length>12000)return fail('Synopsis must be text of no more than 12,000 characters');
+   const synopsis=body.synopsis.trim(),nextRev=old.revision+1;
+   const priorSyn=await db.prepare(`SELECT id,body FROM text_content WHERE entity_kind='work' AND entity_id=? AND
+    content_type='synopsis' AND visibility='private' AND source_claim_id IS NULL
+    ORDER BY rowid DESC LIMIT 1`).bind(workId).first<{id:string;body:string}>();
+   const before={...old,synopsis:priorSyn?.body??''};
+   const after={...old,title,type,language,firstPublicationDate:date,synopsis,revision:nextRev};
+   const statements:Statement[]=[
+    db.prepare(`UPDATE works SET canonical_title=?,work_type=?,original_language=?,
+      first_publication_date=?,revision=revision+1,updated_at=CURRENT_TIMESTAMP
+      WHERE id=? AND revision=? AND status IN ('draft','needs_review')`)
+     .bind(title,type,language,date,workId,expected)
+   ];
+   if(priorSyn){
+    if(synopsis)statements.push(db.prepare('UPDATE text_content SET body=? WHERE id=?').bind(synopsis,priorSyn.id));
+    else statements.push(db.prepare('DELETE FROM text_content WHERE id=?').bind(priorSyn.id));
+   }else if(synopsis){
+    statements.push(db.prepare(`INSERT INTO text_content(id,entity_kind,entity_id,content_type,body,visibility)
+       VALUES(?,'work',?,'synopsis',?,'private')`).bind(uuid(),workId,synopsis));
+   }
+   statements.push(db.prepare(`INSERT INTO record_revisions(id,entity_kind,entity_id,revision,before_json,after_json,actor_external_id,reason)
+    VALUES(?,'work',?,?,?,?,?,?)`).bind(uuid(),workId,nextRev,JSON.stringify(before),JSON.stringify(after),actor,'Metadata edit'));
+   statements.push(audit(db,actor,'update','work',workId,{before,after}));
+   const result=await db.batch(statements) as {meta?:{changes?:number}}[];
+   if(result[0]?.meta?.changes===0)return json({error:'This book was changed elsewhere. Reload before saving.'},409);
+   return json({saved:true,id:workId,revision:nextRev});
+  }
   if(path==='works'){
    const title=str(body.title,500),type=str(body.type,40)||'book';
    const language=str(body.language,40)||null,date=str(body.firstPublicationDate,10)||null;
    if(!title)return fail('A work title is required');
    if(!workTypes.has(type))return fail('Invalid work type');
-   if(date&&!/^\d{4}(?:-(?:0[1-9]|1[0-2])(?:-(?:0[1-9]|[12]\d|3[01]))?)?$/.test(date))return fail('Publication date must be a year, year-month or date');
+   if(!validPartialDate(date||''))return fail('Publication date must be a year, year-month or date');
+   if(!validLanguage(language||''))return fail('Invalid BCP 47 language tag');
    const id=uuid(),details={id,title,type,language,firstPublicationDate:date,status:'draft'};
    await db.batch([
     db.prepare("INSERT INTO works(id,canonical_title,work_type,original_language,first_publication_date) VALUES(?,?,?,?,?)").bind(id,title,type,language,date),
