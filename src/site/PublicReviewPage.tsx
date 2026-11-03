@@ -1,4 +1,5 @@
 import {useEffect,useState} from 'react';
+import type {FormEvent} from 'react';
 import {apiGet,apiWrite} from './api';
 
 interface Review {
@@ -36,7 +37,7 @@ export function PublicReviewPage({id,verified}:{id:string;verified:boolean}){
   }catch(e){setError(e instanceof Error?e.message:'Unable to update your helpful vote');}
   finally{setBusy(false);}
  }
- async function report(e:React.FormEvent<HTMLFormElement>){
+ async function report(e:FormEvent<HTMLFormElement>){
   e.preventDefault();if(!review||busy)return;
   setBusy(true);setError('');
   try{
