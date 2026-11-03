@@ -149,7 +149,7 @@ export function App(){
   else if(path==='/reviews')body=<Reviews data={api}/>;
   else if(path==='/search')body=<Search data={api}/>;
   else if(path.startsWith('/book/'))body=<PublicBookPage id={decodeURIComponent(path.slice(6))} verified={Boolean(member?.verified)} theme={theme}/>;
-  else if(path.startsWith('/review/'))body=<PublicReviewPage id={decodeURIComponent(path.slice(8))} verified={Boolean(member?.verified)}/>;
+  else if(path.startsWith('/review/'))body=<PublicReviewPage id={decodeURIComponent(path.slice(8))} verified={Boolean(member?.verified)} theme={theme}/>;
   else if(['/discussions','/recommendations','/clubs','/challenges','/lists'].includes(path)||['/discussion/','/recommendation/','/club/','/challenge/','/list/'].some(p=>path.startsWith(p)))body=<CommunityWorkspace path={path} books={api.books??[]} member={member}/>;
   else if(['/authors','/narrators','/series'].includes(path)||path.startsWith('/person/')||path.startsWith('/series/'))body=<PeopleAndSeries path={path}/>;
   else if(second.includes(path)||path==='/community')body=<Discovery path={path} data={api}/>;
