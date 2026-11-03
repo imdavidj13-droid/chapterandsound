@@ -8,7 +8,7 @@ import {apiGet,apiWrite} from './api';
 type Book={id:string;title:string;author?:string;formats?:string[]};
 type ShelfItem={id:string;workId:string;editionId?:string;bookTitle:string;status:string;format?:string;progressUnit?:string;progressValue?:number;privateNote?:string;privateRating?:number;finishedAt?:string};
 type Review={id:string;title?:string;bookTitle:string;bookId:string;status:string;visibility:string;storyRating?:number;audioRating?:number;body?:string;spoilers?:number;editionId?:string};
-type Props={path:string;books:Book[];member:{id:string;displayName:string;verified:boolean}};
+type Props={path:string;books:Book[];member:{id:string;displayName:string;verified:boolean;role?:'admin'|'moderator'|null}};
 const statusLabels:Record<string,string>={want_to_read:'Want to read',in_progress:'Currently reading',paused:'Paused',finished:'Finished',dnf:'Did not finish'};
 const formats=['paperback','hardback','ebook','audiobook'];
 const genreOptions=['Psychological thriller','Mystery','Crime','Suspense','Literary fiction','Romance','Fantasy','Science fiction','Historical fiction','Horror','Contemporary','Non-fiction'];
@@ -123,8 +123,24 @@ function ReviewEditor({books}:{books:Book[]}){
   return <><p className="eyebrow">Your thoughts · {preview?'Preview':'Private draft'}</p><h1>{preview?'Before you share':'Write a review'}</h1><p className="intro">A review belongs to you. Saving a draft never makes it public; publishing is a separate action.</p><ErrorText message={error}/>
     {preview?<div className="panel review-preview"><p className="eyebrow">Not published · Preview</p><h2>{title||book?.title||'Untitled review'}</h2><p className="muted">Reviewing {book?.title??'an unselected book'}</p>{storyRating&&<p className="stars">★ Story {storyRating}/5</p>}{spoilers?<details><summary>Contains spoilers — reveal review text</summary><p className="article-body">{body}</p></details>:<p className="article-body">{body}</p>}<div className="actions"><button className="button secondary" onClick={()=>setPreview(false)}>Back to editing</button><button className="button" onClick={publish} disabled={busy}>{busy?'Working…':'Publish review'}</button></div></div>:<div className="wizard"><div className="panel"><label>Book<select value={bookId} onChange={e=>setBookId(e.target.value)}><option value="">Choose a book</option>{books.map(b=><option key={b.id} value={b.id}>{b.title}</option>)}</select></label><p className="small muted">Narration rating will be available after selecting a verified audiobook recording. No audio scores are assigned to print or ebook formats.</p></div><div className="panel"><label>Story rating (optional)<select value={storyRating} onChange={e=>setStoryRating(e.target.value)}><option value="">Not rated</option>{Array.from({length:11},(_,i)=>i*.5).map(n=><option key={n} value={n}>{n}/5</option>)}</select></label><label>Review title (optional)<input value={title} onChange={e=>setTitle(e.target.value)} placeholder="A few words to sum it up"/></label><label>Your public review (optional for rating-only)<textarea rows={10} value={body} onChange={e=>setBody(e.target.value)} placeholder="What did you think?"/></label><label className="choice"><input type="checkbox" checked={spoilers} onChange={e=>setSpoilers(e.target.checked)}/><span>This review contains spoilers</span></label></div><div className="actions"><button className="button secondary" disabled={busy} onClick={()=>{void draft();}}>Save private draft</button><button className="button" onClick={()=>setPreview(true)}>Preview review</button></div></div>}</>;
 }
+function AccountPanel({member}:{member:Props['member']}){
+  const [busy,setBusy]=useState(false),[error,setError]=useState('');
+  const signOut=async()=>{setBusy(true);setError('');try{
+    const response=await fetch('/api/auth/sign-out',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:'{}'});
+    if(!response.ok)throw Error('Could not sign out. Please try again.');
+    window.location.assign('/');
+  }catch(e){setError(e instanceof Error?e.message:'Sign out failed')}finally{setBusy(false)}};
+  return <section className="member-account"><p className="eyebrow">Your Chapter & Sound account</p><h1>Account & privacy</h1>
+    <div className="panel"><h2>{member.displayName}</h2><p>Your email address has been verified. Your reading records are private unless you choose to publish or share them.</p>
+    {member.role==='admin'&&<p><strong>Site administrator</strong> · Your verified account has administrator access.</p>}
+    {member.role==='moderator'&&<p><strong>Community moderator</strong></p>}
+    <div className="actions"><a className="button secondary" href="/preferences">Reading preferences</a><a className="button secondary" href="/onboarding">Personalise my account</a>{member.role&&<a className="button" href="/admin">Open administration</a>}</div>
+    </div><div className="panel"><h2>Sign out</h2><p>You can safely end your current session on this device.</p>{error&&<div role="alert" className="notice error">{error}</div>}<button className="button secondary" disabled={busy} type="button" onClick={signOut}>{busy?'Signing out…':'Sign out'}</button></div>
+  </section>;
+}
 export function MemberWorkspace({path,books,member}:Props){
   if(!member.verified)return <div className="empty"><h1>Email verification required</h1><p>Verify your address before accessing private reading records.</p><a className="button secondary" href="/verify">Check verification</a></div>;
+  if(path==='/account')return <AccountPanel member={member}/>;
   if(path==='/shelf')return <Shelf member={member}/>;
   if(path==='/add-book')return <AddBook books={books}/>;
   if(path==='/my-reviews')return <MyReviews/>;
