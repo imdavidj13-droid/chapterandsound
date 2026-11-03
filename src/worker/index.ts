@@ -68,10 +68,28 @@ export default {
     }
     if(url.pathname.startsWith('/api/member/'))return memberAPI(request,env);
     if(url.pathname.startsWith('/api/book/')){
-      // Keep legacy record IDs (and therefore member reviews/shelves) authoritative.
+      // BOOK_DB owns catalogue metadata; DB continues to own reader reviews.
+      // Both use the unchanged work ID, so no review or shelf is relinked here.
       const legacy=await bookDetailsAPI(request,env);
-      if(legacy.status!==404||!env.BOOK_DB)return legacy;
-      return publicCatalogueAPI(new Request(new URL('/api/catalogue-public/book/'+encodeURIComponent(decodeURIComponent(url.pathname.slice('/api/book/'.length))),url.origin),request),env.BOOK_DB);
+      if(!env.BOOK_DB)return legacy;
+      const id=decodeURIComponent(url.pathname.slice('/api/book/'.length));
+      const canonical=await publicCatalogueAPI(
+        new Request(new URL('/api/catalogue-public/book/'+encodeURIComponent(id),url.origin)),env.BOOK_DB);
+      if(!canonical.ok)return legacy;
+      if(!legacy.ok)return canonical;
+      const canonicalData=await canonical.json() as {
+       book:Record<string,unknown>;editions:Array<{id:string}&Record<string,unknown>>;
+       reviews:unknown[];ratings:unknown;
+      };
+      const legacyData=await legacy.json() as {
+       book:Record<string,unknown>;editions:Array<{id:string}&Record<string,unknown>>;
+       reviews:unknown[];ratings:unknown;
+      };
+      // Canonical attributes win; legacy reviews and their ratings are retained.
+      const oldEditions=new Map(legacyData.editions.map(e=>[e.id,e]));
+      const editions=canonicalData.editions.map(e=>({...oldEditions.get(e.id),...e}));
+      return json({...canonicalData,book:{...legacyData.book,...canonicalData.book},
+       editions,reviews:legacyData.reviews,ratings:legacyData.ratings});
     }
     if(url.pathname.startsWith('/api/reader/'))return readerAPI(request,env);
     if(url.pathname.startsWith('/api/moderation/'))return moderationAPI(request,env);
