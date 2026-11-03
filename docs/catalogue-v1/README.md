@@ -1,6 +1,6 @@
 # Dedicated Catalogue Architecture — Design Pack v0.2
 
-**Planning only — no production tables, Worker bindings, R2 resources or website code were changed.** The user has created an empty dedicated D1 target, `chapterandsounds-book-db` (`961d5433-d7f8-4b8c-b84a-d9cad1a9a56a`). Its proposed binding is `BOOK_DB`.
+**Staging-candidate SQL written and tested — no production tables, Worker bindings, R2 resources or website code were changed.** The user has created an empty dedicated D1 target, `chapterandsounds-book-db` (`961d5433-d7f8-4b8c-b84a-d9cad1a9a56a`). Its proposed binding is `BOOK_DB`.
 
 This folder defines a standalone, API-capable book and audiobook catalogue for Chapter & Sound. It is a **review candidate**, not an executed database schema. Existing member data remains in `chapterandsound-db`.
 
@@ -11,6 +11,8 @@ This folder defines a standalone, API-capable book and audiobook catalogue for C
 3. [03-api-and-migration-contract.md](03-api-and-migration-contract.md) — future internal and public API contracts, role checks, ID crosswalk, compatibility with existing member records, shadow reads, rollback, licensing and performance decision gates.
 4. [04-d1-deployment-and-phasing.md](04-d1-deployment-and-phasing.md) — actual catalogue D1 UUID and proposed `BOOK_DB` binding, separate migration path, first-release versus later domains, safety gates.
 5. [05-validators-and-domain-contracts.md](05-validators-and-domain-contracts.md) — candidate enums, conditional mandatory fields, audiobook/contributor edge cases, media approval rules and concrete integrity tests.
+6. [../../catalogue-migrations/0001_catalogue_core.sql](../../catalogue-migrations/0001_catalogue_core.sql) — executable staging-candidate core work, edition, recording, contributor and series schema (15 tables).
+7. [../../catalogue-migrations/0002_catalogue_metadata_media.sql](../../catalogue-migrations/0002_catalogue_metadata_media.sql) — executable staging-candidate sources, identifiers, media, rights, text and audit schema (13 tables).
 
 ## Agreed underlying design
 
@@ -35,6 +37,13 @@ This folder defines a standalone, API-capable book and audiobook catalogue for C
 | ISBN / ASIN | Namespaced `entity_identifiers`, not canonical IDs |
 | Metadata source | `metadata_sources` / `source_records` / `field_claims` |
 | Administrator history | `record_revisions`, `catalogue_audit_log` |
+
+## Validation completed
+
+- The first-release candidate is now **28 tables**, of the 59 proposed catalogue tables. The remaining 31 are future modules.
+- GitHub CI runs `npm run test:catalogue-schema` using disposable in-memory SQLite; it is **not** connected to either real D1 database.
+- It checks FK integrity, work/version/edition consistency, audio recording association, author/narrator roles, identifier uniqueness, media approval/rights and audit storage.
+- SQL remains a **candidate**, not a permanently frozen v1.0 schema. API-level identity and rights validations, staging D1 trial and migration review remain prerequisites for applying it to the new database.
 
 ## Freeze protocol
 
