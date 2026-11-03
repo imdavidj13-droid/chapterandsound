@@ -117,7 +117,28 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
     (SELECT i.normalized_value FROM entity_identifiers i JOIN identifier_schemes s ON s.id=i.scheme_id WHERE i.entity_kind='edition' AND i.entity_id=e.id AND s.code='ASIN' LIMIT 1) AS asin,
     e.verification_status AS verificationStatus
     FROM editions e WHERE e.work_id=? ORDER BY e.created_at LIMIT 200`).bind(id).all<Record<string,unknown>>();
-  return json({book,editions:editions.map(x=>({...x,contributors:[]})),reviews:[],ratings:{story:{count:0,average:null},narrationByEdition:[]},catalogueSource:'BOOK_DB'});
+  const {results:credits}=await db.prepare(`SELECT er.edition_id AS editionId,
+    p.id,p.preferred_name AS name,c.role_code AS role
+    FROM edition_recordings er
+    JOIN contributions c ON c.recording_id=er.recording_id
+    JOIN people p ON p.id=c.person_id
+    JOIN editions e ON e.id=er.edition_id
+    WHERE e.work_id=? AND c.role_code IN ('narrator','cast')
+    UNION ALL
+    SELECT c.edition_id AS editionId,p.id,p.preferred_name AS name,c.role_code AS role
+    FROM contributions c JOIN people p ON p.id=c.person_id
+    JOIN editions e ON e.id=c.edition_id
+    WHERE e.work_id=?
+    ORDER BY name`).bind(id,id).all<{editionId:string;id:string;name:string;role:string}>();
+  const byEdition=new Map<string,{id:string;name:string;role:string}[]>();
+  for(const item of credits){
+   const list=byEdition.get(item.editionId)||[];
+   if(!list.some(x=>x.id===item.id&&x.role===item.role))list.push({id:item.id,name:item.name,role:item.role});
+   byEdition.set(item.editionId,list);
+  }
+  return json({book:{...(book as object),year:(book as {year?:string|null}).year?Number((book as {year:string}).year.slice(0,4)):null},
+    editions:editions.map(x=>({...x,contributors:byEdition.get(String(x.id))||[]})),
+    reviews:[],ratings:{story:{count:0,average:null},narrationByEdition:[]},catalogueSource:'BOOK_DB'});
  }
  return json({error:'Unknown catalogue route'},404);
  }catch(error){console.error('Public BOOK_DB catalogue read failed',error);return json({error:'Catalogue read unavailable'},503)}
