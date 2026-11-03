@@ -31,10 +31,15 @@ export function CatalogueWorkbench(){
  const [editingId,setEditingId]=useState(''),[editRevision,setEditRevision]=useState(0);
  const [editSynopsis,setEditSynopsis]=useState(''),[editCredits,setEditCredits]=useState<WorkDetails['credits']>([]);
  const [opening,setOpening]=useState(false);
+ const [mediaReady,setMediaReady]=useState(false),[mediaKind,setMediaKind]=useState<'work'|'edition'|'person'>('edition');
+ const [mediaId,setMediaId]=useState(''),[mediaFile,setMediaFile]=useState<File|null>(null);
+ const [rightsHolder,setRightsHolder]=useState(''),[licenceName,setLicenceName]=useState(''),[sourceUrl,setSourceUrl]=useState('');
+ const [rightsConfirmed,setRightsConfirmed]=useState(false),[uploading,setUploading]=useState(false);
  const load=useCallback(async()=>{
   setLoading(true);setError('');
   try{
-   await apiGet('/api/catalogue-admin/health');
+   const health=await apiGet<{imageStorage?:boolean}>('/api/catalogue-admin/health');
+   setMediaReady(Boolean(health.imageStorage));
    setReady(true);
    const [w,p,e,r,legacy]=await Promise.all([
     apiGet<{items:Work[]}>('/api/catalogue-admin/works?limit=100'),
@@ -73,6 +78,23 @@ export function CatalogueWorkbench(){
   finally{setSaving(false)}
  }
 
+ async function uploadMedia(e:FormEvent){
+  e.preventDefault();
+  if(!mediaReady||!mediaFile||!mediaId||!rightsConfirmed)return;
+  setError('');setNotice('');setUploading(true);
+  try{
+   const data=new FormData();
+   data.set('entityKind',mediaKind);data.set('entityId',mediaId);
+   data.set('rightsHolder',rightsHolder);data.set('licenceName',licenceName);data.set('sourceUrl',sourceUrl);
+   data.set('rightsConfirmed','yes');data.set('file',mediaFile);
+   const response=await fetch('/api/catalogue-admin/upload-image',{method:'POST',credentials:'include',body:data});
+   const result=await response.json() as {error?:string;assetId?:string;url?:string};
+   if(!response.ok)throw new Error(result.error||'Image upload failed');
+   setNotice('Image uploaded and linked to this catalogue record. Asset ID: '+result.assetId);
+   setMediaFile(null);setRightsConfirmed(false);
+  }catch(e){setError(e instanceof Error?e.message:'Image upload failed')}
+  finally{setUploading(false)}
+ }
  async function save(e:FormEvent){
   e.preventDefault();setSaving(true);setError('');setNotice('');
   const duration=durationHours||durationMinutes?Number(durationHours||0)*3600+Number(durationMinutes||0)*60:null;
@@ -164,9 +186,24 @@ export function CatalogueWorkbench(){
   </div>
   <CatalogueManualManager/>
   <section className="cs-admin-form" style={{marginTop:20}}>
-   <h3>Book-cover images · Cloudflare R2</h3>
-   <p>Cover uploading needs its own private R2 bucket, rights verification and a signed upload endpoint. No upload is simulated or saved locally.</p>
-   <button type="button" disabled>Upload cover — not connected yet</button>
+   <h3>Book covers and contributor portraits</h3>
+   {!mediaReady?<p>Cloudflare R2 is not connected yet. Images will be available here once the CATALOGUE_MEDIA bucket is created and bound. No files are stored in the browser.</p>:
+   <form onSubmit={uploadMedia} className="cs-admin-form">
+    <label>Image belongs to<select value={mediaKind} onChange={e=>{setMediaKind(e.target.value as typeof mediaKind);setMediaId('')}}>
+     <option value="edition">Book edition — front cover</option><option value="work">Book — representative cover</option><option value="person">Contributor — portrait</option>
+    </select></label>
+    <label>Record<select required value={mediaId} onChange={e=>setMediaId(e.target.value)}><option value="">Choose existing record</option>
+     {(mediaKind==='edition'?editions.map(x=>({id:x.id,name:x.title+' / '+x.format})):
+       mediaKind==='work'?works.map(x=>({id:x.id,name:x.title})):
+       people.map(x=>({id:x.id,name:x.name}))).map(x=><option key={x.id} value={x.id}>{x.name} ({short(x.id)})</option>)}
+    </select></label>
+    <label>Image file (PNG, JPG, WEBP or AVIF, maximum 5 MB)<input required type="file" accept="image/png,image/jpeg,image/webp,image/avif" onChange={e=>setMediaFile(e.target.files?.[0]||null)}/></label>
+    <label>Rights holder<input required maxLength={500} value={rightsHolder} onChange={e=>setRightsHolder(e.target.value)}/></label>
+    <label>Licence or permission<input required maxLength={250} value={licenceName} onChange={e=>setLicenceName(e.target.value)} placeholder="e.g. publisher permission or own photograph"/></label>
+    <label>Source URL<input required type="url" value={sourceUrl} onChange={e=>setSourceUrl(e.target.value)} placeholder="https://..."/></label>
+    <label><input type="checkbox" checked={rightsConfirmed} onChange={e=>setRightsConfirmed(e.target.checked)}/> I confirm I have permission to display this image publicly on Chapter & Sound.</label>
+    <button type="submit" className="primary" disabled={!mediaFile||!mediaId||!rightsConfirmed||uploading}>{uploading?'Uploading…':'Upload and link image'}</button>
+   </form>}
   </section>
  </div>;
 }
