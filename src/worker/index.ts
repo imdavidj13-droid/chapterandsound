@@ -1,3 +1,4 @@
+import {readerAPI} from './reader-api.js';
 import {syncSiteRole} from './admin-role.js';
 import {bookDetailsAPI} from './book-details-api.js';
 import {moderationAPI} from './moderation-api.js';
@@ -47,6 +48,7 @@ export default {
     }
     if(url.pathname.startsWith('/api/member/'))return memberAPI(request,env);
     if(url.pathname.startsWith('/api/book/'))return bookDetailsAPI(request,env);
+    if(url.pathname.startsWith('/api/reader/'))return readerAPI(request,env);
     if(url.pathname.startsWith('/api/moderation/'))return moderationAPI(request,env);
     if(url.pathname.startsWith('/api/public-reviews/'))return publicReviewAPI(request,env);
     if(['/api/discussions','/api/recommendations','/api/clubs','/api/challenges','/api/lists'].some(p=>url.pathname===p||url.pathname.startsWith(p+'/')))return communityAPI(request,env);
@@ -129,7 +131,7 @@ export default {
       if(url.pathname==='/api/reviews'){
         const {results}=await env.DB.prepare(`SELECT r.id,r.title,r.body,r.story_rating AS storyRating,
           r.narration_rating AS audioRating,r.spoilers,r.created_at AS createdAt,r.book_id AS bookId,
-          w.title AS bookTitle,m.display_name AS authorName,e.format
+          w.title AS bookTitle,m.display_name AS authorName,m.handle AS authorHandle,e.format
           FROM reviews r JOIN works w ON w.id=r.book_id JOIN members m ON m.id=r.member_id
           LEFT JOIN editions e ON e.id=r.edition_id
           WHERE r.status='published' AND r.visibility='public'
