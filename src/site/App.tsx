@@ -135,6 +135,7 @@ function About({path}:{path:string}){return <><PageHead eyebrow="The little deta
 function NotFound(){return <><PageHead heading="This page has wandered off" intro="The page you requested isn't available."/><Empty heading="Find your way back" body="There are plenty of stories to discover." action="Return home" href="/"/></>;}
 export function App(){
   const [path,setPath]=useState(locationPath());
+  const [verifyFromEmail]=useState(()=>window.location.pathname==='/' && new URLSearchParams(window.location.hash.replace(/^#/, '')).has('verify-email'));
   const [api,setApi]=useState<ApiData>({books:[],reviews:[]});
   const [backendStatus,setBackendStatus]=useState<'loading'|'ready'|'offline'>('loading');
   const [member,setMember]=useState<Member|null>(null);
@@ -167,6 +168,7 @@ export function App(){
   const query=useMemo(()=>new URLSearchParams(window.location.search),[path]);
   const args:ScreenProps={path,query,data:api,member,navigate};
   let body:ReactNode;
+  if(verifyFromEmail)body=<ConfirmEmailPage/>;
   if(path==='/')body=theme==='reading-room'?<RoomHome member={member} books={api.books??[]} reviews={api.reviews??[]}/>:<Home data={api} member={member}/>;
   else if(path==='/books')body=<FilteredBooks data={api}/>;
   else if(path==='/reviews')body=<Reviews data={api}/>;
