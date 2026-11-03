@@ -95,7 +95,7 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
     (SELECT i.normalized_value FROM entity_identifiers i JOIN identifier_schemes s ON s.id=i.scheme_id WHERE i.entity_kind='edition' AND i.entity_id=e.id AND s.code='ISBN13' LIMIT 1) AS isbn13,
     (SELECT i.normalized_value FROM entity_identifiers i JOIN identifier_schemes s ON s.id=i.scheme_id WHERE i.entity_kind='edition' AND i.entity_id=e.id AND s.code='ASIN' LIMIT 1) AS asin,
     e.verification_status AS verificationStatus
-    FROM editions e WHERE e.work_id=? ORDER BY e.created_at LIMIT 200`).bind(id).all();
+    FROM editions e WHERE e.work_id=? ORDER BY e.created_at LIMIT 200`).bind(id).all<Record<string,unknown>>();
   return json({book,editions:editions.map(x=>({...x,contributors:[]})),reviews:[],ratings:{story:{count:0,average:null},narrationByEdition:[]},catalogueSource:'BOOK_DB'});
  }
  return json({error:'Unknown catalogue route'},404);
