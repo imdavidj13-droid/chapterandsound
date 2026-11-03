@@ -50,7 +50,17 @@ export function CatalogueWorkbench(){
   }catch(e){setReady(false);setError(e instanceof Error?e.message:'Catalogue unavailable')}
   finally{setLoading(false)}
  },[]);
- useEffect(()=>{void load()},[load]);
+ useEffect(()=>{
+  // On the first catalogue visit, preserve existing website author identities
+  // in BOOK_DB without deleting or relinking any legacy member records.
+  void apiWrite<{copied:number;conflicts:number;moreMayExist:boolean}>('/api/catalogue-admin/consolidate-people','POST',{})
+   .then(async result=>{
+    await load();
+    if(result.copied>0)setNotice(result.copied+' existing author profiles are now available in the catalogue.');
+    if(result.conflicts>0)setNotice(v=>v+' '+result.conflicts+' ambiguous profiles need separate review; none were merged.');
+   })
+   .catch(()=>{void load()});
+ },[load]);
  const refresh=()=>void load();
  async function openWork(workId:string){
   setOpening(true);setError('');setNotice('');setActiveForm(null);
