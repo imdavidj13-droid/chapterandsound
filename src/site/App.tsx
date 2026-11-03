@@ -1,3 +1,4 @@
+import {MemberWorkspace} from './MemberWorkspace';
 import {useEffect,useMemo,useState} from 'react';
 import type {FormEvent,ReactNode} from 'react';
 import {routes,locationPath} from './routes';
@@ -80,7 +81,10 @@ function Login({path}:{path:string}){
       <><AppLink to="/signup">Create an account</AppLink> · <AppLink to="/reset-password">Forgot password?</AppLink> · <AppLink to="/verify">Verify email</AppLink></>}</p>
   </div>;
 }
-function MemberPage({path,member}:{path:string;member:Member|null}){if(!member)return <><PageHead eyebrow="Your reading world" heading={title(path)} intro="Your books, reflections and preferences are private unless you explicitly share them."/><Empty heading="Sign in to continue" body="Member accounts require a secure, configured authentication service. No account data is stored in your browser as a substitute." action="Account setup" href="/signup"/></>;const heads:Record<string,string>={'/shelf':'Your bookshelf','/reading-year':'Your reading year','/my-reviews':'Your reviews','/preferences':'Your reading world','/account':'Your account','/add-book':'Find a book to add','/journal':'Your reading journal','/onboarding':'Make it yours','/admin':'Administration'};return <><PageHead eyebrow="Private to you" heading={heads[path]??title(path)} intro={`Welcome, ${member.displayName}. Your private data stays in your own account.`} action={path==='/shelf'?<AppLink to="/add-book" className="button">Add a book</AppLink>:null}/><Empty heading="Your story starts here" body="Nothing has been added to this account yet. Only real cloud records will populate this space." action={path==='/shelf'?'Add your first book':undefined} href="/add-book"/></>;}
+function MemberPage({path,member,data}:{path:string;member:Member|null;data:ApiData}){
+  if(!member)return <><PageHead eyebrow="Your reading world" heading={title(path)} intro="Your books, reflections and preferences are private unless you explicitly share them."/><Empty heading="Sign in to continue" body="Your personal reading world is linked to your verified cloud account. Please sign in to access it." action="Sign in" href="/signin"/></>;
+  return <MemberWorkspace path={path} books={data.books??[]} member={member}/>;
+}
 function About({path}:{path:string}){return <><PageHead eyebrow="The little details" heading={title(path)}/><div className="reading-article">{path==='/about'?<><h2>Every way of reading counts.</h2><p>Chapter & Sound is being built as a public community for book reviews, reading tracking, discussions, book clubs and challenges. Ratings are member opinions, with story and audiobook narration scored separately.</p><h3>Our rating guide</h3><p>Members may leave a rating or a written review, or neither. Private ratings and notes are not public reviews.</p></>:<><h2>{path==='/privacy'?'Privacy principles':'Terms of service'}</h2><p>This page is a development placeholder, not a published legal policy. Account registration and public participation must remain disabled until the appropriate legal text, moderation rules and operational processes have been completed.</p></>}</div></>;}
 function NotFound(){return <><PageHead heading="This page has wandered off" intro="The page you requested isn't available."/><Empty heading="Find your way back" body="There are plenty of stories to discover." action="Return home" href="/"/></>;}
 export function App(){
@@ -109,7 +113,7 @@ export function App(){
   else if(path.startsWith('/review/'))body=<ReviewDetail data={api} id={decodeURIComponent(path.slice(8))}/>;
   else if(second.includes(path)||['/community','/lists'].includes(path))body=<Discovery path={path} data={api}/>;
   else if(['/signin','/signup','/reset-password','/verify'].includes(path))body=<Login path={path}/>;
-  else if(personal.includes(path)||['/add-book','/journal','/onboarding','/admin'].includes(path))body=<MemberPage path={path} member={member}/>;
+  else if(personal.includes(path)||['/add-book','/journal','/onboarding','/admin','/write-review'].includes(path))body=<MemberPage path={path} member={member} data={api}/>;
   else if(['/about','/privacy','/terms'].includes(path))body=<About path={path}/>;
   else body=<NotFound/>;
   return <><a className="skip-link" href="#main">Skip to content</a><Header member={member}/>{backendStatus==='offline'&&<div className="backend-alert" role="status">Live catalogue and review services are not connected. Content areas will remain empty rather than showing invented data.</div>}<main id="main" className={path==='/'?'home-main':'page-container'}>{body}</main><Footer/></>;
