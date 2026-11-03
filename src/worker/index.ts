@@ -69,6 +69,20 @@ export default {
     if(url.pathname.startsWith('/api/admin/'))return adminAPI(request,env);
     if(url.pathname.startsWith('/api/public-reviews/'))return publicReviewAPI(request,env);
     if(['/api/discussions','/api/recommendations','/api/clubs','/api/challenges','/api/lists'].some(p=>url.pathname===p||url.pathname.startsWith(p+'/')))return communityAPI(request,env);
+    if(url.pathname==='/api/site-presentation'&&request.method==='GET'){
+      if(!env.DB)return missing();
+      try{
+        const {results}=await env.DB.prepare("SELECT setting_key AS key, setting_json AS json FROM site_settings WHERE setting_key IN ('homepage_heading','homepage_intro','guest_default_theme')").all<{key:string;json:string}>();
+        const parsed=new Map<string,string>();
+        for(const item of results){
+          try{
+            const value:unknown=JSON.parse(item.json);
+            if(typeof value==='string')parsed.set(item.key,value);
+          }catch{/* Keep safe defaults for malformed existing settings. */}
+        }
+        return json({heading:parsed.get('homepage_heading')||'',intro:parsed.get('homepage_intro')||'',guestTheme:parsed.get('guest_default_theme')==='reading-room'?'reading-room':'editorial'});
+      }catch(error){console.error('Public site presentation unavailable',error);return json({error:'Site settings unavailable'},503);}
+    }
     if(request.method!=='GET') return json({error:'Write operations require verified member permissions and are not yet enabled'},503);
     if(url.pathname==='/api/health'){
       let schema:'ready'|'missing'|'unavailable'='missing';
