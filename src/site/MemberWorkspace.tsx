@@ -60,9 +60,17 @@ function AddBook({books}:{books:Book[]}){
   const [editionId,setEditionId]=useState('');const [step,setStep]=useState<1|2|3|4>(1);
   const [busy,setBusy]=useState(false);const [error,setError]=useState('');
   const [saved,setSaved]=useState(false);
-  const found=books.filter(b=>(b.title+' '+(b.author??'')).toLowerCase().includes(term.toLowerCase()));
+  const [found,setFound]=useState<Book[]>(books);const [searching,setSearching]=useState(false);
+  useEffect(()=>{if(!term.trim()){setFound(books);return}let active=true;const abort=new AbortController();const timer=setTimeout(async()=>{
+    setSearching(true);
+    try{const response=await fetch('/api/books?q='+encodeURIComponent(term.trim())+'&limit=60',{signal:abort.signal});
+      if(!response.ok)throw Error('Book search service unavailable');
+      const data=await response.json() as {items:Book[]};if(active)setFound(data.items??[]);
+    }catch(e){if(active&&!abort.signal.aborted)setError(e instanceof Error?e.message:'Unable to search books')}
+    finally{if(active)setSearching(false)}
+  },230);return()=>{active=false;abort.abort();clearTimeout(timer)}},[term,books]);
   const selectBook=async(id:string)=>{setBookId(id);setEditionId('');setBusy(true);setError('');try{const r=await apiGet<{items:typeof editions}>('/api/editions?workId='+encodeURIComponent(id));setEditions(r.items);setStep(2)}catch(e){setError(e instanceof Error?e.message:'Edition search is unavailable')}finally{setBusy(false)}};
-  const chosen=books.find(b=>b.id===bookId);
+  const chosen=found.find(b=>b.id===bookId)||books.find(b=>b.id===bookId);
   const save=async(e:FormEvent)=>{e.preventDefault();if(!chosen){setError('Choose a book first');return;}setBusy(true);setError('');
     try{await apiWrite('/api/member/shelf','POST',{workId:chosen.id,editionId:editionId||undefined,status,privateNote:note});setSaved(true);}
     catch(e){setError(e instanceof Error?e.message:'Could not add book');}finally{setBusy(false);}};
@@ -70,7 +78,7 @@ function AddBook({books}:{books:Book[]}){
     <div className="add-flow-steps">{['Search','Edition','Your shelf'].map((label,i)=><span key={label} className={step>=i+1?'active':''}>{i+1}. {label}</span>)}</div>
     {saved?<div className="panel success-panel"><h2>Added to your bookshelf</h2><p>{chosen?.title} was saved to your private shelf.</p><div className="actions"><a className="button" href="/shelf">View my bookshelf</a><button className="button secondary" onClick={()=>{setBookId('');setEditionId('');setStep(1);setSaved(false);setTerm('');setNote('');}}>Add another book</button></div></div>:
     <form className="wizard" onSubmit={save}>{step===1&&<div className="panel"><p className="eyebrow">01 / Find a book</p><label>Search by title or author<input value={term} onChange={e=>setTerm(e.target.value)} placeholder="Start typing a book title…" autoFocus/></label>
-      {term&&<div className="selection-list" role="group" aria-label="Matching books">{found.length?found.map(b=><label className={'candidate '+(bookId===b.id?'chosen':'')} key={b.id}><input type="radio" name="selectedBook" checked={bookId===b.id} onChange={()=>void selectBook(b.id)}/><span><strong>{b.title}</strong><small>{b.author??'Author not verified'}</small></span></label>):<p className="muted">No verified book found. You can request missing catalogue entries when the catalogue management flow is connected.</p>}</div>}</div>
+      {searching&&<p role="status">Searching the live catalogue…</p>}{term&&<div className="selection-list" role="group" aria-label="Matching books">{found.length?found.map(b=><label className={'candidate '+(bookId===b.id?'chosen':'')} key={b.id}><input type="radio" name="selectedBook" checked={bookId===b.id} onChange={()=>void selectBook(b.id)}/><span><strong>{b.title}</strong><small>{b.author??'Author not verified'}</small></span></label>):<p className="muted">No verified book found. You can request missing catalogue entries when the catalogue management flow is connected.</p>}</div>}</div>
       {step===2&&<div className="panel"><p className="eyebrow">02 / Choose your edition</p>{chosen?<p><strong>{chosen.title}</strong> · An exact edition is not yet selected. Format-specific details cannot be assumed.</p>:<p className="muted">Choose a book above to continue.</p>}
         {editions.length?<div className="add-edition-list">{editions.map(e=><label className="add-edition-option" key={e.id}><input type="radio" checked={editionId===e.id} name="edition" onChange={()=>setEditionId(e.id)}/><span><strong>{e.format}</strong> · {e.publisher??'Publisher unconfirmed'}{e.durationMinutes!=null?' · '+e.durationMinutes+' min':''}</span></label>)}</div>:<p>No editions are currently listed for this work.</p>}
         <label className="add-edition-option"><input type="radio" name="edition" checked={!editionId} onChange={()=>setEditionId('')}/> My edition is not listed</label><div className="actions"><button type="button" className="button secondary" onClick={()=>setStep(1)}>Back</button><button type="button" className="button" onClick={()=>setStep(3)}>Continue</button></div></div>}
