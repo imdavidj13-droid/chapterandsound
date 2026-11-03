@@ -20,13 +20,12 @@ export function CatalogueWorkbench(){
  const [tab,setTab]=useState<RecordType>('works'),[loading,setLoading]=useState(false),[saving,setSaving]=useState(false);
  const [works,setWorks]=useState<Work[]>([]),[people,setPeople]=useState<Person[]>([]);
  const [editions,setEditions]=useState<Edition[]>([]),[recordings,setRecordings]=useState<Recording[]>([]);
- const [query,setQuery]=useState(''),[selectedWork,setSelectedWork]=useState(''),[selectedRecording,setSelectedRecording]=useState('');
+ const [query,setQuery]=useState(''),[selectedWork,setSelectedWork]=useState('');
  const [title,setTitle]=useState(''),[type,setType]=useState('book'),[language,setLanguage]=useState(''),[publicationDate,setPublicationDate]=useState('');
- const [personName,setPersonName]=useState(''),[selectedPerson,setSelectedPerson]=useState(''),[creditRole,setCreditRole]=useState('author');
+ const [personName,setPersonName]=useState('');
  const [format,setFormat]=useState('paperback'),[pageCount,setPageCount]=useState('');
  const [performance,setPerformance]=useState('unknown'),[abridgement,setAbridgement]=useState('unknown'),[durationHours,setDurationHours]=useState(''),[durationMinutes,setDurationMinutes]=useState('');
  const [activeForm,setActiveForm]=useState<RecordType|null>(null);
- const [showCredit,setShowCredit]=useState(false);
  const [editingId,setEditingId]=useState(''),[editRevision,setEditRevision]=useState(0);
  const [editSynopsis,setEditSynopsis]=useState(''),[editCredits,setEditCredits]=useState<WorkDetails['credits']>([]);
  const [opening,setOpening]=useState(false);
@@ -86,17 +85,6 @@ export function CatalogueWorkbench(){
   }catch(e){setError(e instanceof Error?e.message:'Catalogue save failed')}
   finally{setSaving(false)}
  }
- async function saveCredit(){
-  setSaving(true);setError('');setNotice('');
-  try{
-   const payload={personId:selectedPerson,workId:creditRole==='narrator'?'':selectedWork,
-    recordingId:creditRole==='narrator'?selectedRecording:'',role:creditRole};
-   const res=await apiWrite<{id:string}>('/api/catalogue-admin/contributions','POST',payload);
-   setNotice('Contributor credited and saved to BOOK_DB. Credit ID: '+res.id);
-   setShowCredit(false);await load();
-  }catch(e){setError(e instanceof Error?e.message:'Could not assign contributor')}
-  finally{setSaving(false)}
- }
  if(ready===null)return <section className="cs-admin-form"><h2>Catalogue</h2><p role="status">Checking dedicated Cloudflare catalogue database…</p></section>;
  if(ready===false)return <section className="cs-admin-form"><h2>Catalogue database setup</h2><p>The catalogue editor will become available once the separate BOOK_DB migrations are installed.</p><p role="alert" className="cs-admin-error">{error}</p><p>No member database records have been changed.</p><button type="button" onClick={refresh}>Check again</button></section>;
  return <div className="cs-catalogue">
@@ -104,8 +92,8 @@ export function CatalogueWorkbench(){
    {([{label:'Books',value:works.length},{label:'Contributors',value:people.length},{label:'Editions',value:editions.length},{label:'Recordings',value:recordings.length}]).map(x=><div key={x.label} className="cs-admin-metric"><span>{x.label} in first 100 results</span><strong>{x.value}</strong></div>)}
   </div>
   <div className="cs-admin-heading" style={{marginTop:24}}><div><h2>Catalogue management</h2><p>Real records from the separate BOOK_DB database. Manual additions are saved directly to BOOK_DB. Records can be edited later; the public website is not yet connected to this catalogue.</p></div><button type="button" onClick={refresh} disabled={loading}>Refresh database</button></div>
-  <div className="cs-admin-actions" role="tablist" aria-label="Catalogue data areas">
-   {(['works','people','editions','recordings'] as RecordType[]).map(x=><button role="tab" aria-selected={tab===x} key={x} className={tab===x?'primary':''} type="button" onClick={()=>{setTab(x);setActiveForm(null);setEditingId('');setError('');setNotice('')}}>{x==='works'?'Books':x==='people'?'Authors & narrators':x==='recordings'?'Audiobooks':'Editions'}</button>)}
+  <div className="cs-admin-actions" role="tablist" aria-label="Book catalogue">
+   <strong>Books</strong> <span>Use the detailed catalogue management panel below for authors, editions, audiobooks and related information.</span>
   </div>
   {error&&<p role="alert" className="cs-admin-error">{error}</p>}
   {notice&&<p role="status" className="cs-admin-success">{notice}</p>}
@@ -160,17 +148,6 @@ export function CatalogueWorkbench(){
    </tbody></table>
    {!loading&&(tab==='works'?works:tab==='people'?people:tab==='editions'?editions:recordings).length===0&&<p className="cs-admin-empty">No catalogue records yet.</p>}
   </div>
-  <section className="cs-admin-form" style={{marginTop:20}}>
-   <div className="cs-admin-heading"><div><h3>Contributor credits</h3><p>Attach an existing person as an author of a book or narrator of a specific recording.</p></div>
-    <button type="button" onClick={()=>setShowCredit(v=>!v)}>{showCredit?'Close':'Assign contributor'}</button></div>
-   {showCredit&&<div className="cs-admin-form inline">
-    <label>Contributor<select value={selectedPerson} onChange={e=>setSelectedPerson(e.target.value)}><option value="">Select a person</option>{people.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-    <label>Role<select value={creditRole} onChange={e=>setCreditRole(e.target.value)}><option value="author">Author</option><option value="coauthor">Coauthor</option><option value="narrator">Narrator</option><option value="translator">Translator</option><option value="editor">Editor</option><option value="illustrator">Illustrator</option></select></label>
-    {creditRole==='narrator'?<label>Audiobook recording<select value={selectedRecording} onChange={e=>setSelectedRecording(e.target.value)}><option value="">Select a recording</option>{recordings.map(r=><option key={r.id} value={r.id}>{r.title} — {short(r.id)}</option>)}</select></label>:
-      <label>Book<select value={selectedWork} onChange={e=>setSelectedWork(e.target.value)}><option value="">Select a book</option>{works.map(w=><option key={w.id} value={w.id}>{w.title}</option>)}</select></label>}
-    <button type="button" className="primary" disabled={saving||!selectedPerson||(creditRole==='narrator'?!selectedRecording:!selectedWork)} onClick={()=>void saveCredit()}>{saving?'Saving…':'Save contributor credit'}</button>
-   </div>}
-  </section>
   <CatalogueManualManager/>
   <section className="cs-admin-form" style={{marginTop:20}}>
    <h3>Book-cover images · Cloudflare R2</h3>
