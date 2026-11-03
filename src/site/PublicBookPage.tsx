@@ -1,3 +1,4 @@
+import {RoomBookView} from './themes/RoomBookView';
 import {useEffect,useMemo,useState} from 'react';
 import {apiGet} from './api';
 
@@ -6,7 +7,7 @@ type Contributor={id:string;name:string;role:string};
 type Edition={id:string;format:string;publisher:string|null;publishedAt:string|null;language:string|null;pageCount:number|null;durationMinutes:number|null;abridged:number|null;isbn13:string|null;asin:string|null;verificationStatus:string;contributors:Contributor[]};
 type Review={id:string;title:string|null;body:string|null;spoilers:number;storyRating:number|null;audioRating:number|null;publishedAt:string|null;editionId:string|null;format:string|null;authorName:string;authorHandle:string|null};
 type Rating={average:number|null;count:number};
-type BookPayload={book:Book;editions:Edition[];reviews:Review[];ratings:{story:Rating;narrationByEdition:(Rating&{editionId:string})[]}};
+export type BookPayload={book:Book;editions:Edition[];reviews:Review[];ratings:{story:Rating;narrationByEdition:(Rating&{editionId:string})[]}};
 const fmt:Record<string,string>={paperback:'Paperback',hardback:'Hardback',ebook:'Ebook',audiobook:'Audiobook',unknown:'Format unconfirmed'};
 function secondsToHours(minutes:number){const hours=Math.floor(minutes/60),remainder=minutes%60;return [hours?hours+' hr':'',remainder?remainder+' min':''].filter(Boolean).join(' ')||'0 min';}
 function RatingSummary({label,rating}:{label:string;rating:Rating}){
@@ -41,7 +42,7 @@ function ReviewSnippet({review}:{review:Review}){
   <a className="inline-link" href={'/review/'+encodeURIComponent(review.id)}>Read full review →</a>
  </article>;
 }
-export function PublicBookPage({id,verified}:{id:string;verified:boolean}){
+export function PublicBookPage({id,verified,theme='editorial'}:{id:string;verified:boolean;theme?:'editorial'|'reading-room'}){
  const [data,setData]=useState<BookPayload|null>(null);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState('');
@@ -57,6 +58,7 @@ export function PublicBookPage({id,verified}:{id:string;verified:boolean}){
  const editions=useMemo(()=>data?.editions.filter(e=>filter==='all'||e.format===filter)??[],[data,filter]);
  if(loading)return <p role="status">Loading book details…</p>;
  if(!data)return <section className="empty"><h1>Book not available</h1><p role="alert">{error||'This book could not be found.'}</p><a className="button secondary" href="/books">Browse books</a></section>;
+ if(theme==='reading-room')return <RoomBookView data={data} verified={verified}/>;
  const {book,ratings,reviews}=data;
  const ratingsByEdition=new Map(ratings.narrationByEdition.map(r=>[r.editionId,r]));
  return <div className="public-book-page">
