@@ -4,6 +4,7 @@
   "compatibility_date": "2026-11-03",
   "compatibility_flags": ["nodejs_compat"],
   "main": "./src/worker/index.ts",
+  "vars": {"ADMIN_EMAIL": "imdavidj13@gmail.com"},
   "assets": {"not_found_handling": "single-page-application"},
   // Add a D1 database binding after explicitly creating a project-specific database.
   // Do not copy the binding ID from another project.
