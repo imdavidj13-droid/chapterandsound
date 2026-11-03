@@ -31,8 +31,8 @@ export function ConfirmEmailPage(){
        if(!data||typeof data!=='object'||!('status' in data)||(data as {status?:unknown}).status!==true){
          throw new Error('The verification service did not confirm your email. Please request a fresh link.');
        }
+       // Keep the success state visible until the reader chooses where to go.
        setStatus('success');
-       window.location.replace('/onboarding');
      }catch(e){setStatus('failed');setError(e instanceof Error?e.message:'Could not verify this email.');}
    };
    void check();
@@ -42,8 +42,8 @@ export function ConfirmEmailPage(){
      <div className="confirm-email-icon" aria-hidden="true">{status==='success'?'✓':'✉'}</div>
      <p className="eyebrow">Chapter & Sound / Email verification</p>
      <h1>{status==='verifying'?'Verifying your email…':status==='success'?'Email verified.':'We couldn’t verify this link.'}</h1>
-     {status==='verifying'&&<p role="status">Confirming your address securely. Your account will open once verification succeeds.</p>}
-     {status==='success'&&<p role="status">Your address is confirmed. Opening your reading world…</p>}
+     {status==='verifying'&&<p role="status">Confirming your address securely…</p>}
+     {status==='success'&&<><p role="status">Your email address has been verified successfully. Your Chapter & Sound account is ready.</p><div className="actions"><button type="button" className="button" onClick={()=>window.location.assign('/account')}>Continue to my account</button><button type="button" className="button secondary" onClick={()=>window.location.assign('/onboarding')}>Personalise my account</button><button type="button" className="button secondary" onClick={()=>window.location.assign('/signin')}>Sign in instead</button></div></>}
      {status==='failed'&&<><p role="alert">{error}</p><div className="actions"><a href="/verify" className="button">Request a new verification email</a><a href="/signin" className="button secondary">Sign in</a></div></>}
    </div>
  </div>;
