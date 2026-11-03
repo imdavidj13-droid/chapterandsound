@@ -161,7 +161,7 @@ export async function memberAPI(request:Request,env:MemberEnv):Promise<Response>
         if(v.action==='publish'){
           const check=await db.prepare('SELECT title,body,story_rating,narration_rating FROM reviews WHERE id=? AND member_id=?')
             .bind(id,userId).first<{title:string|null;body:string|null;story_rating:number|null;narration_rating:number|null}>();
-          if(!check||(!check.body&&!check.story_rating&&!check.narration_rating))return bad('Add review text or a rating before publishing');
+          if(!check||(!check.body&&check.story_rating==null&&check.narration_rating==null))return bad('Add review text or a rating before publishing');
           await db.prepare(`UPDATE reviews SET status='published',visibility='public',published_at=COALESCE(published_at,CURRENT_TIMESTAMP),
             updated_at=CURRENT_TIMESTAMP WHERE id=? AND member_id=?`).bind(id,userId).run();
           return reply({published:true,id});
