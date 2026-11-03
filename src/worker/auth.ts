@@ -17,7 +17,7 @@ export interface AuthEnv {
 function verificationLandingURL(origin:string,authURL:string):string{
   const token=new URL(authURL).searchParams.get('token');
   if(!token)throw new Error('Missing email verification token');
-  return origin.replace(/\\/$/,'')+'/confirm-email#token='+encodeURIComponent(token);
+  return (origin.endsWith('/')?origin.slice(0,-1):origin)+'/confirm-email#token='+encodeURIComponent(token);
 }
 async function sendMail(env:AuthEnv,to:string,subject:string,url:string) {
   const response=await fetch('https://api.resend.com/emails',{
