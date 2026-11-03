@@ -15,6 +15,10 @@ try{
   catch(error){throw Error('Migration '+filename+' failed: '+String(error))}
  }
  const tables=db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(x=>x.name);
+ const usernameColumns=db.prepare('PRAGMA table_info("user")').all().map(x=>x.name);
+ assert.ok(usernameColumns.includes('username'),'Better Auth username field missing');
+ const usernameIndexes=db.prepare("PRAGMA index_list('user')").all();
+ assert.ok(usernameIndexes.some(x=>x.name==='idx_auth_user_username'),'Case-insensitive username uniqueness index missing');
  for(const table of ['user','session','account','verification','members','works','editions','people','reading_experiences','reviews','site_roles','member_theme_preferences']){
   assert.ok(tables.includes(table),'Missing expected table '+table);
  }
