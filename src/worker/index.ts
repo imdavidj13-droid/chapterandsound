@@ -1,3 +1,4 @@
+import {syncSiteRole} from './admin-role.js';
 import {bookDetailsAPI} from './book-details-api.js';
 import {moderationAPI} from './moderation-api.js';
 import {publicReviewAPI} from './public-review-api.js';
@@ -6,7 +7,7 @@ import {memberAPI} from './member-api.js';
 import {communityAPI} from './community-api.js';
 interface D1Statement {bind(...values:(string|number|null)[]):D1Statement;all<T>():Promise<{results:T[]}>;first<T>():Promise<T|null>;run():Promise<unknown>;}
 interface D1Database {prepare(query:string):D1Statement;}
-interface Env {DB?:D1Database; BETTER_AUTH_SECRET?:string;PUBLIC_ORIGIN?:string;MAIL_API_KEY?:string;MAIL_FROM?:string;}
+interface Env {DB?:D1Database; BETTER_AUTH_SECRET?:string;PUBLIC_ORIGIN?:string;MAIL_API_KEY?:string;MAIL_FROM?:string;ADMIN_EMAIL?:string;}
 const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 const missing=()=>json({error:'Cloud database is not configured',code:'DB_NOT_CONFIGURED'},503);
 export default {
@@ -26,7 +27,8 @@ export default {
       // Only the authenticated Better Auth session may determine the member ID.
       await env.DB!.prepare('INSERT OR IGNORE INTO members(id,email_normalized,display_name,email_verified_at) VALUES(?,?,?,?)')
        .bind(user.id,user.email.toLowerCase(),user.name,user.emailVerified?new Date().toISOString():null).run();
-      return json({member:{id:user.id,displayName:user.name,verified:user.emailVerified}});
+      const role=await syncSiteRole(env.DB!,{id:user.id,email:user.email,emailVerified:user.emailVerified},env.ADMIN_EMAIL);
+      return json({member:{id:user.id,displayName:user.name,verified:user.emailVerified,role}});
     }
     if(url.pathname.startsWith('/api/member/'))return memberAPI(request,env);
     if(url.pathname.startsWith('/api/book/'))return bookDetailsAPI(request,env);
