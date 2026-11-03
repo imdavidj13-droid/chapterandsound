@@ -2,9 +2,9 @@ import {RoomBookView} from './themes/RoomBookView';
 import {useEffect,useMemo,useState} from 'react';
 import {apiGet} from './api';
 
-type Book={id:string;title:string;subtitle:string|null;summary:string|null;author:string|null;year:number|null;verificationStatus:string};
+type Book={id:string;title:string;subtitle:string|null;summary:string|null;author:string|null;year:number|null;verificationStatus:string;coverUrl?:string|null};
 type Contributor={id:string;name:string;role:string};
-type Edition={id:string;format:string;publisher:string|null;publishedAt:string|null;language:string|null;pageCount:number|null;durationMinutes:number|null;abridged:number|null;isbn13:string|null;asin:string|null;verificationStatus:string;contributors:Contributor[]};
+type Edition={id:string;format:string;coverUrl?:string|null;publisher:string|null;publishedAt:string|null;language:string|null;pageCount:number|null;durationMinutes:number|null;abridged:number|null;isbn13:string|null;asin:string|null;verificationStatus:string;contributors:Contributor[]};
 type Review={id:string;title:string|null;body:string|null;spoilers:number;storyRating:number|null;audioRating:number|null;publishedAt:string|null;editionId:string|null;format:string|null;authorName:string;authorHandle:string|null};
 type Rating={average:number|null;count:number};
 export type BookPayload={book:Book;editions:Edition[];reviews:Review[];ratings:{story:Rating;narrationByEdition:(Rating&{editionId:string})[]}};
@@ -16,6 +16,7 @@ function RatingSummary({label,rating}:{label:string;rating:Rating}){
 function EditionCard({edition,rating}:{edition:Edition;rating?:Rating}){
  const narrators=edition.contributors.filter(p=>p.role==='narrator');
  return <article className="panel edition-card">
+  {edition.coverUrl&&<img src={edition.coverUrl} alt="Edition cover" loading="lazy" style={{width:72,height:108,objectFit:"contain",borderRadius:6,marginBottom:12}}/>}
   <div className="edition-top"><span className="tag">{fmt[edition.format]??'Unknown edition'}</span><span className="muted small">{edition.language||'Language unknown'}</span></div>
   <h3>{edition.publisher||'Publisher unconfirmed'}</h3>
   <dl className="edition-facts">
@@ -62,7 +63,7 @@ export function PublicBookPage({id,verified,theme='editorial'}:{id:string;verifi
  const {book,ratings,reviews}=data;
  const ratingsByEdition=new Map(ratings.narrationByEdition.map(r=>[r.editionId,r]));
  return <div className="public-book-page">
-  <div className="public-book-hero"><div className="book-cover book-detail-cover"><span className="cover-mark" aria-hidden="true">C<span>&</span>S</span></div>
+  <div className="public-book-hero"><div className="book-cover book-detail-cover">{book.coverUrl?<img src={book.coverUrl} alt={`Cover of ${book.title}`} loading="eager"/>:<span className="cover-mark" aria-hidden="true">C<span>&</span>S</span>}</div>
    <div className="public-book-copy">
     <p className="eyebrow">Book overview · Chapter & Sound</p><h1>{book.title}</h1>
     {book.subtitle&&<p className="intro">{book.subtitle}</p>}
