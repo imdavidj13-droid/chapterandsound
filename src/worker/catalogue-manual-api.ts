@@ -148,7 +148,7 @@ export async function manualCatalogueAPI(request:Request,db:ManualDB,actor:strin
    const result=await db.prepare(statement).bind(...params,id,Number(body.expectedRevision)).run();
    if(result.meta?.changes!==1)return reject('Record changed elsewhere; reload before editing',409);
    const after=await db.prepare('SELECT * FROM '+table+' WHERE id=?').bind(id).first();
-   await db.batch([rev(db,actor,kind.slice(0,-1),id,Number(body.expectedRevision)+1,old,after),audit(db,actor,'update',kind,id,{before:old,after})]);
+   await db.batch([rev(db,actor,kind==='people'?'person':kind==='editions'?'edition':'recording',id,Number(body.expectedRevision)+1,old,after),audit(db,actor,'update',kind,id,{before:old,after})]);
    return reply({saved:true,id,revision:Number(body.expectedRevision)+1});
   }
   if(parts.length!==2)return reject('Invalid path',404);
