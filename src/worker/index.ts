@@ -93,7 +93,7 @@ export default {
         if(!workId)return json({error:'workId required'},400);
         const {results}=await env.DB.prepare(`SELECT e.id,e.work_id AS workId,e.format,e.publisher,e.published_at AS publishedAt,
            e.language,e.isbn13,e.asin,e.page_count AS pageCount,
-           e.duration_minutes AS durationMinutes,e.abridged,e.verification_state AS verificationState
+           e.duration_minutes AS durationMinutes,e.abridged,e.verification_status AS verificationState
            FROM editions e WHERE e.work_id=? ORDER BY e.format,e.published_at`).bind(workId).all();
         return json({items:results});
       }
