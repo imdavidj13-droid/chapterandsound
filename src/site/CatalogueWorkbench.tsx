@@ -23,8 +23,7 @@ export function CatalogueWorkbench(){
  const [query,setQuery]=useState(''),[selectedWork,setSelectedWork]=useState('');
  const [title,setTitle]=useState(''),[type,setType]=useState('book'),[language,setLanguage]=useState(''),[publicationDate,setPublicationDate]=useState('');
  const [personName,setPersonName]=useState('');
- const [legacyPeople,setLegacyPeople]=useState<Person[]>([]),[authorMode,setAuthorMode]=useState<'existing'|'legacy'|'new'|'none'>('existing');
- const [authorId,setAuthorId]=useState(''),[legacyAuthorId,setLegacyAuthorId]=useState(''),[newAuthorName,setNewAuthorName]=useState('');
+ const [authorName,setAuthorName]=useState('');
  const [format,setFormat]=useState('paperback'),[pageCount,setPageCount]=useState('');
  const [performance,setPerformance]=useState('unknown'),[abridgement,setAbridgement]=useState('unknown'),[durationHours,setDurationHours]=useState(''),[durationMinutes,setDurationMinutes]=useState('');
  const [activeForm,setActiveForm]=useState<RecordType|null>(null);
@@ -41,14 +40,13 @@ export function CatalogueWorkbench(){
    const health=await apiGet<{imageStorage?:boolean}>('/api/catalogue-admin/health');
    setMediaReady(Boolean(health.imageStorage));
    setReady(true);
-   const [w,p,e,r,legacy]=await Promise.all([
+   const [w,p,e,r]=await Promise.all([
     apiGet<{items:Work[]}>('/api/catalogue-admin/works?limit=100'),
     apiGet<{items:Person[]}>('/api/catalogue-admin/people?limit=100'),
     apiGet<{items:Edition[]}>('/api/catalogue-admin/editions?limit=100'),
-    apiGet<{items:Recording[]}>('/api/catalogue-admin/recordings?limit=100'),
-    apiGet<{items:Person[]}>('/api/catalogue-admin/legacy-people?limit=100')
+    apiGet<{items:Recording[]}>('/api/catalogue-admin/recordings?limit=100')
    ]);
-   setWorks(w.items);setPeople(p.items);setEditions(e.items);setRecordings(r.items);setLegacyPeople(legacy.items);
+   setWorks(w.items);setPeople(p.items);setEditions(e.items);setRecordings(r.items);
   }catch(e){setReady(false);setError(e instanceof Error?e.message:'Catalogue unavailable')}
   finally{setLoading(false)}
  },[]);
@@ -98,14 +96,14 @@ export function CatalogueWorkbench(){
  async function save(e:FormEvent){
   e.preventDefault();setSaving(true);setError('');setNotice('');
   const duration=durationHours||durationMinutes?Number(durationHours||0)*3600+Number(durationMinutes||0)*60:null;
-  const payload:Record<string,unknown>=tab==='works'?{title,type,language,firstPublicationDate:publicationDate,synopsis:editSynopsis,...(authorMode==='existing'?{authorId}:authorMode==='legacy'?{legacyAuthorId}:authorMode==='new'?{newAuthorName}:{})}
+  const payload:Record<string,unknown>=tab==='works'?{title,type,language,firstPublicationDate:publicationDate,synopsis:editSynopsis,authorName}
    :tab==='people'?{name:personName}
    :tab==='editions'?{workId:selectedWork,format,pageCount:pageCount===''?null:Number(pageCount)}
    :{workId:selectedWork,performanceType:performance,abridgement,durationSeconds:duration};
   try{
    const result=await apiWrite<{id:string;saved:boolean}>('/api/catalogue-admin/'+tab,'POST',payload);
    setNotice('Saved to the catalogue. ID: '+result.id);
-   setActiveForm(null);setTitle('');setEditSynopsis('');setPersonName('');setAuthorId('');setLegacyAuthorId('');setNewAuthorName('');setPageCount('');setDurationHours('');setDurationMinutes('');
+   setActiveForm(null);setTitle('');setEditSynopsis('');setPersonName('');setAuthorName('');setPageCount('');setDurationHours('');setDurationMinutes('');
    await load();
   }catch(e){setError(e instanceof Error?e.message:'Catalogue save failed')}
   finally{setSaving(false)}
@@ -142,17 +140,10 @@ export function CatalogueWorkbench(){
     <p>Save this record directly to the catalogue. You can reopen a book to update it; further metadata fields are being added.</p>
     {tab==='works'&&<>
      <label>Book title *<input required maxLength={500} value={title} onChange={e=>setTitle(e.target.value)}/></label>
-     <label>Author source<select value={authorMode} onChange={e=>setAuthorMode(e.target.value as typeof authorMode)}>
-       <option value="existing">Choose an author already in Book Catalogue</option>
-       <option value="legacy">Reuse an author from Website Contributors</option>
-       <option value="new">Add a new author with this book</option>
-       <option value="none">Unknown or no author</option>
-      </select></label>
-     {authorMode==='existing'&&<label>Catalogue author<select value={authorId} onChange={e=>setAuthorId(e.target.value)}><option value="">Choose an author</option>{people.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}
-     {authorMode==='legacy'&&<label>Existing website author<select required value={legacyAuthorId} onChange={e=>setLegacyAuthorId(e.target.value)}>
-      <option value="">Choose website author</option>{legacyPeople.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select>
-      <span>Reuses this person's original ID and copies their public author profile into Book Catalogue if needed.</span></label>}
-     {authorMode==='new'&&<label>New author's name<input required maxLength={500} value={newAuthorName} onChange={e=>setNewAuthorName(e.target.value)} placeholder="Full author name"/></label>}
+     <label>Author <input list="catalogue-authors" maxLength={500} value={authorName}
+      onChange={e=>setAuthorName(e.target.value)} placeholder="Enter or choose the author"/>
+      <datalist id="catalogue-authors">{people.map(p=><option key={p.id} value={p.name}/>)}</datalist>
+      <span>Choose an existing name or enter a new one. Matching existing authors are reused automatically.</span></label>
      <label>Work type<select value={type} onChange={e=>setType(e.target.value)}>{typeLabels.map(x=><option value={x} key={x}>{label(x)}</option>)}</select></label>
      <label>Original language (optional)<input value={language} onChange={e=>setLanguage(e.target.value)} placeholder="en-GB" maxLength={40}/></label>
      <label>First publication date (optional)<input value={publicationDate} onChange={e=>setPublicationDate(e.target.value)} placeholder="YYYY or YYYY-MM or YYYY-MM-DD" maxLength={10}/></label>
