@@ -132,7 +132,7 @@ export function CatalogueWorkbench(){
   <div className="cs-admin-heading" style={{marginTop:22}}><div><h3>{tab==='works'?'Books':tab==='people'?'Contributors':tab==='editions'?'Editions':'Audiobook recordings'}</h3></div>
    <button className="primary" type="button" onClick={()=>setActiveForm(v=>v===tab?null:tab)}>{activeForm===tab?'Cancel':'+ Add book'}</button></div>
   {activeForm===tab&&tab==='works'&&<CatalogueBookEditor authors={people} imageStorage={mediaReady}
-     onCancel={()=>setActiveForm(null)} onSaved={(bookId,message)=>{
+     onCancel={()=>setActiveForm(null)} onEditExisting={(bookId)=>{setActiveForm(null);void openWork(bookId)}} onSaved={(bookId,message)=>{
       setActiveForm(null);setNotice(message+' Book ID: '+bookId);void load();
      }}/>}
   <div className="cs-admin-data cs-admin-table-scroll">
