@@ -178,3 +178,34 @@
 @media(max-width:1100px){.room-book-banner{grid-template-columns:1fr}.room-book-score{max-width:100%}.room-book-sections{grid-template-columns:minmax(0,1fr) 280px}}
 @media(max-width:760px){.room-book-sections{grid-template-columns:1fr}.room-book-identity{align-items:flex-start}.room-book-placeholder{flex-basis:100px}.room-book-identity h1{font-size:2rem}.room-book-panel{padding:20px}}
 @media(max-width:430px){.room-book-identity{flex-direction:column}.room-book-placeholder{width:100px}.room-book-banner{padding:19px}}
+
+
+/* Reading Room review — spacious article + independent fact sidebar */
+.room-review-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,300px);gap:22px;align-items:start}
+.room-review-article{min-width:0;background:#fffefa;border:1px solid #dae5d8;border-radius:16px;overflow:hidden}
+.room-review-banner{padding:clamp(23px,3vw,44px);background:linear-gradient(135deg,#e9f0e6,#f9fbf5)}
+.room-review-banner h1{font:2.6rem/1.2 Georgia,serif;color:#183b2a;margin:0 0 15px}
+.room-review-banner a{color:#315f40;text-decoration:underline}
+.room-review-byline{display:flex;align-items:center;gap:12px;margin-top:26px}
+.room-author-avatar{display:grid;place-items:center;background:#ceddc8;color:#285139;border-radius:50%;width:48px;height:48px;font:1.4rem Georgia,serif}
+.room-review-byline>div{display:grid;gap:5px}
+.room-review-byline small{color:#7a8b7f}
+.room-review-body{padding:clamp(23px,3vw,44px)}
+.room-review-body>p{white-space:pre-wrap;overflow-wrap:anywhere;line-height:2;font:1.05rem/2 Georgia,serif;color:#2f4135}
+.room-review-spoiler{border:1px dashed #a9c4a5;text-align:center;background:#f4f8f1;padding:30px;border-radius:12px}
+.room-review-spoiler h2{font-size:1.75rem}
+.room-review-spoiler .room-primary-link{border:0;cursor:pointer}
+.room-review-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;padding:22px clamp(23px,3vw,44px);border-top:1px solid #d9e3d7}
+.room-report-button{border:0;background:none;cursor:pointer}
+.room-review-aside{display:grid;gap:18px}
+.room-review-facts{display:grid;gap:18px}
+.room-review-facts>div{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;border-bottom:1px solid #e0e8de;padding-bottom:14px}
+.room-review-facts>div:last-child{border:0}
+.room-review-facts span{font-size:.83rem;color:#6b8071}
+.room-review-facts strong{font:1.1rem Georgia,serif;color:#2c5439}
+.room-report-panel{padding:25px 40px;background:#f5f9f3;border-top:1px solid #d5e2d2}
+.room-report-panel form{display:grid;gap:14px}
+.room-report-panel label{display:grid;gap:8px}
+.room-report-panel textarea{min-height:120px;border:1px solid #ceddcc;border-radius:8px;padding:12px}
+@media(max-width:1000px){.room-review-layout{grid-template-columns:1fr}.room-review-aside{grid-template-columns:1fr 1fr}}
+@media(max-width:650px){.room-review-aside{grid-template-columns:1fr}.room-review-banner h1{font-size:2.05rem}.room-review-body{padding:22px}.room-report-panel{padding:20px}.room-review-footer{padding:22px}}
