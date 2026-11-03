@@ -12,7 +12,7 @@ import {routes,locationPath} from './routes';
 
 type Book = {id:string;title:string;subtitle?:string;author?:string;coverUrl?:string;summary?:string;formats?:string[];year?:number};
 type Review = {id:string;title?:string;body?:string;storyRating?:number;audioRating?:number;authorName?:string;bookTitle?:string;bookId?:string;format?:string;spoilers?:boolean;createdAt?:string};
-type Member = {id:string;displayName:string;verified:boolean;role?:'admin'|'moderator'|null};
+type Member = {id:string;displayName:string;handle?:string|null;verified:boolean;role?:'admin'|'moderator'|null};
 type ApiData = {books?:Book[];reviews?:Review[]};
 type ScreenProps={path:string;query:URLSearchParams;data:ApiData;member:Member|null;navigate:(path:string)=>void};
 const nav = ['/', '/books','/reviews','/community','/lists'];
@@ -40,6 +40,7 @@ function ReviewDetail({data,id}:{data:ApiData;id:string}){const review=(data.rev
 function Login({path}:{path:string}){
   const signUp=path==='/signup',reset=path==='/reset-password',verify=path==='/verify';
   const [name,setName]=useState('');
+  const [nameStatus,setNameStatus]=useState<'idle'|'checking'|'available'|'taken'|'invalid'>('idle');
   const [email,setEmail]=useState(()=>new URLSearchParams(window.location.search).get('email')??'');
   const [password,setPassword]=useState('');
   const [confirm,setConfirm]=useState('');
@@ -48,10 +49,27 @@ function Login({path}:{path:string}){
   const [loading,setLoading]=useState(false);
   const [message,setMessage]=useState('');
   const [error,setError]=useState('');
+  useEffect(()=>{
+    if(!signUp)return;
+    if(!name){setNameStatus('idle');return}
+    if(!/^[a-zA-Z][a-zA-Z0-9_]{2,29}$/.test(name)){setNameStatus('invalid');return}
+    let active=true;const controller=new AbortController();
+    setNameStatus('checking');
+    const timer=setTimeout(async()=>{
+      try{
+        const response=await fetch('/api/auth/is-username-available',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:name}),signal:controller.signal});
+        if(!response.ok)throw Error('Username availability cannot be checked');
+        const result=await response.json() as {available:boolean};
+        if(active)setNameStatus(result.available?'available':'taken');
+      }catch{if(active&&!controller.signal.aborted)setNameStatus('idle')}
+    },350);
+    return()=>{active=false;clearTimeout(timer);controller.abort()}
+  },[name,signUp]);
   const submit=async(e:FormEvent<HTMLFormElement>)=>{
     e.preventDefault();setError('');setMessage('');
     if(signUp){
-      if(name.trim().length<2){setError('Enter a display name of at least two characters.');return;}
+      if(!/^[a-zA-Z][a-zA-Z0-9_]{2,29}$/.test(name)){setError('Use 3–30 letters, numbers or underscores, starting with a letter.');return;}
+      if(nameStatus==='taken'){setError('That username is already taken.');return;}
       if(password.length<12){setError('Use a password of at least 12 characters.');return;}
       if(password!==confirm){setError('Your passwords do not match.');return;}
       if(!agreed){setError('Please agree to the Terms and Privacy Policy to continue.');return;}
@@ -62,7 +80,7 @@ function Login({path}:{path:string}){
       :signUp?'/api/auth/sign-up/email':'/api/auth/sign-in/email';
     const payload=verify?{email,callbackURL:'/onboarding'}
       :reset?{email,redirectTo:'/signin'}
-      :signUp?{email,password,name:name.trim(),callbackURL:'/onboarding'}
+      :signUp?{email,password,name,username:name,callbackURL:'/onboarding'}
       :{email,password};
     try{
       const response=await fetch(endpoint,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
@@ -88,7 +106,10 @@ function Login({path}:{path:string}){
       {error&&<div className="notice error" role="alert">{error}</div>}
       {message&&<div className="notice" role="status">{message}</div>}
       <form className="auth-fields" onSubmit={submit}>
-        {signUp&&<label>Display name<input name="name" autoComplete="nickname" required minLength={2} maxLength={70} value={name} onChange={e=>setName(e.target.value)} placeholder="What should readers call you?"/></label>}
+        {signUp&&<label>Username <span className="username-entry"><span aria-hidden="true">@</span><input name="username" autoComplete="username" required minLength={3} maxLength={30} pattern="[a-zA-Z][a-zA-Z0-9_]{2,29}" value={name} onChange={e=>setName(e.target.value.toLowerCase())} placeholder="yourusername" aria-describedby="username-guidance username-status"/></span>
+          <small id="username-guidance">Your public identity on Chapter & Sound. 3–30 letters, numbers or underscores; starts with a letter.</small>
+          <span id="username-status" role="status" className={'username-status '+nameStatus}>{nameStatus==='available'?'✓ Username available':nameStatus==='taken'?'Username already taken':nameStatus==='checking'?'Checking availability…':nameStatus==='invalid'?'Invalid username format':name?'':'Your reviews and public profile will show @'+(name||'yourusername')}</span>
+        </label>}
         <label>Email address<input name="email" type="email" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/></label>
         {!reset&&!verify&&<>
           <label>Password<input type={showPassword?'text':'password'} autoComplete={signUp?'new-password':'current-password'} required minLength={signUp?12:undefined} maxLength={128} value={password} onChange={e=>setPassword(e.target.value)} placeholder={signUp?'At least 12 characters':'Your password'}/></label>
