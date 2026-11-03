@@ -38,54 +38,70 @@ function Search({data}:{data:ApiData}){const [search,setSearch]=useState(new URL
 function BookDetail({data,id}:{data:ApiData;id:string}){const book=(data.books??[]).find(b=>b.id===id);if(!book)return <Empty heading="Book not found" body="This book may not have been added to the verified catalogue yet." action="Back to books" href="/books"/>;const reviews=(data.reviews??[]).filter(r=>r.bookId===id);return <><div className="detail-hero">{cover(book)}<div><p className="eyebrow">A book in the shared catalogue</p><h1>{book.title}</h1><p className="intro">{book.author??'Author unconfirmed'}</p><p>{book.summary??'A verified synopsis has not been added yet.'}</p><div className="actions"><AppLink to="/add-book" className="button">Add to my bookshelf</AppLink><AppLink to="/reviews" className="button secondary">Community reviews</AppLink></div></div></div><div className="section"><div className="section-title"><h2>Community reviews</h2></div><ReviewCards reviews={reviews}/></div></>;}
 function ReviewDetail({data,id}:{data:ApiData;id:string}){const review=(data.reviews??[]).find(r=>r.id===id);const [reveal,setReveal]=useState(false);if(!review)return <Empty heading="Review not found" body="This review is not available or has not been published." action="All reviews" href="/reviews"/>;return <article className="reading-article"><p className="eyebrow">Community review · {review.format??'Book'}</p><h1>{review.title??review.bookTitle??'A reader’s thoughts'}</h1><p className="muted">By {review.authorName??'A community member'}</p>{review.storyRating!=null&&<p className="stars">★ Story {review.storyRating}/5</p>}{review.format==='audiobook'&&review.audioRating!=null&&<p>♪ Narration {review.audioRating}/5</p>}{review.spoilers&&!reveal?<div className="panel"><h3>Contains spoilers</h3><p>Review text is hidden until you choose to reveal it.</p><button type="button" className="button secondary" onClick={()=>setReveal(true)}>Reveal spoilers</button></div>:<p className="article-body">{review.body??'No written review.'}</p>}<AppLink to="/reviews" className="inline-link">← Back to community reviews</AppLink></article>;}
 function Login({path}:{path:string}){
-  const signUp=path==='/signup';
-  const reset=path==='/reset-password';
-  const verify=path==='/verify';
-  const [email,setEmail]=useState('');
+  const signUp=path==='/signup',reset=path==='/reset-password',verify=path==='/verify';
+  const [name,setName]=useState('');
+  const [email,setEmail]=useState(()=>new URLSearchParams(window.location.search).get('email')??'');
   const [password,setPassword]=useState('');
+  const [confirm,setConfirm]=useState('');
   const [showPassword,setShowPassword]=useState(false);
+  const [agreed,setAgreed]=useState(false);
   const [loading,setLoading]=useState(false);
   const [message,setMessage]=useState('');
   const [error,setError]=useState('');
   const submit=async(e:FormEvent<HTMLFormElement>)=>{
-    e.preventDefault();
-    setLoading(true);setMessage('');setError('');
+    e.preventDefault();setError('');setMessage('');
+    if(signUp){
+      if(name.trim().length<2){setError('Enter a display name of at least two characters.');return;}
+      if(password.length<12){setError('Use a password of at least 12 characters.');return;}
+      if(password!==confirm){setError('Your passwords do not match.');return;}
+      if(!agreed){setError('Please agree to the Terms and Privacy Policy to continue.');return;}
+    }
+    setLoading(true);
     const endpoint=verify?'/api/auth/send-verification-email'
       :reset?'/api/auth/request-password-reset'
       :signUp?'/api/auth/sign-up/email':'/api/auth/sign-in/email';
-    const payload=verify?{email,callbackURL:'/onboarding'}:reset?{email,redirectTo:'/signin'}
-      :signUp?{email,password,name:'New Reader'}:{email,password};
+    const payload=verify?{email,callbackURL:'/onboarding'}
+      :reset?{email,redirectTo:'/signin'}
+      :signUp?{email,password,name:name.trim(),callbackURL:'/onboarding'}
+      :{email,password};
     try{
-      const response=await fetch(endpoint,{method:'POST',credentials:'include',
-        headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-      const data=await response.json() as {message?:string;error?:string};
+      const response=await fetch(endpoint,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      const data=await response.json() as {message?:string;error?:string;code?:string};
       if(!response.ok)throw Error(data.message??data.error??'Unable to complete this request');
-      if(!signUp&&!reset&&!verify){window.location.assign('/shelf');return;}
-      setMessage(signUp?'Check your inbox for a verification link. Your account is not verified yet.'
-        :verify?'If the account is eligible, a new verification email has been requested.'
-        :'If that address belongs to an account, password recovery instructions have been requested.');
-      setPassword('');
-    }catch(e){setError(e instanceof Error?e.message:'Request failed');}
+      setPassword('');setConfirm('');
+      if(signUp){window.location.assign('/verify?email='+encodeURIComponent(email));return;}
+      if(!reset&&!verify){window.location.assign('/onboarding');return;}
+      setMessage(verify?'If this address has a pending verification, an email has been requested.':'If an account matches this address, recovery instructions have been requested.');
+    }catch(e){setError(e instanceof Error?e.message:'Unable to contact the sign-in service.');}
     finally{setLoading(false);}
   };
-  return <div className="auth-page"><p className="eyebrow">Chapter & Sound</p>
-    <h1>{verify?'Check your inbox':signUp?'Your next chapter starts here':reset?'Reset your password':'Welcome back'}</h1>
-    <p>{verify?'Request another secure verification link.':signUp?'Create an account. After verifying your email, make your reading world your own.':reset?'Enter the email used for your account.':'Sign in to your bookshelf, reading history and community.'}</p>
-    {message&&<div className="notice" role="status">{message}</div>}
-    {error&&<div className="notice error" role="alert">{error}</div>}
-    <form className="panel auth-form" onSubmit={submit}>
-      <label>Email address<input type="email" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/></label>
-      {!reset&&!verify&&<label>Password
-        <input type={showPassword?'text':'password'} autoComplete={signUp?'new-password':'current-password'}
-          minLength={signUp?8:undefined} required value={password} onChange={e=>setPassword(e.target.value)}
-          placeholder={signUp?'Choose a secure password':'Your password'}/>
-        <span className="toggle-password"><input type="checkbox" checked={showPassword} onChange={e=>setShowPassword(e.target.checked)}/> Show password</span>
-      </label>}
-      {signUp&&<p className="small">By creating an account you agree to our <AppLink to="/terms">Terms</AppLink> and <AppLink to="/privacy">Privacy Policy</AppLink>. Your reading history is private by default.</p>}
-      <button disabled={loading} className="button" type="submit">{loading?'Working…':verify?'Resend verification':reset?'Request reset link':signUp?'Create account':'Sign in'}</button>
-    </form>
-    <p>{signUp?<AppLink to="/signin">Already a member? Sign in</AppLink>:
-      <><AppLink to="/signup">Create an account</AppLink> · <AppLink to="/reset-password">Forgot password?</AppLink> · <AppLink to="/verify">Verify email</AppLink></>}</p>
+  return <div className="auth-experience">
+    <div className="auth-description">
+      <p className="eyebrow">{signUp?'01 / Create account':verify?'02 / Check your email':reset?'Account recovery':'Welcome back'}</p>
+      <h1>{signUp?'Your next chapter starts here.':verify?'Check your inbox.':reset?'Start again, securely.':'Welcome back to your reading world.'}</h1>
+      <p className="intro">{signUp?'Keep a bookshelf of stories, review what you read and listen to, and meet fellow readers.':verify?'Open the verification link we send you before accessing your private reading records.':reset?'We will send a secure password-reset link if your address is registered.':'Sign in to the books, reviews and reading history that belong to you.'}</p>
+      <div className="auth-promise-grid"><div><strong>01</strong><span>Save every format.</span></div><div><strong>02</strong><span>Track your own reading.</span></div><div><strong>03</strong><span>Share on your terms.</span></div></div>
+    </div>
+    <div className="auth-panel panel">
+      <h2>{signUp?'Create your account':verify?'Email verification':reset?'Reset your password':'Sign in'}</h2>
+      <p className="muted">{signUp?'Use a real email address. We will send you a verification link.':verify?'Your email must be verified before you can sign in.':reset?'Enter the email associated with your account.':'Access your personal bookshelf and settings.'}</p>
+      {error&&<div className="notice error" role="alert">{error}</div>}
+      {message&&<div className="notice" role="status">{message}</div>}
+      <form className="auth-fields" onSubmit={submit}>
+        {signUp&&<label>Display name<input name="name" autoComplete="nickname" required minLength={2} maxLength={70} value={name} onChange={e=>setName(e.target.value)} placeholder="What should readers call you?"/></label>}
+        <label>Email address<input name="email" type="email" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/></label>
+        {!reset&&!verify&&<>
+          <label>Password<input type={showPassword?'text':'password'} autoComplete={signUp?'new-password':'current-password'} required minLength={signUp?12:undefined} maxLength={128} value={password} onChange={e=>setPassword(e.target.value)} placeholder={signUp?'At least 12 characters':'Your password'}/></label>
+          <label className="auth-check"><input type="checkbox" checked={showPassword} onChange={e=>setShowPassword(e.target.checked)}/> Show password</label>
+        </>}
+        {signUp&&<>
+          <label>Confirm password<input type={showPassword?'text':'password'} autoComplete="new-password" minLength={12} maxLength={128} required value={confirm} onChange={e=>setConfirm(e.target.value)} placeholder="Enter your password again"/></label>
+          <label className="auth-check"><input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)} required/><span>I agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.</span></label>
+        </>}
+        <button className="button" type="submit" disabled={loading}>{loading?'Please wait…':verify?'Resend verification email':reset?'Request reset link':signUp?'Create account':'Sign in'}</button>
+      </form>
+      <div className="auth-options">{signUp?<p>Already a member? <a href="/signin">Sign in</a></p>:verify?<p><a href="/signin">Back to sign in</a> · <a href="/signup">Use a different address</a></p>:reset?<p><a href="/signin">Back to sign in</a></p>:<><a href="/reset-password">Forgotten your password?</a><p>New to Chapter & Sound? <a href="/signup">Create an account</a></p><p><a href="/verify">Resend a verification link</a></p></>}</div>
+    </div>
   </div>;
 }
 function MemberPage({path,member,data}:{path:string;member:Member|null;data:ApiData}){
