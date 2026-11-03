@@ -182,7 +182,29 @@ export async function manualCatalogueAPI(request:Request,db:ManualDB,actor:strin
    if(!await exists(db,'works',workId))return reject('Choose an existing book');
    const pages=positive(body.pages);
    inserts=[db.prepare("INSERT INTO editions(id,work_id,format,title_override,edition_statement,language,page_count,publication_status,verification_status) VALUES(?,?,?,?,?,?,?,'published','published')").bind(id,workId,format,txt(body.title)||null,txt(body.statement)||null,language(body.language),pages)];
-   info={workId,format,pages};break;
+   // Bookshelf-facing identifiers belong to the edition, never the underlying work.
+   // Schemes are reused automatically: no separate setup required to enter an ISBN/ASIN.
+   for(const [code,raw] of [['ISBN13',body.isbn13],['ISBN10',body.isbn10],['ASIN',body.asin]] as const){
+    const value=txt(raw,100);if(!value)continue;
+    const normalized=value.replace(/[\\s-]/g,'').toUpperCase();
+    if(code==='ISBN13'&&!validIsbn13(value))return reject('ISBN-13 checksum is invalid');
+    if(code==='ISBN10'&&!validIsbn10(value))return reject('ISBN-10 checksum is invalid');
+    if(code==='ASIN'&&!/^[A-Z0-9]{10}$/.test(normalized))return reject('ASIN must contain exactly 10 letters/numbers');
+    let scheme=await db.prepare('SELECT id FROM identifier_schemes WHERE code=?').bind(code).first<{id:string}>();
+    if(!scheme){
+     scheme={id:uuid()};
+     inserts.push(db.prepare("INSERT INTO identifier_schemes(id,code,entity_scope,uniqueness_scope) VALUES(? ,?,'edition','global')").bind(scheme.id,code));
+    }
+    inserts.push(db.prepare("INSERT INTO entity_identifiers(id,scheme_id,entity_kind,entity_id,value,normalized_value) VALUES(?,?,'edition',?,?,?)")
+      .bind(uuid(),scheme.id,id,value,normalized));
+   }
+   const publisherId=txt(body.publisherId,100),publishedAt=date(body.publishedAt);
+   if(publisherId&&!await exists(db,'publishers',publisherId))return reject('Choose an existing publisher');
+   if(publisherId||publishedAt){
+    inserts.push(db.prepare("INSERT INTO publication_events(id,edition_id,event_type,date_value,publisher_id) VALUES(? ,?,'released',?,?)")
+      .bind(uuid(),id,publishedAt,publisherId||null));
+   }
+   info={workId,format,pages,isbn13:txt(body.isbn13),isbn10:txt(body.isbn10),asin:txt(body.asin),publisherId,publishedAt};break;
   }
   case 'recordings':{
    const workId=required(body.workId,100);
