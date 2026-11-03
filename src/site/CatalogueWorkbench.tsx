@@ -73,14 +73,14 @@ export function CatalogueWorkbench(){
  async function save(e:FormEvent){
   e.preventDefault();setSaving(true);setError('');setNotice('');
   const duration=durationHours||durationMinutes?Number(durationHours||0)*3600+Number(durationMinutes||0)*60:null;
-  const payload:Record<string,unknown>=tab==='works'?{title,type,language,firstPublicationDate:publicationDate}
+  const payload:Record<string,unknown>=tab==='works'?{title,type,language,firstPublicationDate:publicationDate,synopsis:editSynopsis}
    :tab==='people'?{name:personName}
    :tab==='editions'?{workId:selectedWork,format,pageCount:pageCount===''?null:Number(pageCount)}
    :{workId:selectedWork,performanceType:performance,abridgement,durationSeconds:duration};
   try{
    const result=await apiWrite<{id:string;saved:boolean}>('/api/catalogue-admin/'+tab,'POST',payload);
-   setNotice(label(tab.slice(0,-1))+' saved as a private catalogue draft. ID: '+result.id);
-   setActiveForm(null);setTitle('');setPersonName('');setPageCount('');setDurationHours('');setDurationMinutes('');
+   setNotice('Saved to the catalogue. ID: '+result.id);
+   setActiveForm(null);setTitle('');setEditSynopsis('');setPersonName('');setPageCount('');setDurationHours('');setDurationMinutes('');
    await load();
   }catch(e){setError(e instanceof Error?e.message:'Catalogue save failed')}
   finally{setSaving(false)}
@@ -102,35 +102,36 @@ export function CatalogueWorkbench(){
   <div className="cs-admin-metrics">
    {([{label:'Books',value:works.length},{label:'Contributors',value:people.length},{label:'Editions',value:editions.length},{label:'Recordings',value:recordings.length}]).map(x=><div key={x.label} className="cs-admin-metric"><span>{x.label} in first 100 results</span><strong>{x.value}</strong></div>)}
   </div>
-  <div className="cs-admin-heading" style={{marginTop:24}}><div><h2>Catalogue management</h2><p>Real records from the separate BOOK_DB database. New records start as private drafts.</p></div><button type="button" onClick={refresh} disabled={loading}>Refresh database</button></div>
+  <div className="cs-admin-heading" style={{marginTop:24}}><div><h2>Catalogue management</h2><p>Real records from the separate BOOK_DB database. Manual additions are saved directly to BOOK_DB. Records can be edited later; the public website is not yet connected to this catalogue.</p></div><button type="button" onClick={refresh} disabled={loading}>Refresh database</button></div>
   <div className="cs-admin-actions" role="tablist" aria-label="Catalogue data areas">
    {(['works','people','editions','recordings'] as RecordType[]).map(x=><button role="tab" aria-selected={tab===x} key={x} className={tab===x?'primary':''} type="button" onClick={()=>{setTab(x);setActiveForm(null);setEditingId('');setError('');setNotice('')}}>{x==='works'?'Books':x==='people'?'Authors & narrators':x==='recordings'?'Audiobooks':'Editions'}</button>)}
   </div>
   {error&&<p role="alert" className="cs-admin-error">{error}</p>}
   {notice&&<p role="status" className="cs-admin-success">{notice}</p>}
   {editingId&&tab==='works'&&<form className="cs-admin-form" onSubmit={updateWork}>
-   <div className="cs-admin-heading"><div><h3>Edit book metadata</h3><p>Book ID: <code>{editingId}</code> · Revision {editRevision}. Saves to BOOK_DB; descriptions remain private until reviewed.</p></div>
+   <div className="cs-admin-heading"><div><h3>Edit book metadata</h3><p>Book ID: <code>{editingId}</code> · Revision {editRevision}. Saves to BOOK_DB. The public website catalogue integration is still pending.</p></div>
    <button type="button" disabled={saving} onClick={()=>setEditingId('')}>Close editor</button></div>
    <label>Title *<input required maxLength={500} value={title} onChange={e=>setTitle(e.target.value)}/></label>
    <label>Type<select value={type} onChange={e=>setType(e.target.value)}>{typeLabels.map(x=><option value={x} key={x}>{label(x)}</option>)}</select></label>
    <label>Original language<input maxLength={40} placeholder="en-GB" value={language} onChange={e=>setLanguage(e.target.value)}/></label>
    <label>Original publication date<input maxLength={10} placeholder="YYYY, YYYY-MM or YYYY-MM-DD" value={publicationDate} onChange={e=>setPublicationDate(e.target.value)}/></label>
-   <label>Editorial synopsis (private draft)<textarea rows={6} maxLength={12000} value={editSynopsis} onChange={e=>setEditSynopsis(e.target.value)} placeholder="Enter sourced or editorial book description…"/></label>
+   <label>Book description / synopsis<textarea rows={6} maxLength={12000} value={editSynopsis} onChange={e=>setEditSynopsis(e.target.value)} placeholder="Enter sourced or editorial book description…"/></label>
    <h4>Current contributors</h4>
    <p>{editCredits.length?editCredits.map(c=>c.name+' ('+label(c.role)+')').join(', '):'No contributor credits assigned yet. Use Assign contributor below.'}</p>
    <p>Edition-specific ISBNs, publication details, genres and cover uploads are managed in their own upcoming editor panels.</p>
    <button type="submit" className="primary" disabled={saving||!title.trim()}>{saving?'Saving…':'Save changes'}</button>
   </form>}
   <div className="cs-admin-heading" style={{marginTop:22}}><div><h3>{tab==='works'?'Books':tab==='people'?'Contributors':tab==='editions'?'Editions':'Audiobook recordings'}</h3></div>
-   <button className="primary" type="button" onClick={()=>setActiveForm(v=>v===tab?null:tab)}>{activeForm===tab?'Cancel':'+ Create draft'}</button></div>
+   <button className="primary" type="button" onClick={()=>setActiveForm(v=>v===tab?null:tab)}>{activeForm===tab?'Cancel':'+ Add new'}</button></div>
   {activeForm===tab&&<form className="cs-admin-form" onSubmit={save}>
     <h3>{tab==='works'?'New book':tab==='people'?'New contributor':tab==='editions'?'New edition':'New audiobook recording'}</h3>
-    <p>Only identifying information is required. Additional metadata, covers and publication will be added through later editor stages.</p>
+    <p>Save this record directly to the catalogue. You can reopen a book to update it; further metadata fields are being added.</p>
     {tab==='works'&&<>
      <label>Book title *<input required maxLength={500} value={title} onChange={e=>setTitle(e.target.value)}/></label>
      <label>Work type<select value={type} onChange={e=>setType(e.target.value)}>{typeLabels.map(x=><option value={x} key={x}>{label(x)}</option>)}</select></label>
      <label>Original language (optional)<input value={language} onChange={e=>setLanguage(e.target.value)} placeholder="en-GB" maxLength={40}/></label>
      <label>First publication date (optional)<input value={publicationDate} onChange={e=>setPublicationDate(e.target.value)} placeholder="YYYY or YYYY-MM or YYYY-MM-DD" maxLength={10}/></label>
+     <label>Book description (optional)<textarea rows={5} maxLength={12000} value={editSynopsis} onChange={e=>setEditSynopsis(e.target.value)} placeholder="Write a description for the catalogue"/></label>
     </>}
     {tab==='people'&&<label>Contributor name *<input required value={personName} onChange={e=>setPersonName(e.target.value)} maxLength={500}/></label>}
     {(tab==='editions'||tab==='recordings')&&<label>Book *<select required value={selectedWork} onChange={e=>setSelectedWork(e.target.value)}>
@@ -146,13 +147,13 @@ export function CatalogueWorkbench(){
      <div className="cs-admin-actions"><label>Hours (optional)<input type="number" min={0} step={1} value={durationHours} onChange={e=>setDurationHours(e.target.value)}/></label>
      <label>Minutes (optional)<input type="number" min={0} max={59} step={1} value={durationMinutes} onChange={e=>setDurationMinutes(e.target.value)}/></label></div>
     </>}
-    <button type="submit" className="primary" disabled={saving||(tab==='editions'||tab==='recordings')&&!selectedWork}>{saving?'Saving to cloud…':'Save private draft'}</button>
+    <button type="submit" className="primary" disabled={saving||(tab==='editions'||tab==='recordings')&&!selectedWork}>{saving?'Saving to cloud…':'Save to catalogue'}</button>
    </form>}
   <div className="cs-admin-data cs-admin-table-scroll">
    <table><thead><tr><th>Name or title</th><th>Status / detail</th><th>Record ID</th></tr></thead><tbody>
-    {(tab==='works'?works.map(x=>({id:x.id,name:x.title,status:x.status+' · '+(x.authors||'Author not yet added')})):
+    {(tab==='works'?works.map(x=>({id:x.id,name:x.title,status:(x.status==='draft'?'Existing unfinished record':x.status==='published'?'Saved':x.status)+' · '+(x.authors||'Author not yet added')})):
      tab==='people'?people.map(x=>({id:x.id,name:x.name,status:x.status})):
-     tab==='editions'?editions.map(x=>({id:x.id,name:x.title,status:x.format+' · '+x.status})):
+     tab==='editions'?editions.map(x=>({id:x.id,name:x.title,status:x.format+' · '+(x.status==='published'?'Saved':x.status)})):
      recordings.map(x=>({id:x.id,name:x.title,status:x.performanceType+' · '+(x.durationSeconds==null?'Runtime unknown':Math.round(x.durationSeconds/60)+' minutes')}))
     ).map(x=><tr key={x.id}><td>{x.name}</td><td>{x.status}</td><td><code title={x.id}>{short(x.id)}</code>{tab==='works'&&<button type="button" disabled={opening||saving} onClick={()=>void openWork(x.id)} style={{marginLeft:8}}>Edit</button>}</td></tr>)}
    </tbody></table>
