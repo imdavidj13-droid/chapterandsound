@@ -169,7 +169,7 @@ export function App(){
   const args:ScreenProps={path,query,data:api,member,navigate};
   let body:ReactNode;
   if(verifyFromEmail)body=<ConfirmEmailPage/>;
-  if(path==='/')body=theme==='reading-room'?<RoomHome member={member} books={api.books??[]} reviews={api.reviews??[]}/>:<Home data={api} member={member}/>;
+  else if(path==='/')body=theme==='reading-room'?<RoomHome member={member} books={api.books??[]} reviews={api.reviews??[]}/>:<Home data={api} member={member}/>;
   else if(path==='/books')body=<FilteredBooks data={api}/>;
   else if(path==='/reviews')body=<Reviews data={api}/>;
   else if(path==='/search')body=<Search data={api}/>;
