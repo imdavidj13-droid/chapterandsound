@@ -12,7 +12,7 @@ import {routes,locationPath} from './routes';
 
 type Book = {id:string;title:string;subtitle?:string;author?:string;coverUrl?:string;summary?:string;formats?:string[];year?:number};
 type Review = {id:string;title?:string;body?:string;storyRating?:number;audioRating?:number;authorName?:string;bookTitle?:string;bookId?:string;format?:string;spoilers?:boolean;createdAt?:string};
-type Member = {id:string;displayName:string;verified:boolean};
+type Member = {id:string;displayName:string;verified:boolean;role?:'admin'|'moderator'|null};
 type ApiData = {books?:Book[];reviews?:Review[]};
 type ScreenProps={path:string;query:URLSearchParams;data:ApiData;member:Member|null;navigate:(path:string)=>void};
 const nav = ['/', '/books','/reviews','/community','/lists'];
