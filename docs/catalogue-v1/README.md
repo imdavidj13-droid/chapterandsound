@@ -1,6 +1,6 @@
-# Dedicated Catalogue Architecture — Design Pack v0.1
+# Dedicated Catalogue Architecture — Design Pack v0.2
 
-**Planning only — no production database, Worker, R2 or website files were changed.**
+**Planning only — no production tables, Worker bindings, R2 resources or website code were changed.** The user has created an empty dedicated D1 target, `chapterandsounds-book-db` (`961d5433-d7f8-4b8c-b84a-d9cad1a9a56a`). Its proposed binding is `BOOK_DB`.
 
 This folder defines a standalone, API-capable book and audiobook catalogue for Chapter & Sound. It is a **review candidate**, not an executed database schema. Existing member data remains in `chapterandsound-db`.
 
@@ -9,6 +9,8 @@ This folder defines a standalone, API-capable book and audiobook catalogue for C
 1. [01-table-registry.md](01-table-registry.md) — 59 proposed tables in 11 domains, minimum typed columns, key relationships, uniqueness/quality constraints and outstanding design decisions.
 2. [02-admin-and-r2-workflows.md](02-admin-and-r2-workflows.md) — actual catalogue administration screens, work/edition/recording editors, draft versus publish requirements, optional metadata, secure R2 cover/portrait uploads, and error states.
 3. [03-api-and-migration-contract.md](03-api-and-migration-contract.md) — future internal and public API contracts, role checks, ID crosswalk, compatibility with existing member records, shadow reads, rollback, licensing and performance decision gates.
+4. [04-d1-deployment-and-phasing.md](04-d1-deployment-and-phasing.md) — actual catalogue D1 UUID and proposed `BOOK_DB` binding, separate migration path, first-release versus later domains, safety gates.
+5. [05-validators-and-domain-contracts.md](05-validators-and-domain-contracts.md) — candidate enums, conditional mandatory fields, audiobook/contributor edge cases, media approval rules and concrete integrity tests.
 
 ## Agreed underlying design
 
@@ -40,11 +42,11 @@ This folder defines a standalone, API-capable book and audiobook catalogue for C
 - v1.0 is considered **locked** only after schema/engine/enum/permissions/licensing review and an explicit architecture approval. Record additions/deprecations in an ADR and changelog.
 - Before implementation, create executable schema migrations and contract validation fixtures from the approved specification; have those checked independently for FK validity, duplicate policy, migration reversibility and prohibited information disclosure.
 - The next implementation phase is component/service-contract scaffolding with **disabled unconnected actions**; no false local previews, fake book data or accidental live writes.
-- Only after an agreed decision will the dedicated DB and R2 be provisioned, and only after that should the website be connected to those services.
+- The user has already provisioned the separate D1 database itself. Do not apply schema migrations or bind the site to it until the v1.0 schema, testing, rollback and authorisation model are approved. R2 remains unprovisioned for this feature.
 
 ## Recommended first architecture review
 
-1. Confirm 59 tables versus any consolidation (especially organisations/publishers and version/edition relationships).
+1. Review the 59 named tables, first-release grouping and any necessary consolidation (especially organisations/publishers and version/edition relationships).
 2. Agree the first-release editing modules: work, edition, recording, contributor, cover/R2, identifiers and verification queue.
 3. Choose initial source families and rights/data-export rules.
 4. Benchmark D1 against a realistic catalogue size before confirming database engine.
