@@ -1,3 +1,5 @@
+import {OnboardingWizard} from './OnboardingWizard';
+import {FavouriteOrbit} from './FavouriteOrbit';
 import {useEffect,useMemo,useState} from 'react';
 import type {FormEvent,ReactNode} from 'react';
 import {apiGet,apiWrite} from './api';
@@ -93,7 +95,7 @@ function Preferences(){
   const toggle=(value:string,array:string[],setter:(v:string[])=>void)=>setter(array.includes(value)?array.filter(v=>v!==value):[...array,value]);
   const save=async(e:FormEvent)=>{e.preventDefault();setSaving(true);setError('');setNotice('');try{await apiWrite('/api/member/preferences','PUT',{formats,genres,moods,completed:true,onboardingStep:5});setNotice('Your preferences were saved to your account.');}catch(e){setError(e instanceof Error?e.message:'Could not save preferences');}finally{setSaving(false);}};
   return <><p className="eyebrow">Make it yours</p><h1>Your reading world</h1><p className="intro">Choose what you enjoy. You can change this anytime, and your preferences stay private unless you share them.</p>
-   <form onSubmit={save} className="wizard"><div className="panel"><h2>How do you like to read?</h2><div className="choice-grid">{formats.map(()=>null)}{formatsOptions.map(v=><label key={v} className="choice"><input type="checkbox" checked={formats.includes(v)} onChange={()=>toggle(v,formats,setFormats)}/><span>{v}</span></label>)}</div></div><div className="panel"><h2>Which genres do you enjoy?</h2><div className="choice-grid">{genreOptions.map(v=><label className="choice" key={v}><input type="checkbox" checked={genres.includes(v)} onChange={()=>toggle(v,genres,setGenres)}/><span>{v}</span></label>)}</div></div><div className="panel"><h2>Reading moods</h2><div className="choice-grid">{['Fast-paced','Thought-provoking','Atmospheric','Emotional','Dark','Cosy','Unexpected twists','Character-led'].map(v=><label key={v} className="choice"><input type="checkbox" checked={moods.includes(v)} onChange={()=>toggle(v,moods,setMoods)}/><span>{v}</span></label>)}</div></div><ErrorText message={error}/>{notice&&<div role="status" className="notice">{notice}</div>}<button disabled={saving} className="button">{saving?'Saving…':'Save my preferences'}</button></form></>;
+   <form onSubmit={save} className="wizard"><div className="panel"><h2>How do you like to read?</h2><div className="choice-grid">{formatsOptions.map(v=><label key={v} className="choice"><input type="checkbox" checked={formats.includes(v)} onChange={()=>toggle(v,formats,setFormats)}/><span>{v}</span></label>)}</div></div><div className="panel"><h2>Which genres do you enjoy?</h2><div className="choice-grid">{genreOptions.map(v=><label className="choice" key={v}><input type="checkbox" checked={genres.includes(v)} onChange={()=>toggle(v,genres,setGenres)}/><span>{v}</span></label>)}</div></div><div className="panel"><h2>Reading moods</h2><div className="choice-grid">{['Fast-paced','Thought-provoking','Atmospheric','Emotional','Dark','Cosy','Unexpected twists','Character-led'].map(v=><label key={v} className="choice"><input type="checkbox" checked={moods.includes(v)} onChange={()=>toggle(v,moods,setMoods)}/><span>{v}</span></label>)}</div></div><ErrorText message={error}/>{notice&&<div role="status" className="notice">{notice}</div>}<button disabled={saving} className="button">{saving?'Saving…':'Save my preferences'}</button></form></>;
 }
 const formatsOptions=['Print books','Ebooks','Audiobooks'];
 function ReviewEditor({books}:{books:Book[]}){
@@ -126,7 +128,8 @@ export function MemberWorkspace({path,books,member}:Props){
   if(path==='/add-book')return <AddBook books={books}/>;
   if(path==='/my-reviews')return <MyReviews/>;
   if(path==='/reading-year')return <ReadingYear/>;
-  if(path==='/preferences'||path==='/onboarding')return <Preferences/>;
+  if(path==='/onboarding')return <OnboardingWizard member={member}/>;
+  if(path==='/preferences')return <><Preferences/><div className="favourite-edit"><FavouriteOrbit role="author"/><FavouriteOrbit role="narrator"/></div></>;
   if(path==='/write-review')return <ReviewEditor books={books}/>;
   return <div className="panel"><h1>{path==='/account'?'My Account':path==='/admin'?'Administration':'Your reading journal'}</h1><p>This section needs its remaining secure controls. Your member session is active, and private data is never exposed to anonymous visitors.</p><a className="button secondary" href="/shelf">My bookshelf</a></div>;
 }
