@@ -41,3 +41,12 @@
 .cs-book-editor-footer button:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:860px){.cs-book-editor-grid{grid-template-columns:minmax(0,1fr);padding:16px}.cs-book-editor-heading{padding:22px}.cs-book-editor-section{padding:18px}.cs-book-cover-preview{width:min(220px,100%)}}
 @media(max-width:480px){.cs-book-editor-two{grid-template-columns:minmax(0,1fr)}.cs-book-editor-footer{padding:16px}.cs-book-editor-footer button{flex:1;padding:10px}.cs-book-editor-heading{align-items:flex-start}.cs-book-editor-heading button{padding:8px}}
+
+/* Catalogue integrity prompts, intentionally distinct from successful-save notices. */
+.cs-book-duplicate-warning{padding:16px;border:1px solid #d4ae61;border-radius:12px;background:#fff8e8;color:#593e18;display:flex;flex-direction:column;gap:10px}
+.cs-book-duplicate-warning>p{margin:0;font-size:13px;line-height:1.5}
+.cs-book-duplicate-result{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border-top:1px solid #e8d3aa;padding-top:10px;font-size:13px}
+.cs-book-duplicate-result button{border:1px solid #836335;border-radius:9px;background:white;color:#533c17;padding:10px 12px;cursor:pointer}
+.cs-book-invalid{color:#a02c25!important;font-weight:600}
+.cs-book-editor-section input[aria-invalid=true]{border-color:#a02c25!important}
+@media(max-width:480px){.cs-book-duplicate-result button{width:100%}}
