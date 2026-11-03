@@ -1,3 +1,4 @@
+import {CatalogueManualManager} from './CatalogueManualManager';
 import {useCallback,useEffect,useState} from 'react';
 import type {FormEvent} from 'react';
 import {apiGet,apiWrite} from './api';
@@ -170,6 +171,7 @@ export function CatalogueWorkbench(){
     <button type="button" className="primary" disabled={saving||!selectedPerson||(creditRole==='narrator'?!selectedRecording:!selectedWork)} onClick={()=>void saveCredit()}>{saving?'Saving…':'Save contributor credit'}</button>
    </div>}
   </section>
+  <CatalogueManualManager/>
   <section className="cs-admin-form" style={{marginTop:20}}>
    <h3>Book-cover images · Cloudflare R2</h3>
    <p>Cover uploading needs its own private R2 bucket, rights verification and a signed upload endpoint. No upload is simulated or saved locally.</p>
