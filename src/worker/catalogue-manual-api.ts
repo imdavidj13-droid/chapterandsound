@@ -76,6 +76,10 @@ const targetTable:Record<string,'works'|'editions'|'audio_recordings'|'people'|'
 };
 async function recordList(db:ManualDB,name:string,q:string,limit:number,offset:number){
  switch(name){
+ case 'people':return (await db.prepare("SELECT id,preferred_name AS name,sort_name AS sortName,identity_status AS status,revision FROM people WHERE (?='' OR instr(lower(preferred_name),lower(?))>0) ORDER BY preferred_name LIMIT ? OFFSET ?").bind(q,q,limit,offset).all()).results;
+ case 'editions':return (await db.prepare("SELECT e.id,w.canonical_title AS name,e.work_id AS workId,e.format,e.page_count AS pages,e.revision FROM editions e JOIN works w ON w.id=e.work_id ORDER BY e.created_at DESC LIMIT ? OFFSET ?").bind(limit,offset).all()).results;
+ case 'recordings':return (await db.prepare("SELECT r.id,w.canonical_title AS name,r.work_id AS workId,r.performance_type AS performance,r.duration_seconds AS seconds,r.revision FROM audio_recordings r JOIN works w ON w.id=r.work_id ORDER BY r.created_at DESC LIMIT ? OFFSET ?").bind(limit,offset).all()).results;
+ case 'imprints':return (await db.prepare("SELECT i.id,i.name,o.name AS publisher,i.publisher_id AS publisherId FROM imprints i LEFT JOIN organisations o ON o.id=i.publisher_id WHERE (?='' OR instr(lower(i.name),lower(?))>0) ORDER BY i.name LIMIT ? OFFSET ?").bind(q,q,limit,offset).all()).results;
  case 'publishers':return (await db.prepare("SELECT o.id,o.name,o.country,o.website_url AS website, 'publisher' AS kind FROM organisations o JOIN publishers p ON p.organisation_id=o.id WHERE (?='' OR instr(lower(o.name),lower(?))>0) ORDER BY o.name LIMIT ? OFFSET ?").bind(q,q,limit,offset).all()).results;
  case 'organisations':return (await db.prepare("SELECT id,name,organisation_type AS kind,country,website_url AS website FROM organisations WHERE (?='' OR instr(lower(name),lower(?))>0) ORDER BY name LIMIT ? OFFSET ?").bind(q,q,limit,offset).all()).results;
  case 'series':return (await db.prepare("SELECT id,title AS name,description,series_type AS kind FROM series WHERE (?='' OR instr(lower(title),lower(?))>0) ORDER BY title LIMIT ? OFFSET ?").bind(q,q,limit,offset).all()).results;
