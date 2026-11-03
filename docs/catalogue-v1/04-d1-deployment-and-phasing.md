@@ -2,8 +2,8 @@
 
 **Status:** Approved database target, **proposed structure pending v1.0 freeze**. This document is a deployment plan, not a migration script.
 **Date:** 2026-11-03.
-**User-created Cloudflare D1:** `chapterandsound-book-db`.
-**Database UUID:** `961d5433-d7f8-4b8c-b84a-d9cad1a9a56a`.
+**User-created Cloudflare D1:** `chapterandsounds-book-db`.
+**Database UUID:** `11535995-4a05-4770-9268-32f89d0b29bf`.
 **Proposed Worker binding:** `BOOK_DB` (the existing application `DB` binding is preserved).
 
 ## Separation
@@ -65,8 +65,8 @@ Purpose: create a work, contributor, edition, audiobook recording, identifiers, 
     },
     {
       "binding": "BOOK_DB",
-      "database_name": "chapterandsound-book-db",
-      "database_id": "961d5433-d7f8-4b8c-b84a-d9cad1a9a56a",
+      "database_name": "chapterandsounds-book-db",
+      "database_id": "11535995-4a05-4770-9268-32f89d0b29bf",
       "migrations_dir": "catalogue-migrations"
     }
   ]
