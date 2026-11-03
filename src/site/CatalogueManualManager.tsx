@@ -30,6 +30,14 @@ const areas:Area[]=[
  {key:'recording-editions',label:'Link audio to editions',fields:fields(choices('editionId','Audiobook edition','editions'),choices('recordingId','Recording','recordings'),field('sequence','Sequence',false,{type:'number'}),field('primary','Primary recording',false,{type:'checkbox'}))},
  {key:'tracks',label:'Audiobook chapters',fields:fields(choices('recordingId','Recording','recordings'),field('sequence','Track number',true,{type:'number'}),field('title','Track title'),field('seconds','Runtime in seconds',false,{type:'number'}))}
 ];
+const sections=[
+ {name:'Authors',keys:['people','credits']},
+ {name:'Editions',keys:['editions','publishers','imprints','publication-events','identifiers','identifier-schemes']},
+ {name:'Audiobooks',keys:['recordings','recording-editions','tracks']},
+ {name:'Series',keys:['series','series-memberships','work-titles']},
+ {name:'Genres',keys:['subjects','schemes','work-subjects']},
+ {name:'Other metadata',keys:['organisations']}
+];
 const label=(value:string)=>value.replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
 type Saved={saved:boolean;id:string;revision?:number};
 export function CatalogueManualManager(){
@@ -39,6 +47,8 @@ export function CatalogueManualManager(){
  const [loading,setLoading]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [search,setSearch]=useState(''),[page,setPage]=useState(0);
  const current=areas.find(x=>x.key===area)!;
+ const activeSection=sections.find(group=>group.keys.includes(area))||sections[0]!;
+ const changeArea=(next:string)=>{setArea(next);setEditing(null);setPage(0);setSearch('');setValues({});setError('');setNotice('')};
  const optionTypes=['works','people','editions','recordings','publishers','series','identifier-schemes','schemes','subjects','organisations'];
  const loadChoices=useCallback(async()=>{
   const pairs=await Promise.allSettled(optionTypes.map(async key=>{
@@ -99,7 +109,14 @@ export function CatalogueManualManager(){
  }
  return <section className="cs-admin-form" style={{marginTop:24}}>
   <div className="cs-admin-heading"><div><h2>Detailed catalogue management</h2><p>Manage editions, creators, publishers, identifiers, series, genres and audiobook data directly in the cloud database.</p></div></div>
-  <label>Metadata section<select value={area} onChange={e=>{setArea(e.target.value);setEditing(null);setPage(0);setSearch('');setValues({});setError('');setNotice('')}}>{areas.map(x=><option key={x.key} value={x.key}>{x.label}</option>)}</select></label>
+  <div className="cs-admin-actions" role="tablist" aria-label="Catalogue management sections">
+   {sections.map(section=><button type="button" role="tab" key={section.name}
+    aria-selected={activeSection.name===section.name} className={activeSection.name===section.name?'primary':''}
+    onClick={()=>changeArea(section.keys[0]!)}>{section.name}</button>)}
+  </div>
+  {activeSection.keys.length>1&&<label>Manage<select value={area} onChange={e=>changeArea(e.target.value)}>
+   {areas.filter(x=>activeSection.keys.includes(x.key)).map(x=><option key={x.key} value={x.key}>{x.label}</option>)}
+  </select></label>}
   <div className="cs-admin-heading"><div><h3>{current.label}</h3>{current.hint&&<p>{current.hint}</p>}</div>
    <button className="primary" type="button" onClick={startNew}>+ Add {current.label.toLowerCase()}</button></div>
   {error&&<p role="alert" className="cs-admin-error">{error}</p>}
