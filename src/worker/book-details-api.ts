@@ -55,10 +55,11 @@ export async function bookDetailsAPI(request:Request,env:BookDetailsEnv):Promise
     ) AS rank FROM reviews r JOIN editions e ON e.id=r.edition_id
     WHERE r.book_id=? AND r.status='published' AND r.visibility='public'
     AND e.format='audiobook' AND r.narration_rating IS NOT NULL)
-    SELECT COUNT(*) AS count,AVG(narration_rating) AS average FROM ranked WHERE rank=1`).bind(id)
-   .first<{count:number;average:number|null}>();
+    SELECT edition_id AS editionId,COUNT(*) AS count,AVG(narration_rating) AS average
+    FROM ranked WHERE rank=1 GROUP BY edition_id`).bind(id)
+   .all<{editionId:string;count:number;average:number|null}>();
   return send({book,editions:annotated,reviews,
    ratings:{story:{count:story?.count??0,average:story?.average??null},
-            narration:{count:audio?.count??0,average:audio?.average??null}}});
+            narrationByEdition:audio.results}});
  }catch(e){console.error('Book detail API unavailable',e);return send({error:'Unable to load book information'},503)}
 }
