@@ -23,6 +23,8 @@ export function CatalogueWorkbench(){
  const [query,setQuery]=useState(''),[selectedWork,setSelectedWork]=useState('');
  const [title,setTitle]=useState(''),[type,setType]=useState('book'),[language,setLanguage]=useState(''),[publicationDate,setPublicationDate]=useState('');
  const [personName,setPersonName]=useState('');
+ const [legacyPeople,setLegacyPeople]=useState<Person[]>([]),[authorMode,setAuthorMode]=useState<'existing'|'legacy'|'new'|'none'>('existing');
+ const [authorId,setAuthorId]=useState(''),[legacyAuthorId,setLegacyAuthorId]=useState(''),[newAuthorName,setNewAuthorName]=useState('');
  const [format,setFormat]=useState('paperback'),[pageCount,setPageCount]=useState('');
  const [performance,setPerformance]=useState('unknown'),[abridgement,setAbridgement]=useState('unknown'),[durationHours,setDurationHours]=useState(''),[durationMinutes,setDurationMinutes]=useState('');
  const [activeForm,setActiveForm]=useState<RecordType|null>(null);
@@ -34,13 +36,14 @@ export function CatalogueWorkbench(){
   try{
    await apiGet('/api/catalogue-admin/health');
    setReady(true);
-   const [w,p,e,r]=await Promise.all([
+   const [w,p,e,r,legacy]=await Promise.all([
     apiGet<{items:Work[]}>('/api/catalogue-admin/works?limit=100'),
     apiGet<{items:Person[]}>('/api/catalogue-admin/people?limit=100'),
     apiGet<{items:Edition[]}>('/api/catalogue-admin/editions?limit=100'),
-    apiGet<{items:Recording[]}>('/api/catalogue-admin/recordings?limit=100')
+    apiGet<{items:Recording[]}>('/api/catalogue-admin/recordings?limit=100'),
+    apiGet<{items:Person[]}>('/api/catalogue-admin/legacy-people?limit=100')
    ]);
-   setWorks(w.items);setPeople(p.items);setEditions(e.items);setRecordings(r.items);
+   setWorks(w.items);setPeople(p.items);setEditions(e.items);setRecordings(r.items);setLegacyPeople(legacy.items);
   }catch(e){setReady(false);setError(e instanceof Error?e.message:'Catalogue unavailable')}
   finally{setLoading(false)}
  },[]);
@@ -73,14 +76,14 @@ export function CatalogueWorkbench(){
  async function save(e:FormEvent){
   e.preventDefault();setSaving(true);setError('');setNotice('');
   const duration=durationHours||durationMinutes?Number(durationHours||0)*3600+Number(durationMinutes||0)*60:null;
-  const payload:Record<string,unknown>=tab==='works'?{title,type,language,firstPublicationDate:publicationDate,synopsis:editSynopsis}
+  const payload:Record<string,unknown>=tab==='works'?{title,type,language,firstPublicationDate:publicationDate,synopsis:editSynopsis,...(authorMode==='existing'?{authorId}:authorMode==='legacy'?{legacyAuthorId}:authorMode==='new'?{newAuthorName}:{})}
    :tab==='people'?{name:personName}
    :tab==='editions'?{workId:selectedWork,format,pageCount:pageCount===''?null:Number(pageCount)}
    :{workId:selectedWork,performanceType:performance,abridgement,durationSeconds:duration};
   try{
    const result=await apiWrite<{id:string;saved:boolean}>('/api/catalogue-admin/'+tab,'POST',payload);
    setNotice('Saved to the catalogue. ID: '+result.id);
-   setActiveForm(null);setTitle('');setEditSynopsis('');setPersonName('');setPageCount('');setDurationHours('');setDurationMinutes('');
+   setActiveForm(null);setTitle('');setEditSynopsis('');setPersonName('');setAuthorId('');setLegacyAuthorId('');setNewAuthorName('');setPageCount('');setDurationHours('');setDurationMinutes('');
    await load();
   }catch(e){setError(e instanceof Error?e.message:'Catalogue save failed')}
   finally{setSaving(false)}
@@ -91,14 +94,14 @@ export function CatalogueWorkbench(){
   <div className="cs-admin-metrics">
    {([{label:'Books',value:works.length},{label:'Contributors',value:people.length},{label:'Editions',value:editions.length},{label:'Recordings',value:recordings.length}]).map(x=><div key={x.label} className="cs-admin-metric"><span>{x.label} in first 100 results</span><strong>{x.value}</strong></div>)}
   </div>
-  <div className="cs-admin-heading" style={{marginTop:24}}><div><h2>Catalogue management</h2><p>Real records from the separate BOOK_DB database. Manual additions are saved directly to BOOK_DB. Records can be edited later; the public website is not yet connected to this catalogue.</p></div><button type="button" onClick={refresh} disabled={loading}>Refresh database</button></div>
+  <div className="cs-admin-heading" style={{marginTop:24}}><div><h2>Catalogue management</h2><p>Real records from the separate BOOK_DB database. Manual additions are saved directly to BOOK_DB. Records can be edited later and published catalogue entries are included in public search.</p></div><button type="button" onClick={refresh} disabled={loading}>Refresh database</button></div>
   <div className="cs-admin-actions" role="tablist" aria-label="Book catalogue">
    <strong>Books</strong> <span>Use the detailed catalogue management panel below for authors, editions, audiobooks and related information.</span>
   </div>
   {error&&<p role="alert" className="cs-admin-error">{error}</p>}
   {notice&&<p role="status" className="cs-admin-success">{notice}</p>}
   {editingId&&tab==='works'&&<form className="cs-admin-form" onSubmit={updateWork}>
-   <div className="cs-admin-heading"><div><h3>Edit book metadata</h3><p>Book ID: <code>{editingId}</code> · Revision {editRevision}. Saves to BOOK_DB. The public website catalogue integration is still pending.</p></div>
+   <div className="cs-admin-heading"><div><h3>Edit book metadata</h3><p>Book ID: <code>{editingId}</code> · Revision {editRevision}. Saves to BOOK_DB. The public website reads published catalogue records.</p></div>
    <button type="button" disabled={saving} onClick={()=>setEditingId('')}>Close editor</button></div>
    <label>Title *<input required maxLength={500} value={title} onChange={e=>setTitle(e.target.value)}/></label>
    <label>Type<select value={type} onChange={e=>setType(e.target.value)}>{typeLabels.map(x=><option value={x} key={x}>{label(x)}</option>)}</select></label>
@@ -106,7 +109,7 @@ export function CatalogueWorkbench(){
    <label>Original publication date<input maxLength={10} placeholder="YYYY, YYYY-MM or YYYY-MM-DD" value={publicationDate} onChange={e=>setPublicationDate(e.target.value)}/></label>
    <label>Book description / synopsis<textarea rows={6} maxLength={12000} value={editSynopsis} onChange={e=>setEditSynopsis(e.target.value)} placeholder="Enter sourced or editorial book description…"/></label>
    <h4>Current contributors</h4>
-   <p>{editCredits.length?editCredits.map(c=>c.name+' ('+label(c.role)+')').join(', '):'No contributor credits assigned yet. Use Assign contributor below.'}</p>
+   <p>{editCredits.length?editCredits.map(c=>c.name+' ('+label(c.role)+')').join(', '):'No author linked. You can link a contributor in Detailed Catalogue Management.'}</p>
    <p>Edition-specific ISBNs, publication details, genres and cover uploads are managed in their own upcoming editor panels.</p>
    <button type="submit" className="primary" disabled={saving||!title.trim()}>{saving?'Saving…':'Save changes'}</button>
   </form>}
@@ -117,6 +120,17 @@ export function CatalogueWorkbench(){
     <p>Save this record directly to the catalogue. You can reopen a book to update it; further metadata fields are being added.</p>
     {tab==='works'&&<>
      <label>Book title *<input required maxLength={500} value={title} onChange={e=>setTitle(e.target.value)}/></label>
+     <label>Author source<select value={authorMode} onChange={e=>setAuthorMode(e.target.value as typeof authorMode)}>
+       <option value="existing">Choose an author already in Book Catalogue</option>
+       <option value="legacy">Reuse an author from Website Contributors</option>
+       <option value="new">Add a new author with this book</option>
+       <option value="none">Unknown or no author</option>
+      </select></label>
+     {authorMode==='existing'&&<label>Catalogue author<select value={authorId} onChange={e=>setAuthorId(e.target.value)}><option value="">Choose an author</option>{people.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}
+     {authorMode==='legacy'&&<label>Existing website author<select required value={legacyAuthorId} onChange={e=>setLegacyAuthorId(e.target.value)}>
+      <option value="">Choose website author</option>{legacyPeople.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select>
+      <span>Reuses this person's original ID and copies their public author profile into Book Catalogue if needed.</span></label>}
+     {authorMode==='new'&&<label>New author's name<input required maxLength={500} value={newAuthorName} onChange={e=>setNewAuthorName(e.target.value)} placeholder="Full author name"/></label>}
      <label>Work type<select value={type} onChange={e=>setType(e.target.value)}>{typeLabels.map(x=><option value={x} key={x}>{label(x)}</option>)}</select></label>
      <label>Original language (optional)<input value={language} onChange={e=>setLanguage(e.target.value)} placeholder="en-GB" maxLength={40}/></label>
      <label>First publication date (optional)<input value={publicationDate} onChange={e=>setPublicationDate(e.target.value)} placeholder="YYYY or YYYY-MM or YYYY-MM-DD" maxLength={10}/></label>
