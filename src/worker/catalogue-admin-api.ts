@@ -11,7 +11,7 @@ interface Statement {
   bind(...params:(string|number|null)[]):Statement;
   first<T>():Promise<T|null>;
   all<T>():Promise<{results:T[]}>;
-  run():Promise<unknown>;
+  run():Promise<{meta?:{changes?:number}}>;
 }
 interface Database {
   prepare(sql:string):Statement;
