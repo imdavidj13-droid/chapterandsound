@@ -29,7 +29,57 @@ function Discovery({path,data}:{path:string;data:ApiData}){const config:Record<s
 function Search({data}:{data:ApiData}){const [search,setSearch]=useState(new URLSearchParams(window.location.search).get('q')??'');const matched=(data.books??[]).filter(b=>(b.title+' '+(b.author??'')).toLowerCase().includes(search.toLowerCase()));return <><PageHead eyebrow="Explore the library" heading="Find your next story" intro="Search the shared catalogue without duplicate entries for every review or format."/><label className="search-field">Title or author<input autoFocus value={search} onChange={e=>setSearch(e.target.value)} placeholder="What are you looking for?"/></label>{search?<BookGrid books={matched}/>:<Empty heading="A story is waiting" body="Enter a book title or author to start searching."/>}</>;}
 function BookDetail({data,id}:{data:ApiData;id:string}){const book=(data.books??[]).find(b=>b.id===id);if(!book)return <Empty heading="Book not found" body="This book may not have been added to the verified catalogue yet." action="Back to books" href="/books"/>;const reviews=(data.reviews??[]).filter(r=>r.bookId===id);return <><div className="detail-hero">{cover(book)}<div><p className="eyebrow">A book in the shared catalogue</p><h1>{book.title}</h1><p className="intro">{book.author??'Author unconfirmed'}</p><p>{book.summary??'A verified synopsis has not been added yet.'}</p><div className="actions"><AppLink to="/add-book" className="button">Add to my bookshelf</AppLink><AppLink to="/reviews" className="button secondary">Community reviews</AppLink></div></div></div><div className="section"><div className="section-title"><h2>Community reviews</h2></div><ReviewCards reviews={reviews}/></div></>;}
 function ReviewDetail({data,id}:{data:ApiData;id:string}){const review=(data.reviews??[]).find(r=>r.id===id);const [reveal,setReveal]=useState(false);if(!review)return <Empty heading="Review not found" body="This review is not available or has not been published." action="All reviews" href="/reviews"/>;return <article className="reading-article"><p className="eyebrow">Community review · {review.format??'Book'}</p><h1>{review.title??review.bookTitle??'A reader’s thoughts'}</h1><p className="muted">By {review.authorName??'A community member'}</p>{review.storyRating!=null&&<p className="stars">★ Story {review.storyRating}/5</p>}{review.format==='audiobook'&&review.audioRating!=null&&<p>♪ Narration {review.audioRating}/5</p>}{review.spoilers&&!reveal?<div className="panel"><h3>Contains spoilers</h3><p>Review text is hidden until you choose to reveal it.</p><button type="button" className="button secondary" onClick={()=>setReveal(true)}>Reveal spoilers</button></div>:<p className="article-body">{review.body??'No written review.'}</p>}<AppLink to="/reviews" className="inline-link">← Back to community reviews</AppLink></article>;}
-function Login({path}:{path:string}){const signUp=path==='/signup';return <div className="auth-page"><p className="eyebrow">Chapter & Sound</p><h1>{signUp?'Your next chapter starts here':path==='/reset-password'?'Reset your password':'Welcome back'}</h1><p>{signUp?'Create an account to track your reading, save private notes and share reviews when you choose.':'Your reading world is waiting.'}</p><div className="notice" role="status">Account registration and login are not yet connected to an authentication backend. This preview will not collect or store your password.</div><div className="panel auth-form"><label>Email address<input type="email" autoComplete="email" disabled placeholder="you@example.com"/></label>{path!=='/reset-password'&&<label>Password<input disabled type="password" autoComplete={signUp?'new-password':'current-password'} placeholder="Password"/></label>}<button disabled className="button">Authentication setup required</button></div><p>{signUp?<AppLink to="/signin">Already a member? Sign in</AppLink>:<><AppLink to="/signup">Create an account</AppLink> · <AppLink to="/reset-password">Forgot password?</AppLink></>}</p></div>;}
+function Login({path}:{path:string}){
+  const signUp=path==='/signup';
+  const reset=path==='/reset-password';
+  const verify=path==='/verify';
+  const [email,setEmail]=useState('');
+  const [password,setPassword]=useState('');
+  const [showPassword,setShowPassword]=useState(false);
+  const [loading,setLoading]=useState(false);
+  const [message,setMessage]=useState('');
+  const [error,setError]=useState('');
+  const submit=async(e:FormEvent<HTMLFormElement>)=>{
+    e.preventDefault();
+    setLoading(true);setMessage('');setError('');
+    const endpoint=verify?'/api/auth/send-verification-email'
+      :reset?'/api/auth/request-password-reset'
+      :signUp?'/api/auth/sign-up/email':'/api/auth/sign-in/email';
+    const payload=verify?{email,callbackURL:'/onboarding'}:reset?{email,redirectTo:'/signin'}
+      :signUp?{email,password,name:'New Reader'}:{email,password};
+    try{
+      const response=await fetch(endpoint,{method:'POST',credentials:'include',
+        headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      const data=await response.json() as {message?:string;error?:string};
+      if(!response.ok)throw Error(data.message??data.error??'Unable to complete this request');
+      if(!signUp&&!reset&&!verify){window.location.assign('/shelf');return;}
+      setMessage(signUp?'Check your inbox for a verification link. Your account is not verified yet.'
+        :verify?'If the account is eligible, a new verification email has been requested.'
+        :'If that address belongs to an account, password recovery instructions have been requested.');
+      setPassword('');
+    }catch(e){setError(e instanceof Error?e.message:'Request failed');}
+    finally{setLoading(false);}
+  };
+  return <div className="auth-page"><p className="eyebrow">Chapter & Sound</p>
+    <h1>{verify?'Check your inbox':signUp?'Your next chapter starts here':reset?'Reset your password':'Welcome back'}</h1>
+    <p>{verify?'Request another secure verification link.':signUp?'Create an account. After verifying your email, make your reading world your own.':reset?'Enter the email used for your account.':'Sign in to your bookshelf, reading history and community.'}</p>
+    {message&&<div className="notice" role="status">{message}</div>}
+    {error&&<div className="notice error" role="alert">{error}</div>}
+    <form className="panel auth-form" onSubmit={submit}>
+      <label>Email address<input type="email" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/></label>
+      {!reset&&!verify&&<label>Password
+        <input type={showPassword?'text':'password'} autoComplete={signUp?'new-password':'current-password'}
+          minLength={signUp?8:undefined} required value={password} onChange={e=>setPassword(e.target.value)}
+          placeholder={signUp?'Choose a secure password':'Your password'}/>
+        <span className="toggle-password"><input type="checkbox" checked={showPassword} onChange={e=>setShowPassword(e.target.checked)}/> Show password</span>
+      </label>}
+      {signUp&&<p className="small">By creating an account you agree to our <AppLink to="/terms">Terms</AppLink> and <AppLink to="/privacy">Privacy Policy</AppLink>. Your reading history is private by default.</p>}
+      <button disabled={loading} className="button" type="submit">{loading?'Working…':verify?'Resend verification':reset?'Request reset link':signUp?'Create account':'Sign in'}</button>
+    </form>
+    <p>{signUp?<AppLink to="/signin">Already a member? Sign in</AppLink>:
+      <><AppLink to="/signup">Create an account</AppLink> · <AppLink to="/reset-password">Forgot password?</AppLink> · <AppLink to="/verify">Verify email</AppLink></>}</p>
+  </div>;
+}
 function MemberPage({path,member}:{path:string;member:Member|null}){if(!member)return <><PageHead eyebrow="Your reading world" heading={title(path)} intro="Your books, reflections and preferences are private unless you explicitly share them."/><Empty heading="Sign in to continue" body="Member accounts require a secure, configured authentication service. No account data is stored in your browser as a substitute." action="Account setup" href="/signup"/></>;const heads:Record<string,string>={'/shelf':'Your bookshelf','/reading-year':'Your reading year','/my-reviews':'Your reviews','/preferences':'Your reading world','/account':'Your account','/add-book':'Find a book to add','/journal':'Your reading journal','/onboarding':'Make it yours','/admin':'Administration'};return <><PageHead eyebrow="Private to you" heading={heads[path]??title(path)} intro={`Welcome, ${member.displayName}. Your private data stays in your own account.`} action={path==='/shelf'?<AppLink to="/add-book" className="button">Add a book</AppLink>:null}/><Empty heading="Your story starts here" body="Nothing has been added to this account yet. Only real cloud records will populate this space." action={path==='/shelf'?'Add your first book':undefined} href="/add-book"/></>;}
 function About({path}:{path:string}){return <><PageHead eyebrow="The little details" heading={title(path)}/><div className="reading-article">{path==='/about'?<><h2>Every way of reading counts.</h2><p>Chapter & Sound is being built as a public community for book reviews, reading tracking, discussions, book clubs and challenges. Ratings are member opinions, with story and audiobook narration scored separately.</p><h3>Our rating guide</h3><p>Members may leave a rating or a written review, or neither. Private ratings and notes are not public reviews.</p></>:<><h2>{path==='/privacy'?'Privacy principles':'Terms of service'}</h2><p>This page is a development placeholder, not a published legal policy. Account registration and public participation must remain disabled until the appropriate legal text, moderation rules and operational processes have been completed.</p></>}</div></>;}
 function NotFound(){return <><PageHead heading="This page has wandered off" intro="The page you requested isn't available."/><Empty heading="Find your way back" body="There are plenty of stories to discover." action="Return home" href="/"/></>;}
@@ -37,7 +87,13 @@ export function App(){
   const [path,setPath]=useState(locationPath());
   const [api,setApi]=useState<ApiData>({books:[],reviews:[]});
   const [backendStatus,setBackendStatus]=useState<'loading'|'ready'|'offline'>('loading');
-  const [member]=useState<Member|null>(null);
+  const [member,setMember]=useState<Member|null>(null);
+  useEffect(()=>{let cancelled=false;
+    fetch('/api/me',{credentials:'include'}).then(r=>r.ok?r.json():null).then(v=>{
+      if(!cancelled&&v?.member)setMember(v.member as Member);
+    }).catch(()=>{});
+    return()=>{cancelled=true;};
+  },[]);
   useEffect(()=>{const change=()=>setPath(locationPath());window.addEventListener('popstate',change);return()=>window.removeEventListener('popstate',change);},[]);
   useEffect(()=>{let cancelled=false;Promise.all([fetch('/api/books').then(r=>{if(!r.ok)throw Error('books');return r.json();}),fetch('/api/reviews').then(r=>{if(!r.ok)throw Error('reviews');return r.json();})]).then(([books,reviews])=>{if(!cancelled){setApi({books:books.items??[],reviews:reviews.items??[]});setBackendStatus('ready');}}).catch(()=>{if(!cancelled)setBackendStatus('offline');});return()=>{cancelled=true;};},[]);
   const navigate=(to:string)=>{history.pushState({},'',to);setPath(locationPath());window.scrollTo(0,0);};
