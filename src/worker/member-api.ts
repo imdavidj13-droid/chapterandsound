@@ -59,7 +59,7 @@ export async function memberAPI(request:Request,env:MemberEnv):Promise<Response>
       }
     }
     if(path.startsWith('/api/member/favourites/')&&method==='DELETE'){
-      const [, , ,role,id]=path.split('/');
+      const [, , , ,role,id]=path.split('/');
       if(!['author','narrator'].includes(role??'')||!id)return bad('Invalid selection');
       await db.prepare('DELETE FROM favourite_people WHERE member_id=? AND person_id=? AND role=?')
         .bind(userId,id,role!).run();
