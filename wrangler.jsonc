@@ -6,5 +6,5 @@
   "main": "./src/worker/index.ts",
   "vars": {"ADMIN_EMAIL": "imdavidj13@gmail.com", "SIGNUP_MODE": "owner_only", "MAIL_FROM": "onboarding@resend.dev", "PUBLIC_ORIGIN": "https://chapterandsound.imdavidj13.workers.dev"},
   "assets": {"not_found_handling": "single-page-application", "run_worker_first": ["/api/*"]},
-  "d1_databases": [{"binding":"DB","database_name":"chapterandsound-db","database_id":"e7d649b1-0054-4509-9a43-d662976d383d"},{"binding":"BOOK_DB","database_name":"chapterandsound-book-db","database_id":"961d5433-d7f8-4b8c-b84a-d9cad1a9a56a","migrations_dir":"catalogue-migrations"}]
+  "d1_databases": [{"binding":"DB","database_name":"chapterandsound-db","database_id":"e7d649b1-0054-4509-9a43-d662976d383d"},{"binding":"BOOK_DB","database_name":"chapterandsounds-book-db","database_id":"11535995-4a05-4770-9268-32f89d0b29bf","migrations_dir":"catalogue-migrations"}]
 }
