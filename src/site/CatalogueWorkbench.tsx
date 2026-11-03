@@ -1,3 +1,4 @@
+import {CatalogueBookEditor} from './CatalogueBookEditor';
 import {CatalogueManualManager} from './CatalogueManualManager';
 import {useCallback,useEffect,useState} from 'react';
 import type {FormEvent} from 'react';
@@ -103,21 +104,6 @@ export function CatalogueWorkbench(){
   }catch(e){setError(e instanceof Error?e.message:'Image upload failed')}
   finally{setUploading(false)}
  }
- async function save(e:FormEvent){
-  e.preventDefault();setSaving(true);setError('');setNotice('');
-  const duration=durationHours||durationMinutes?Number(durationHours||0)*3600+Number(durationMinutes||0)*60:null;
-  const payload:Record<string,unknown>=tab==='works'?{title,type,language,firstPublicationDate:publicationDate,synopsis:editSynopsis,authorName}
-   :tab==='people'?{name:personName}
-   :tab==='editions'?{workId:selectedWork,format,pageCount:pageCount===''?null:Number(pageCount)}
-   :{workId:selectedWork,performanceType:performance,abridgement,durationSeconds:duration};
-  try{
-   const result=await apiWrite<{id:string;saved:boolean}>('/api/catalogue-admin/'+tab,'POST',payload);
-   setNotice('Saved to the catalogue. ID: '+result.id);
-   setActiveForm(null);setTitle('');setEditSynopsis('');setPersonName('');setAuthorName('');setPageCount('');setDurationHours('');setDurationMinutes('');
-   await load();
-  }catch(e){setError(e instanceof Error?e.message:'Catalogue save failed')}
-  finally{setSaving(false)}
- }
  if(ready===null)return <section className="cs-admin-form"><h2>Catalogue</h2><p role="status">Checking dedicated Cloudflare catalogue database…</p></section>;
  if(ready===false)return <section className="cs-admin-form"><h2>Catalogue database setup</h2><p>The catalogue editor will become available once the separate BOOK_DB migrations are installed.</p><p role="alert" className="cs-admin-error">{error}</p><p>No member database records have been changed.</p><button type="button" onClick={refresh}>Check again</button></section>;
  return <div className="cs-catalogue">
@@ -144,37 +130,11 @@ export function CatalogueWorkbench(){
    <button type="submit" className="primary" disabled={saving||!title.trim()}>{saving?'Saving…':'Save changes'}</button>
   </form>}
   <div className="cs-admin-heading" style={{marginTop:22}}><div><h3>{tab==='works'?'Books':tab==='people'?'Contributors':tab==='editions'?'Editions':'Audiobook recordings'}</h3></div>
-   <button className="primary" type="button" onClick={()=>setActiveForm(v=>v===tab?null:tab)}>{activeForm===tab?'Cancel':'+ Add new'}</button></div>
-  {activeForm===tab&&<form className="cs-admin-form" onSubmit={save}>
-    <h3>{tab==='works'?'New book':tab==='people'?'New contributor':tab==='editions'?'New edition':'New audiobook recording'}</h3>
-    <p>Save this record directly to the catalogue. You can reopen a book to update it; further metadata fields are being added.</p>
-    {tab==='works'&&<>
-     <label>Book title *<input required maxLength={500} value={title} onChange={e=>setTitle(e.target.value)}/></label>
-     <label>Author <input list="catalogue-authors" maxLength={500} value={authorName}
-      onChange={e=>setAuthorName(e.target.value)} placeholder="Enter or choose the author"/>
-      <datalist id="catalogue-authors">{people.map(p=><option key={p.id} value={p.name}/>)}</datalist>
-      <span>Choose an existing name or enter a new one. Matching existing authors are reused automatically.</span></label>
-     <label>Work type<select value={type} onChange={e=>setType(e.target.value)}>{typeLabels.map(x=><option value={x} key={x}>{label(x)}</option>)}</select></label>
-     <label>Original language (optional)<input value={language} onChange={e=>setLanguage(e.target.value)} placeholder="en-GB" maxLength={40}/></label>
-     <label>First publication date (optional)<input value={publicationDate} onChange={e=>setPublicationDate(e.target.value)} placeholder="YYYY or YYYY-MM or YYYY-MM-DD" maxLength={10}/></label>
-     <label>Book description (optional)<textarea rows={5} maxLength={12000} value={editSynopsis} onChange={e=>setEditSynopsis(e.target.value)} placeholder="Write a description for the catalogue"/></label>
-    </>}
-    {tab==='people'&&<label>Contributor name *<input required value={personName} onChange={e=>setPersonName(e.target.value)} maxLength={500}/></label>}
-    {(tab==='editions'||tab==='recordings')&&<label>Book *<select required value={selectedWork} onChange={e=>setSelectedWork(e.target.value)}>
-     <option value="">Select an existing book</option>{works.map(w=><option key={w.id} value={w.id}>{w.title}</option>)}
-    </select></label>}
-    {tab==='editions'&&<>
-     <label>Format *<select required value={format} onChange={e=>setFormat(e.target.value)}>{formats.map(x=><option value={x} key={x}>{label(x)}</option>)}</select></label>
-     <label>Page count (optional)<input type="number" min={1} step={1} value={pageCount} onChange={e=>setPageCount(e.target.value)}/></label>
-    </>}
-    {tab==='recordings'&&<>
-     <label>Performance type<select value={performance} onChange={e=>setPerformance(e.target.value)}>{performances.map(x=><option value={x} key={x}>{label(x)}</option>)}</select></label>
-     <label>Abridgement<select value={abridgement} onChange={e=>setAbridgement(e.target.value)}>{abridgements.map(x=><option value={x} key={x}>{label(x)}</option>)}</select></label>
-     <div className="cs-admin-actions"><label>Hours (optional)<input type="number" min={0} step={1} value={durationHours} onChange={e=>setDurationHours(e.target.value)}/></label>
-     <label>Minutes (optional)<input type="number" min={0} max={59} step={1} value={durationMinutes} onChange={e=>setDurationMinutes(e.target.value)}/></label></div>
-    </>}
-    <button type="submit" className="primary" disabled={saving||(tab==='editions'||tab==='recordings')&&!selectedWork}>{saving?'Saving to cloud…':'Save to catalogue'}</button>
-   </form>}
+   <button className="primary" type="button" onClick={()=>setActiveForm(v=>v===tab?null:tab)}>{activeForm===tab?'Cancel':'+ Add book'}</button></div>
+  {activeForm===tab&&tab==='works'&&<CatalogueBookEditor authors={people} imageStorage={mediaReady}
+     onCancel={()=>setActiveForm(null)} onSaved={(bookId,message)=>{
+      setActiveForm(null);setNotice(message+' Book ID: '+bookId);void load();
+     }}/>}
   <div className="cs-admin-data cs-admin-table-scroll">
    <table><thead><tr><th>Name or title</th><th>Status / detail</th><th>Record ID</th></tr></thead><tbody>
     {(tab==='works'?works.map(x=>({id:x.id,name:x.title,status:(x.status==='draft'?'Existing unfinished record':x.status==='published'?'Saved':x.status)+' · '+(x.authors||'Author not yet added')})):
