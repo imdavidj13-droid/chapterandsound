@@ -30,19 +30,4 @@ CREATE TABLE IF NOT EXISTS site_settings (
  updated_by TEXT REFERENCES members(id),
  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE TABLE IF NOT EXISTS moderation_actions (
- id TEXT PRIMARY KEY,
- moderator_id TEXT NOT NULL REFERENCES members(id),
- content_type TEXT NOT NULL,
- content_id TEXT NOT NULL,
- action TEXT NOT NULL,
- reason TEXT,
- created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-CREATE TABLE IF NOT EXISTS site_roles (
- member_id TEXT NOT NULL REFERENCES members(id),
- role TEXT NOT NULL CHECK(role IN ('admin','moderator')),
- assigned_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
- PRIMARY KEY(member_id,role)
-);
--- Role assignment is a privileged database/admin action, never accepted via public signup.
+-- Role assignments and audited actions live in 0004_moderation_roles.sql.
