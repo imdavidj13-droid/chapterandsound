@@ -16,4 +16,4 @@ CREATE TABLE IF NOT EXISTS moderation_actions(
   reason TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
--- Moderator audit lookup index is deferred until schema checks confirm the table columns.
+CREATE INDEX IF NOT EXISTS idx_mod_actor ON moderation_actions(actor_id,created_at);
