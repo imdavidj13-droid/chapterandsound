@@ -105,6 +105,32 @@ export async function memberAPI(request:Request,env:MemberEnv):Promise<Response>
         return reply({saved:true});
       }
     }
+    if(path==='/api/member/missing-book-requests'){
+      if(method==='GET'){
+        const {results}=await db.prepare(`SELECT id,requested_title AS title,requested_author AS author,
+          requested_format AS format,notes,state,created_at AS createdAt
+          FROM missing_book_requests WHERE member_id=? ORDER BY created_at DESC LIMIT 100`)
+          .bind(userId).all();
+        return reply({items:results});
+      }
+      if(method==='POST'){
+        const v=await input(request);
+        const title=asString(v.title,250),author=asString(v.author,180)||null;
+        const format=asString(v.format,25)||null,notes=asString(v.notes,1000)||null;
+        if(title.length<2)return bad('Enter the book title');
+        if(format&&!['paperback','hardback','ebook','audiobook','unknown'].includes(format))return bad('Choose a valid format');
+        const duplicate=await db.prepare(`SELECT id FROM missing_book_requests
+           WHERE member_id=? AND LOWER(requested_title)=LOWER(?)
+           AND state IN ('pending','reviewing') LIMIT 1`).bind(userId,title).first<{id:string}>();
+        if(duplicate)return reply({id:duplicate.id,alreadyRequested:true});
+        const requestId=crypto.randomUUID();
+        await db.prepare(`INSERT INTO missing_book_requests(
+          id,member_id,requested_title,requested_author,requested_format,notes,state)
+          VALUES(?,?,?,?,?,?,'pending')`).bind(requestId,userId,title,author,format,notes).run();
+        return reply({id:requestId,saved:true},201);
+      }
+      return bad('Method not allowed',405);
+    }
     if(path==='/api/member/shelf'){
       if(method==='GET'){
         const {results}=await db.prepare(`SELECT x.id,x.work_id AS workId,x.edition_id AS editionId,x.status,
