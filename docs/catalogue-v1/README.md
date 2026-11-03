@@ -1,8 +1,8 @@
-# Dedicated Catalogue Architecture — Design Pack v0.2
+# Dedicated Catalogue Architecture — Complete 59-table schema v0.3
 
-**Staging-candidate SQL written and tested — no production tables, Worker bindings, R2 resources or website code were changed.** The user has created an empty dedicated D1 target, `chapterandsounds-book-db` (`11535995-4a05-4770-9268-32f89d0b29bf`). Its proposed binding is `BOOK_DB`.
+**Five migrations now define the complete 59-table structure.** The user reports migrations 0001–0002 were applied remotely; migrations 0003–0005 have been committed and tested but not applied to production. The dedicated D1 target is `chapterandsounds-book-db` (`11535995-4a05-4770-9268-32f89d0b29bf`). Its proposed binding is `BOOK_DB`.
 
-This folder defines a standalone, API-capable book and audiobook catalogue for Chapter & Sound. It is a **review candidate**, not an executed database schema. Existing member data remains in `chapterandsound-db`.
+This folder defines a standalone, API-capable book and audiobook catalogue for Chapter & Sound. Its extension schema has passed isolated SQLite checks and GitHub CI; final rights/API/application integration work remains. Existing member data remains in `chapterandsound-db`.
 
 ## Documents
 
@@ -12,7 +12,10 @@ This folder defines a standalone, API-capable book and audiobook catalogue for C
 4. [04-d1-deployment-and-phasing.md](04-d1-deployment-and-phasing.md) — actual catalogue D1 UUID and proposed `BOOK_DB` binding, separate migration path, first-release versus later domains, safety gates.
 5. [05-validators-and-domain-contracts.md](05-validators-and-domain-contracts.md) — candidate enums, conditional mandatory fields, audiobook/contributor edge cases, media approval rules and concrete integrity tests.
 6. [../../catalogue-migrations/0001_catalogue_core.sql](../../catalogue-migrations/0001_catalogue_core.sql) — executable staging-candidate core work, edition, recording, contributor and series schema (15 tables).
-7. [../../catalogue-migrations/0002_catalogue_metadata_media.sql](../../catalogue-migrations/0002_catalogue_metadata_media.sql) — executable staging-candidate sources, identifiers, media, rights, text and audit schema (13 tables).
+7. [../../catalogue-migrations/0002_catalogue_metadata_media.sql](../../catalogue-migrations/0002_catalogue_metadata_media.sql) — sources, identifiers, media, rights, text and audit schema (13 tables).
+8. [../../catalogue-migrations/0003_catalogue_relationships.sql](../../catalogue-migrations/0003_catalogue_relationships.sql) — relationships, edition details, audiobook tracks, organisations and series (10 additional tables).
+9. [../../catalogue-migrations/0004_catalogue_discovery_distribution.sql](../../catalogue-migrations/0004_catalogue_discovery_distribution.sql) — classifications, descriptive subjects, image variants, availability and territorial distribution (12 additional tables).
+10. [../../catalogue-migrations/0005_catalogue_import_api.sql](../../catalogue-migrations/0005_catalogue_import_api.sql) — imports, merge history, editorial overrides and future API client governance (9 additional tables).
 
 ## Agreed underlying design
 
@@ -40,18 +43,18 @@ This folder defines a standalone, API-capable book and audiobook catalogue for C
 
 ## Validation completed
 
-- The first-release candidate is now **28 tables**, of the 59 proposed catalogue tables. The remaining 31 are future modules.
+- All **59 canonical tables** are now defined: 28 in the originally applied migrations and 31 additional in the three new migrations.
 - GitHub CI runs `npm run test:catalogue-schema` using disposable in-memory SQLite; it is **not** connected to either real D1 database.
-- It checks FK integrity, work/version/edition consistency, audio recording association, author/narrator roles, identifier uniqueness, media approval/rights and audit storage.
-- SQL remains a **candidate**, not a permanently frozen v1.0 schema. API-level identity and rights validations, staging D1 trial and migration review remain prerequisites for applying it to the new database.
+- It checks 15→28→38→50→59 incremental table counts plus FK integrity, work/version/edition consistency, audio recording association, author/narrator roles, identifier uniqueness, classification, R2 media approval/rights, imports, merge aliases, API access metadata and audit storage.
+- SQL passed isolated SQLite checks, **not a live Cloudflare D1 migration**. Further API-level identity and rights validations, staging D1 trial and review remain needed before treating this as a complete public catalogue system.
 
 ## Freeze protocol
 
-- v0.1 documents are committed for review. Names must **not** be quietly changed by implementation work.
+- v0.3 documents are committed for review. Names must **not** be quietly changed by implementation work.
 - v1.0 is considered **locked** only after schema/engine/enum/permissions/licensing review and an explicit architecture approval. Record additions/deprecations in an ADR and changelog.
 - Before implementation, create executable schema migrations and contract validation fixtures from the approved specification; have those checked independently for FK validity, duplicate policy, migration reversibility and prohibited information disclosure.
 - The next implementation phase is component/service-contract scaffolding with **disabled unconnected actions**; no false local previews, fake book data or accidental live writes.
-- The user has already provisioned the separate D1 database itself. Do not apply schema migrations or bind the site to it until the v1.0 schema, testing, rollback and authorisation model are approved. R2 remains unprovisioned for this feature.
+- The user has already provisioned the separate D1 database and reports the original 28 tables are installed. Follow the explicit checks and extension steps in [04-d1-deployment-and-phasing.md](04-d1-deployment-and-phasing.md), including verifying only 0003–0005 remain pending. R2 remains unprovisioned for this feature.
 
 ## Recommended first architecture review
 
