@@ -158,6 +158,19 @@ export async function adminAPI(request:Request,env:AdminEnv):Promise<Response>{
    await audit(db,session.user.id,'create','work',workId,null,{title,verificationStatus:'unverified'},reason);
    return respond({id:workId,saved:true},201);
   }
+  if(section==='editions'&&request.method==='POST'&&!recordId){
+   const workId=value(data.workId,100),format=value(data.format,30);
+   if(!workId||!['paperback','hardback','ebook','audiobook','unknown'].includes(format))return fail('Choose an existing book and valid edition format');
+   const book=await db.prepare('SELECT id,title FROM works WHERE id=?').bind(workId).first<{id:string;title:string}>();
+   if(!book)return fail('Book does not exist',404);
+   const isbn13=value(data.isbn13,13);
+   if(isbn13&&!/^\\d{13}$/.test(isbn13))return fail('ISBN-13 must have thirteen digits');
+   const editionId=id();
+   await db.prepare("INSERT INTO editions(id,work_id,format,isbn13,publisher,verification_status) VALUES(?,?,?,?,?,'unverified')")
+     .bind(editionId,workId,format,isbn13||null,value(data.publisher,180)||null).run();
+   await audit(db,session.user.id,'create','edition',editionId,null,{workId,format,isbn13:isbn13||null},reason);
+   return respond({id:editionId,saved:true},201);
+  }
   if(section==='people'&&request.method==='POST'&&!recordId){
    const name=value(data.name,250);if(name.length<2)return fail('Contributor name is required');
    const personId=id();
@@ -198,6 +211,25 @@ export async function adminAPI(request:Request,env:AdminEnv):Promise<Response>{
    await db.prepare('UPDATE people SET biography=? WHERE id=?').bind(biography||null,recordId).run();
    await audit(db,session.user.id,'edit_biography','person',recordId,prior,{...prior,biography},reason);
    return respond({saved:true});
+  }
+  if(section==='community'&&request.method==='PATCH'&&recordId){
+   const kind=value(data.kind,30),action=value(data.action,30);
+   if(kind==='discussion'&&['close','reopen'].includes(action)){
+     const previous=await db.prepare('SELECT id,title,state FROM discussions WHERE id=?').bind(recordId).first<{id:string;title:string;state:string}>();
+     if(!previous)return fail('Discussion not found',404);
+     const state=action==='close'?'closed':'open';
+     await db.prepare('UPDATE discussions SET state=? WHERE id=?').bind(state,recordId).run();
+     await audit(db,session.user.id,'change_state','discussion',recordId,previous,{...previous,state},reason);
+     return respond({saved:true});
+   }
+   if(kind==='challenge'&&['public','private'].includes(action)){
+     const previous=await db.prepare('SELECT id,title,visibility FROM challenges WHERE id=?').bind(recordId).first<{id:string;title:string;visibility:string}>();
+     if(!previous)return fail('Challenge not found',404);
+     await db.prepare('UPDATE challenges SET visibility=? WHERE id=?').bind(action,recordId).run();
+     await audit(db,session.user.id,'change_visibility','challenge',recordId,previous,{...previous,visibility:action},reason);
+     return respond({saved:true});
+   }
+   return fail('Unsupported community management action',400);
   }
   if(section==='requests'&&request.method==='PATCH'&&recordId){
    const state=value(data.state,20);
