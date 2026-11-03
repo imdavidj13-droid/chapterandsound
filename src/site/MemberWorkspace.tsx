@@ -1,3 +1,4 @@
+import {AdminModeration} from './AdminModeration';
 import {OnboardingWizard} from './OnboardingWizard';
 import {FavouriteOrbit} from './FavouriteOrbit';
 import {useEffect,useMemo,useState} from 'react';
@@ -131,5 +132,6 @@ export function MemberWorkspace({path,books,member}:Props){
   if(path==='/onboarding')return <OnboardingWizard member={member}/>;
   if(path==='/preferences')return <><Preferences/><div className="favourite-edit"><FavouriteOrbit role="author"/><FavouriteOrbit role="narrator"/></div></>;
   if(path==='/write-review')return <ReviewEditor books={books}/>;
+  if(path==='/admin')return <AdminModeration/>;
   return <div className="panel"><h1>{path==='/account'?'My Account':path==='/admin'?'Administration':'Your reading journal'}</h1><p>This section needs its remaining secure controls. Your member session is active, and private data is never exposed to anonymous visitors.</p><a className="button secondary" href="/shelf">My bookshelf</a></div>;
 }
