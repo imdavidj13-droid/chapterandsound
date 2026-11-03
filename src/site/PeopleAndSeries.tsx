@@ -1,7 +1,7 @@
 import {useEffect,useState} from 'react';
 import {apiGet} from './api';
 
-interface Person{id:string;name:string;biography?:string;isAuthor?:number;isNarrator?:number;}
+interface Person{id:string;name:string;biography?:string;portraitUrl?:string|null;isAuthor?:number;isNarrator?:number;}
 interface Work{id:string;title:string;contribution?:string;format?:string;workId?:string;sequenceNumber?:number;label?:string;}
 type Props={path:string};
 function portrait(name:string){return <div className="person-portrait" aria-hidden="true">{name.split(/\s+/).slice(0,2).map(s=>s[0]?.toUpperCase()).join('')}</div>;}
@@ -15,7 +15,7 @@ function Directory({role}:{role:'author'|'narrator'}){
   return <><p className="eyebrow">The people behind the stories</p><h1>{role==='author'?'Our authors':'Our narrators'}</h1><p className="intro">{role==='author'?'Explore each author’s books, from established favourites to newly published stories.':'Discover the performers who bring audiobooks to life, and find their recordings.'}</p>
    <label className="search-field">{role==='author'?'Search authors':'Search narrators'}<input value={term} onChange={e=>setTerm(e.target.value)} placeholder={'Find a '+role+' by name'}/></label>
    {error&&<div className="notice error" role="alert">{error}</div>}
-   {busy?<p role="status">Searching verified people…</p>:items.length?<div className="people-grid">{items.map(person=><a key={person.id} className="panel person-tile" href={'/person/'+encodeURIComponent(person.id)}>{portrait(person.name)}<h3>{person.name}</h3><p>{person.isAuthor&&person.isNarrator?'Author & narrator':role==='author'?'Author':'Narrator'}</p><span className="inline-link">View profile →</span></a>)}</div>:<div className="empty"><h3>Not in the directory yet</h3><p>No verified {role}s match your search. We won't substitute someone with a similar name.</p></div>}
+   {busy?<p role="status">Searching verified people…</p>:items.length?<div className="people-grid">{items.map(person=><a key={person.id} className="panel person-tile" href={'/person/'+encodeURIComponent(person.id)}>{portrait(person.name,person.portraitUrl)}<h3>{person.name}</h3><p>{person.isAuthor&&person.isNarrator?'Author & narrator':role==='author'?'Author':'Narrator'}</p><span className="inline-link">View profile →</span></a>)}</div>:<div className="empty"><h3>Not in the directory yet</h3><p>No verified {role}s match your search. We won't substitute someone with a similar name.</p></div>}
   </>;
 }
 function PersonProfile({id}:{id:string}){
