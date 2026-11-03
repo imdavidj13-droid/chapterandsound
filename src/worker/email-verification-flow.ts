@@ -50,8 +50,8 @@ function resultRedirect(status:'verified'|'invalid',authHeaders:Headers):Respons
   return new Response(null,{status:303,headers});
 }
 
-export function verificationResultPage(request:Request):Response{
-  const verified=new URL(request.url).searchParams.get('status')==='verified';
+export function verificationResultPage(request:Request,hasVerifiedSession:boolean):Response{
+  const verified=hasVerifiedSession&&new URL(request.url).searchParams.get('status')==='verified';
   const heading=verified?'Email verified.':'Verification link unavailable.';
   const detail=verified
     ?'Your Chapter & Sound email address has been confirmed. Continue to your reading world.'
