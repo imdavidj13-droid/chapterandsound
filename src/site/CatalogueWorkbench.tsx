@@ -31,6 +31,8 @@ export function CatalogueWorkbench(){
  const [editingId,setEditingId]=useState(''),[editRevision,setEditRevision]=useState(0);
  const [editSynopsis,setEditSynopsis]=useState(''),[editCredits,setEditCredits]=useState<WorkDetails['credits']>([]);
  const [opening,setOpening]=useState(false);
+ const [showAdvanced,setShowAdvanced]=useState(false);
+ const [editView,setEditView]=useState<'details'|'editions'|'images'|'preview'>('details');
  const [mediaReady,setMediaReady]=useState(false),[mediaKind,setMediaKind]=useState<'work'|'edition'|'person'>('edition');
  const [mediaId,setMediaId]=useState(''),[mediaFile,setMediaFile]=useState<File|null>(null);
  const [rightsHolder,setRightsHolder]=useState(''),[licenceName,setLicenceName]=useState(''),[sourceUrl,setSourceUrl]=useState('');
@@ -67,7 +69,7 @@ export function CatalogueWorkbench(){
   setOpening(true);setError('');setNotice('');setActiveForm(null);
   try{
    const detail=await apiGet<WorkDetails>('/api/catalogue-admin/works/'+encodeURIComponent(workId));
-   setEditingId(workId);setEditRevision(detail.work.revision);
+   setEditingId(workId);setEditView('details');setEditRevision(detail.work.revision);
    setTitle(detail.work.title);setType(detail.work.type);setLanguage(detail.work.language||'');
    setPublicationDate(detail.work.firstPublicationDate||'');setEditSynopsis(detail.work.synopsis||'');
    setEditCredits(detail.credits);
@@ -110,29 +112,64 @@ export function CatalogueWorkbench(){
   <div className="cs-admin-metrics">
    {([{label:'Books',value:works.length},{label:'Contributors',value:people.length},{label:'Editions',value:editions.length},{label:'Recordings',value:recordings.length}]).map(x=><div key={x.label} className="cs-admin-metric"><span>{x.label} in first 100 results</span><strong>{x.value}</strong></div>)}
   </div>
-  <div className="cs-admin-heading" style={{marginTop:24}}><div><h2>Catalogue management</h2><p>Real records from the separate BOOK_DB database. Manual additions are saved directly to BOOK_DB. Records can be edited later and published catalogue entries are included in public search.</p></div><button type="button" onClick={refresh} disabled={loading}>Refresh database</button></div>
-  <div className="cs-admin-actions" role="tablist" aria-label="Book catalogue">
-   <strong>Books</strong> <span>Use the detailed catalogue management panel below for authors, editions, audiobooks and related information.</span>
-  </div>
+  <div className="cs-admin-heading cs-catalogue-intro"><div><p className="cs-admin-eyebrow">LIBRARY MANAGEMENT</p><h2>Your book catalogue</h2><p>Create and edit books, editions and audiobooks in one catalogue. Advanced metadata tools are available below when needed.</p></div><button type="button" onClick={refresh} disabled={loading}>↻ Refresh catalogue</button></div>
+  <p className="cs-catalogue-intro-note">Books appear once, with formats and recordings attached to their existing catalogue record.</p>
   {error&&<p role="alert" className="cs-admin-error">{error}</p>}
   {notice&&<p role="status" className="cs-admin-success">{notice}</p>}
-  {editingId&&tab==='works'&&<form className="cs-admin-form" onSubmit={updateWork}>
-   <div className="cs-admin-heading"><div><h3>Edit book metadata</h3><p>Book ID: <code>{editingId}</code> · Revision {editRevision}. Saves to BOOK_DB. The public website reads published catalogue records.</p></div>
-   <button type="button" disabled={saving} onClick={()=>setEditingId('')}>Close editor</button></div>
-   <label>Title *<input required maxLength={500} value={title} onChange={e=>setTitle(e.target.value)}/></label>
-   <label>Type<select value={type} onChange={e=>setType(e.target.value)}>{typeLabels.map(x=><option value={x} key={x}>{label(x)}</option>)}</select></label>
-   <label>Original language<input maxLength={40} placeholder="en-GB" value={language} onChange={e=>setLanguage(e.target.value)}/></label>
-   <label>Original publication date<input maxLength={10} placeholder="YYYY, YYYY-MM or YYYY-MM-DD" value={publicationDate} onChange={e=>setPublicationDate(e.target.value)}/></label>
-   <label>Book description / synopsis<textarea rows={6} maxLength={12000} value={editSynopsis} onChange={e=>setEditSynopsis(e.target.value)} placeholder="Enter sourced or editorial book description…"/></label>
-   <h4>Current contributors</h4>
-   <p>{editCredits.length?editCredits.map(c=>c.name+' ('+label(c.role)+')').join(', '):'No author linked. You can link a contributor in Detailed Catalogue Management.'}</p>
-   <p>Edition-specific ISBNs, publication details, genres and cover uploads are managed in their own upcoming editor panels.</p>
-   <button type="submit" className="primary" disabled={saving||!title.trim()}>{saving?'Saving…':'Save changes'}</button>
-  </form>}
-  <div className="cs-admin-heading" style={{marginTop:22}}><div><h3>{tab==='works'?'Books':tab==='people'?'Contributors':tab==='editions'?'Editions':'Audiobook recordings'}</h3></div>
-   <button className="primary" type="button" onClick={()=>setActiveForm(v=>v===tab?null:tab)}>{activeForm===tab?'Cancel':'+ Add book'}</button></div>
-  {activeForm===tab&&tab==='works'&&<CatalogueBookEditor authors={people} imageStorage={mediaReady}
-     onCancel={()=>setActiveForm(null)} onSaved={(bookId,message)=>{
+  {editingId&&tab==='works'&&<section className="cs-book-edit-workspace" aria-label="Edit catalogue book">
+   <header className="cs-book-edit-heading">
+    <div><p className="cs-book-eyebrow">CHAPTER & SOUND / BOOK EDITOR</p><h2>Edit book: {works.find(w=>w.id===editingId)?.title||title}</h2>
+     <p>Record {short(editingId)} · Revision {editRevision} · Saved changes update the existing catalogue book.</p></div>
+    <button type="button" disabled={saving} onClick={()=>setEditingId('')}>Close editor</button>
+   </header>
+   <nav className="cs-book-edit-tabs" aria-label="Book editing sections">
+    {(['details','editions','images','preview'] as const).map(view=><button type="button" key={view} aria-current={editView===view?'page':undefined} className={editView===view?'active':''} onClick={()=>setEditView(view)}>{view==='details'?'Book details':view==='editions'?'Editions & audio':view==='images'?'Cover & images':'Preview'}</button>)}
+   </nav>
+   {editView==='details'&&<form className="cs-book-edit-body" onSubmit={updateWork}>
+    <div className="cs-book-edit-columns">
+     <div className="cs-book-edit-panel">
+      <h3>Book details</h3>
+      <label>Title *<input required maxLength={500} value={title} onChange={e=>setTitle(e.target.value)}/></label>
+      <div className="cs-book-editor-two">
+       <label>Type<select value={type} onChange={e=>setType(e.target.value)}>{typeLabels.map(x=><option value={x} key={x}>{label(x)}</option>)}</select></label>
+       <label>Original language<input maxLength={40} placeholder="en-GB" value={language} onChange={e=>setLanguage(e.target.value)}/></label>
+      </div>
+      <label>First publication date<input maxLength={10} placeholder="YYYY-MM-DD" value={publicationDate} onChange={e=>setPublicationDate(e.target.value)}/></label>
+      <label>Description<textarea rows={7} maxLength={12000} value={editSynopsis} onChange={e=>setEditSynopsis(e.target.value)}/></label>
+     </div>
+     <aside className="cs-book-edit-panel">
+      <h3>Linked contributors</h3>
+      {editCredits.length?<ul>{editCredits.map(c=><li key={c.id}>{c.name} <span>· {label(c.role)}</span></li>)}</ul>:<p>No contributor linked yet.</p>}
+      <p>Contributor relationships are preserved when book details are edited. Use detailed catalogue management to change credits.</p>
+      <div className="cs-book-edit-status"><strong>Current catalogue status</strong><span>{label(works.find(w=>w.id===editingId)?.status||'unknown')}</span></div>
+     </aside>
+    </div>
+    <footer className="cs-book-edit-footer"><button type="submit" className="primary" disabled={saving||!title.trim()}>{saving?'Saving…':'Save book changes'}</button></footer>
+   </form>}
+   {editView==='editions'&&<div className="cs-book-edit-body"><div className="cs-book-edit-panel">
+    <h3>Linked editions & recordings</h3><p>The following records use this book's existing catalogue ID. Manage their ISBN, publisher, narrator and runtime in Detailed Catalogue Management below.</p>
+    {editions.filter(e=>e.workId===editingId).length?<div className="cs-book-edit-records">{editions.filter(e=>e.workId===editingId).map(e=><div key={e.id}><strong>{label(e.format)}</strong><span>{e.title} · {e.pageCount?e.pageCount+' pages · ':''}ID {short(e.id)}</span></div>)}</div>:<p>No editions in the first 100 returned records.</p>}
+    {recordings.filter(r=>r.workId===editingId).length?<div className="cs-book-edit-records">{recordings.filter(r=>r.workId===editingId).map(r=><div key={r.id}><strong>Recording</strong><span>{label(r.performanceType)} · {r.durationSeconds?Math.round(r.durationSeconds/60)+' minutes':'Duration not specified'} · ID {short(r.id)}</span></div>)}</div>:null}
+    <p className="cs-book-edit-hint">These lists show the first 100 records; use Detailed Catalogue Management for the complete paginated listing.</p>
+   </div></div>}
+   {editView==='images'&&<div className="cs-book-edit-body"><div className="cs-book-edit-panel">
+    <h3>Cover images</h3><p>Upload a rights-cleared cover to this existing book or one of its editions using the image uploader further down this page.</p>
+    {mediaReady?<button type="button" className="primary" onClick={()=>{setMediaKind('work');setMediaId(editingId);document.getElementById('cs-catalogue-media')?.scrollIntoView({behavior:'smooth',block:'start'})}}>Upload cover for this book</button>:<p className="cs-book-storage-warning">Cloudflare R2 is not connected. Images cannot be uploaded yet.</p>}
+   </div></div>}
+   {editView==='preview'&&<div className="cs-book-edit-body"><div className="cs-book-edit-panel">
+    <p className="cs-book-eyebrow">CATALOGUE RECORD PREVIEW</p><h3>{title||'Untitled book'}</h3>
+    <p><strong>Authors:</strong> {editCredits.filter(c=>['author','coauthor'].includes(c.role)).map(c=>c.name).join(', ')||'Not linked'}</p>
+    <p><strong>Type:</strong> {label(type)} · <strong>Language:</strong> {language||'Unknown'} · <strong>First published:</strong> {publicationDate||'Unknown'}</p>
+    <p>{editSynopsis||'No description entered.'}</p>
+    <p><strong>Linked formats:</strong> {[...new Set(editions.filter(e=>e.workId===editingId).map(e=>label(e.format)))].join(', ')||'No edition in loaded results'}</p>
+    <p className="cs-book-edit-hint">This is a local preview of the fields currently in the editor. Save book details before viewing the published page.</p>
+    <a className="cs-book-edit-link" href={'/book/'+encodeURIComponent(editingId)}>Open public book page</a>
+   </div></div>}
+  </section>}
+  <div className="cs-admin-heading cs-catalogue-list-head" style={{marginTop:22}}><div><h3>Books in the catalogue</h3><p>Select a book to edit it, or create a new one with its first edition.</p></div>
+   <button className="primary" type="button" onClick={()=>{setEditingId('');setActiveForm(v=>v==='works'?null:'works')}}>{activeForm==='works'?'Close new book form':'+ Create a new book'}</button></div>
+  {activeForm==='works'&&<CatalogueBookEditor authors={people} imageStorage={mediaReady}
+     onCancel={()=>setActiveForm(null)} onEditExisting={(bookId)=>{setActiveForm(null);void openWork(bookId)}} onSaved={(bookId,message)=>{
       setActiveForm(null);setNotice(message+' Book ID: '+bookId);void load();
      }}/>}
   <div className="cs-admin-data cs-admin-table-scroll">
@@ -145,8 +182,12 @@ export function CatalogueWorkbench(){
    </tbody></table>
    {!loading&&(tab==='works'?works:tab==='people'?people:tab==='editions'?editions:recordings).length===0&&<p className="cs-admin-empty">No catalogue records yet.</p>}
   </div>
-  <CatalogueManualManager/>
-  <section className="cs-admin-form" style={{marginTop:20}}>
+  <section className="cs-catalogue-advanced">
+   <div><h3>Advanced catalogue tools</h3><p>Manage authors, additional editions, recording credits, genres, publishers, series and identifiers without creating a second catalogue.</p></div>
+   <button type="button" aria-expanded={showAdvanced} onClick={()=>setShowAdvanced(v=>!v)}>{showAdvanced?'Hide advanced tools':'Open advanced tools'}</button>
+  </section>
+  {showAdvanced&&<CatalogueManualManager/>}
+  <section id="cs-catalogue-media" className="cs-admin-form" style={{marginTop:20}}>
    <h3>Book covers and contributor portraits</h3>
    {!mediaReady?<p>Cloudflare R2 is not connected yet. Images will be available here once the CATALOGUE_MEDIA bucket is created and bound. No files are stored in the browser.</p>:
    <form onSubmit={uploadMedia} className="cs-admin-form">
