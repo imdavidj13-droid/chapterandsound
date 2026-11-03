@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "benchmark": "tsx src/cli/benchmark.ts",
-    "test:migrations": "node --no-warnings scripts/check-migrations.mjs"
+    "test:migrations": "node --no-warnings scripts/check-migrations.mjs",
+    "test:cloud": "node scripts/audit-cloud-data.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
