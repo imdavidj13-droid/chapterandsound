@@ -1,8 +1,9 @@
+import {isVerifiedSiteOwner} from './admin-role.js';
 import {authConfigured,createAuth} from './auth.js';
 
 interface Statement{bind(...values:(string|number|null)[]):Statement;first<T>():Promise<T|null>;all<T>():Promise<{results:T[]}>;run():Promise<unknown>}
 interface Database{prepare(sql:string):Statement}
-export interface ModerationEnv{DB?:Database;BETTER_AUTH_SECRET?:string;PUBLIC_ORIGIN?:string;MAIL_API_KEY?:string;MAIL_FROM?:string}
+export interface ModerationEnv{DB?:Database;BETTER_AUTH_SECRET?:string;PUBLIC_ORIGIN?:string;MAIL_API_KEY?:string;MAIL_FROM?:string;ADMIN_EMAIL?:string}
 const send=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
 const fail=(error:string,status=400)=>send({error},status);
 export async function moderationAPI(request:Request,env:ModerationEnv):Promise<Response>{
@@ -13,6 +14,7 @@ export async function moderationAPI(request:Request,env:ModerationEnv):Promise<R
  if(!session?.user.emailVerified)return fail('Verified sign-in required',401);
  const moderator=await db.prepare("SELECT role FROM site_roles WHERE member_id=? AND role IN ('admin','moderator')").bind(session.user.id).first<{role:string}>();
  if(!moderator)return fail('Administrator or moderator permission required',403);
+ if(moderator.role==='admin'&&!isVerifiedSiteOwner(session.user,env.ADMIN_EMAIL))return fail('Configured site-owner email verification required',403);
  const parts=url.pathname.split('/').filter(Boolean);const reportId=parts[2];
  try{
   if(url.pathname==='/api/moderation/reports'&&request.method==='GET'){
