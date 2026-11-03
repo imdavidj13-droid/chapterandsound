@@ -39,6 +39,21 @@ export async function memberAPI(request:Request,env:MemberEnv):Promise<Response>
   await db.prepare('INSERT OR IGNORE INTO members(id,email_normalized,display_name,email_verified_at) VALUES(?,?,?,?)')
     .bind(userId,session.user.email.toLowerCase(),session.user.name,new Date().toISOString()).run();
   try {
+    if(path==='/api/member/theme'){
+      if(method==='GET'){
+        const row=await db.prepare('SELECT theme_id AS themeId FROM member_theme_preferences WHERE member_id=?').bind(userId).first<{themeId:string}>();
+        return reply({themeId:row?.themeId??'editorial'});
+      }
+      if(method==='PUT'){
+        const body=await input(request);const themeId=asString(body.themeId,30);
+        if(themeId!=='editorial'&&themeId!=='reading-room')return bad('Unsupported theme');
+        await db.prepare(`INSERT INTO member_theme_preferences(member_id,theme_id,updated_at)
+          VALUES(?,?,CURRENT_TIMESTAMP) ON CONFLICT(member_id) DO UPDATE SET
+          theme_id=excluded.theme_id,updated_at=CURRENT_TIMESTAMP`).bind(userId,themeId).run();
+        return reply({themeId,saved:true});
+      }
+      return bad('Method not allowed',405);
+    }
     if(path==='/api/member/favourites'){
       if(method==='GET'){
         const {results}=await db.prepare(`SELECT f.person_id AS id,p.display_name AS name,f.role
