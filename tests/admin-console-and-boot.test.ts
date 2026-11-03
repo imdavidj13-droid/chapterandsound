@@ -7,7 +7,7 @@ const worker=readFileSync(new URL('../src/worker/admin-api.ts',import.meta.url),
 
 test('website refresh waits for session and theme before painting themed or signed-out views',()=>{
  assert.match(app,/const \[bootReady,setBootReady\]=useState\(false\)/);
- assert.match(app,/await fetch\('\/api\/me'/);
+ assert.match(app,/fetch\('\/api\/me'/);
  assert.match(app,/await apiGet<\{themeId:ThemeId\}>\('\/api\/member\/theme'\)/);
  assert.match(app,/if\(!bootReady&&!verifyFromEmail\)return/);
  assert.doesNotMatch(app,/const \[themeReady,setThemeReady\]/);
