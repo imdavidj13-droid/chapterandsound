@@ -282,6 +282,9 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
   }
   if(path==='people'){
    const name=str(body.name,500);if(!name)return fail('Contributor name is required');
+   const match=await db.prepare("SELECT id FROM people WHERE lower(trim(preferred_name))=lower(?) AND identity_status NOT IN ('merged','suppressed') LIMIT 1")
+    .bind(name).first<{id:string}>();
+   if(match)return json({error:'This contributor already exists. Open their profile instead.',existingId:match.id},409);
    const id=uuid(),details={id,name,status:'provisional'};
    await db.batch([
     db.prepare('INSERT INTO people(id,preferred_name) VALUES(?,?)').bind(id,name),
