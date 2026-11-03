@@ -8,7 +8,7 @@ type Props={member:{displayName:string;verified:boolean}};
 function toggle(current:string[],value:string,setter:(v:string[])=>void){setter(current.includes(value)?current.filter(x=>x!==value):[...current,value]);}
 export function OnboardingWizard({member}:Props){
   const [step,setStep]=useState(0);
-  const [name,setName]=useState(member.displayName==='New Reader'?'':member.displayName);
+  const name=member.displayName;
   const [formats,setFormats]=useState<string[]>([]);
   const [selectedGenres,setGenres]=useState<string[]>([]);
   const [busy,setBusy]=useState(false);
@@ -23,9 +23,6 @@ export function OnboardingWizard({member}:Props){
   const persist=async(next:number,complete=false)=>{
     setBusy(true);setError('');
     try{
-      if(step===0&&name.trim()&&name.trim()!==member.displayName){
-        await apiWrite('/api/auth/update-user','POST',{name:name.trim()});
-      }
       await apiWrite('/api/member/preferences','PUT',{formats,genres:selectedGenres,moods:[],onboardingStep:next,completed:complete});
       setStep(next);
     }catch(e){setError(e instanceof Error?e.message:'Could not save your preferences. Your choices are still on this screen.');}
@@ -35,7 +32,7 @@ export function OnboardingWizard({member}:Props){
   const back=()=>setStep(s=>Math.max(0,s-1));
   if(!loaded)return <p role="status">Loading your setup…</p>;
   return <div className="onboarding"><div className="onboarding-progress"><span>PERSONALISE YOUR READING WORLD</span><div className="onboarding-steps" role="progressbar" aria-valuemin={1} aria-valuemax={finalIndex} aria-valuenow={Math.min(step+1,finalIndex)} aria-label="Personalisation progress">{steps.slice(0,finalIndex).map((_,i)=><i key={i} className={i<=step?'filled':''}/>)}</div><span>{step>=finalIndex?'COMPLETE':`STEP ${step+1} OF ${finalIndex}`}</span></div>
-    {step===0&&<div className="onboarding-stage"><p className="eyebrow">First, a little about you</p><h1>Make yourself at home.</h1><p className="intro">What should the community call you? This is the name shown alongside reviews you choose to publish.</p><div className="profile-preview"><div className="avatar-large">{(name.trim()||'R').slice(0,1).toUpperCase()}</div><label>Your display name<input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name" maxLength={80}/></label></div><p className="muted small">A profile image can be added later, once secure uploads are configured.</p></div>}
+    {step===0&&<div className="onboarding-stage"><p className="eyebrow">First, a little about you</p><h1>Make yourself at home.</h1><p className="intro">This is your public @username. It appears alongside reviews and on your reader profile.</p><div className="profile-preview"><div className="avatar-large">{(name.replace(/^@/,'')||'R').slice(0,1).toUpperCase()}</div><div className="onboarding-identity"><strong>{name.startsWith('@')?name:'@'+name}</strong><p className="muted small">Your username is reserved to your account. It cannot be changed after signup.</p></div></div><p className="muted small">A profile image can be added later, once secure uploads are configured.</p></div>}
     {step===1&&<div className="onboarding-stage"><p className="eyebrow">Your kind of reading</p><h1>What feels like a good story?</h1><p className="intro">Choose one or many, or leave everything blank while you discover your tastes.</p><h3>How do you like to read?</h3><div className="choice-grid">{['Print books','Ebooks','Audiobooks'].map(v=><label className="choice" key={v}><input type="checkbox" checked={formats.includes(v)} onChange={()=>toggle(formats,v,setFormats)}/>{v}</label>)}</div><h3>Genres you enjoy</h3><div className="choice-grid">{genres.map(v=><label className="choice" key={v}><input type="checkbox" checked={selectedGenres.includes(v)} onChange={()=>toggle(selectedGenres,v,setGenres)}/>{v}</label>)}</div></div>}
     {step===2&&<FavouriteOrbit role="author" heading="Whose stories do you love?"/>}
     {hasAudio&&step===3&&<FavouriteOrbit role="narrator" heading="Which voices stay with you?"/>}
