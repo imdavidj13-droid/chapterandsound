@@ -1,6 +1,19 @@
 # Full backend admin control panel — after verified-owner signup
 **Owner:** Verified Better Auth account matching configured `ADMIN_EMAIL` (`imdavidj13@gmail.com`).
-**Status:** Planned complete admin product. Only the initial audited moderation queue exists today.
+**Status (3 November 2026):** A distinct, owner-protected administration console has been implemented and passed TypeScript, unit tests, SQLite migration checks and production build. Production rollout requires applying migration `0008_admin_console.sql` and redeploying the Worker. Its live backend currently supports:
+
+- Dashboard of actual D1 counts and operational readiness.
+- Read-only member directory with verified state, roles and aggregate counts; no private notes exposed.
+- Book creation (unverified), work and edition verification status management, edition creation, contributor creation and biography editing.
+- Review listing with reason-required removal; moderation report queue.
+- Community listing, closing/reopening discussions and changing challenge visibility.
+- Missing-book request state management; draft/publish/archive editorial announcements.
+- Homepage heading/intro and guest-default-theme settings; current live settings readback.
+- Administrator audit log and change tracing.
+- Independent responsive admin navigation, outside both public themes.
+- Session/theme first-paint gating to avoid transient signed-out content and wrong-theme render on reload.
+
+**Not yet implemented:** self-service member suspension/unban, full work/edition relationship editors and merge tools, complete contributor relationship editing, R2 image uploads/rights editor, staff role delegation, transactional/idempotent audit failure recovery, bulk data operations and external metadata import workflows. These remain explicit delivery work, not active controls. The external catalogue import phase remains last.
 
 ## Layout and access
 - Own responsive admin shell and navigation, separate from public Editorial / Reading Room themes.
