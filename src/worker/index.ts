@@ -149,24 +149,42 @@ export default {
       }
       if(url.pathname==='/api/books'){
         const search=(url.searchParams.get('q')??'').trim().slice(0,120);
-        const {results}=search
-          ?await env.DB.prepare(`SELECT w.id,w.title,w.subtitle,w.synopsis AS summary,w.first_published AS year,
-          (SELECT p.display_name FROM work_contributors wc JOIN people p ON p.id=wc.person_id WHERE wc.work_id=w.id AND wc.role='author' ORDER BY wc.ordinal LIMIT 1) AS author
-          FROM works w WHERE w.title LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM work_contributors wa JOIN people pa ON pa.id=wa.person_id WHERE wa.work_id=w.id AND wa.role='author' AND pa.display_name LIKE ? ESCAPE '\\') ORDER BY w.title LIMIT ?`)
-            .bind('%'+search+'%','%'+search+'%',limit).all()
-          :await env.DB.prepare(`SELECT w.id,w.title,w.subtitle,w.synopsis AS summary,w.first_published AS year,
-          (SELECT p.display_name FROM work_contributors wc JOIN people p ON p.id=wc.person_id WHERE wc.work_id=w.id AND wc.role='author' ORDER BY wc.ordinal LIMIT 1) AS author
-          FROM works w ORDER BY w.title LIMIT ?`).bind(limit).all();
-        return json({items:results});
+        const format=(url.searchParams.get('format')??'all').trim();
+        const offset=Math.min(Math.max(Number(url.searchParams.get('offset')??0)||0,0),100000);
+        if(!['all','paperback','hardback','ebook','audiobook'].includes(format))return json({error:'Invalid format filter'},400);
+        const {results}=await env.DB.prepare(`SELECT w.id,w.title,w.subtitle,w.synopsis AS summary,w.first_published AS year,
+          (SELECT p.display_name FROM work_contributors wc JOIN people p ON p.id=wc.person_id WHERE wc.work_id=w.id AND wc.role='author' ORDER BY wc.ordinal LIMIT 1) AS author,
+          (SELECT GROUP_CONCAT(DISTINCT e.format) FROM editions e WHERE e.work_id=w.id) AS editionFormats
+          FROM works w
+          WHERE (?='' OR instr(lower(w.title),lower(?))>0 OR EXISTS(
+            SELECT 1 FROM work_contributors wa JOIN people pa ON pa.id=wa.person_id
+            WHERE wa.work_id=w.id AND wa.role='author' AND instr(lower(pa.display_name),lower(?))>0))
+          AND (?='all' OR EXISTS(SELECT 1 FROM editions ef WHERE ef.work_id=w.id AND ef.format=?))
+          ORDER BY w.title,w.id LIMIT ? OFFSET ?`)
+          .bind(search,search,search,format,format,limit,offset).all<{
+            id:string;title:string;subtitle:string|null;summary:string|null;year:number|null;author:string|null;editionFormats:string|null
+          }>();
+        return json({items:results.map(row=>({
+          id:row.id,title:row.title,subtitle:row.subtitle,summary:row.summary,year:row.year,author:row.author,
+          formats:row.editionFormats?row.editionFormats.split(','):[]
+        }))});
       }
       if(url.pathname==='/api/reviews'){
+        const search=(url.searchParams.get('q')??'').trim().slice(0,120);
+        const format=(url.searchParams.get('format')??'all').trim();
+        const offset=Math.min(Math.max(Number(url.searchParams.get('offset')??0)||0,0),100000);
+        if(!['all','paperback','hardback','ebook','audiobook'].includes(format))return json({error:'Invalid format filter'},400);
         const {results}=await env.DB.prepare(`SELECT r.id,r.title,r.body,r.story_rating AS storyRating,
           r.narration_rating AS audioRating,r.spoilers,r.created_at AS createdAt,r.book_id AS bookId,
           w.title AS bookTitle,m.display_name AS authorName,m.handle AS authorHandle,e.format
           FROM reviews r JOIN works w ON w.id=r.book_id JOIN members m ON m.id=r.member_id
           LEFT JOIN editions e ON e.id=r.edition_id
           WHERE r.status='published' AND r.visibility='public'
-          ORDER BY r.created_at DESC LIMIT ?`).bind(limit).all();
+          AND (?='' OR instr(lower(COALESCE(r.title,'')),lower(?))>0
+             OR instr(lower(w.title),lower(?))>0 OR instr(lower(COALESCE(m.handle,m.display_name)),lower(?))>0)
+          AND (?='all' OR e.format=?)
+          ORDER BY r.created_at DESC,r.id DESC LIMIT ? OFFSET ?`)
+          .bind(search,search,search,search,format,format,limit,offset).all();
         return json({items:results});
       }
       return json({error:'Unknown API route'},404);
