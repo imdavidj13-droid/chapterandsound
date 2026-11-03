@@ -117,7 +117,7 @@ export default {
         const more=await publicCatalogueAPI(new Request(new URL('/api/catalogue-public/series',url.origin)),env.BOOK_DB);
         if(!more.ok)return json({items:results});
         const extra=await more.json() as {items:unknown[]};
-        const seen=new Set(results.map((x:{id:string})=>x.id));
+        const seen=new Set(results.map((x:unknown)=>(x as {id:string}).id));
         return json({items:[...results,...extra.items.filter((x:unknown)=>!seen.has((x as {id:string}).id))].slice(0,limit)});
       }
       if(url.pathname.startsWith('/api/series/')){
@@ -152,7 +152,7 @@ export default {
         const extra=await extraResponse.json() as {items:({id:string;name:string})[]};
         // Do not hide distinct identities sharing a name: identical-name
         // cross-database identities need explicit resolution during migration.
-        const ids=new Set(results.map((x:{id:string})=>x.id));
+        const ids=new Set(results.map((x:unknown)=>(x as {id:string}).id));
         return json({items:[...results,...extra.items.filter(x=>!ids.has(x.id))].slice(0,limit)});
       }
       if(url.pathname.startsWith('/api/person/')){
