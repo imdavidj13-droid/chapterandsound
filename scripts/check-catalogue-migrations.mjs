@@ -2,7 +2,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {readFileSync,readdirSync} from 'node:fs';
 import assert from 'node:assert/strict';
 const dir=new URL('../catalogue-migrations/',import.meta.url);
-const files=readdirSync(dir).filter(n=>/^\\d{4}_[a-z0-9_]+\\.sql$/.test(n)).sort();
+const files=readdirSync(dir).filter(n=>/^[0-9]{4}_[a-z0-9_]+[.]sql$/.test(n)).sort();
 assert.ok(files.length>=2,'Dedicated catalogue migrations missing');
 const db=new DatabaseSync(':memory:');
 db.exec('PRAGMA foreign_keys=ON');
