@@ -209,3 +209,32 @@
 .room-report-panel textarea{min-height:120px;border:1px solid #ceddcc;border-radius:8px;padding:12px}
 @media(max-width:1000px){.room-review-layout{grid-template-columns:1fr}.room-review-aside{grid-template-columns:1fr 1fr}}
 @media(max-width:650px){.room-review-aside{grid-template-columns:1fr}.room-review-banner h1{font-size:2.05rem}.room-review-body{padding:22px}.room-report-panel{padding:20px}.room-review-footer{padding:22px}}
+
+
+/* Distinct public reader profiles, shared handle identity */
+.username-entry{display:flex;align-items:center;border:1px solid #cbc7c0;border-radius:5px;background:#fff;overflow:hidden}
+.username-entry>span{font:1.35rem Georgia,serif;color:var(--red);padding:10px 0 10px 15px}
+.auth-fields .username-entry input{border:0!important;min-width:0;box-shadow:none;flex:1;padding-left:4px}
+.username-status{font-size:.79rem;color:var(--muted);font-weight:500}
+.username-status.available{color:#2e6c42}.username-status.taken,.username-status.invalid{color:#a33640}
+.onboarding-identity strong{font:1.5rem Georgia,serif;color:var(--red);overflow-wrap:anywhere}
+.reader-profile{max-width:1160px;margin:auto}
+.reader-breadcrumb{display:flex;flex-wrap:wrap;align-items:center;gap:12px;font-size:.82rem;color:var(--muted);margin:5px 0 26px}
+.reader-breadcrumb a{text-decoration:underline;text-underline-offset:3px}
+.reader-profile-hero{display:flex;align-items:center;gap:28px;padding:clamp(22px,3vw,40px);border:1px solid var(--border);background:#fffdf9;border-radius:9px}
+.reader-avatar{width:125px;height:125px;flex:0 0 125px;display:grid;place-items:center;border-radius:50%;font:4rem Georgia,serif;background:#dce3d6;color:#7b3042}
+.reader-profile-hero h1{font:clamp(2.3rem,4vw,4.1rem)/1.1 Georgia,serif;color:var(--red);margin:8px 0 10px;overflow-wrap:anywhere}
+.reader-profile-hero>div:nth-child(2){flex:1;min-width:0}
+.reader-profile-hero>button{align-self:center;white-space:nowrap}
+.reader-reviews{margin:35px 0}
+.reader-count{font-size:.85rem;font-family:system-ui,sans-serif;vertical-align:middle;color:var(--muted)}
+.reader-review-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.reader-review{display:flex;flex-direction:column;gap:12px}
+.reader-review h3{margin:0}
+.reader-review p{margin:0;line-height:1.65}
+.reader-review .reader-rating{color:var(--red);font-weight:700}
+.reader-review .inline-link{margin-top:auto}
+.theme-reading-room .reader-profile-hero{border-radius:18px;background:#e4eddf}
+.theme-reading-room .reader-avatar{color:#33543e;background:#d0dec9}
+.theme-reading-room .reader-review{border-radius:16px}
+@media(max-width:720px){.reader-profile-hero{align-items:flex-start;flex-wrap:wrap}.reader-avatar{width:80px;height:80px;flex-basis:80px;font-size:2.6rem}.reader-profile-hero>button{width:100%}.reader-review-grid{grid-template-columns:1fr}}
