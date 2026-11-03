@@ -1,9 +1,9 @@
 import {useEffect,useRef,useState} from 'react';
 
 /**
- * The user reaches this page from email with a token in the URL fragment.
+ * The user reaches the guaranteed root SPA route with a token in its URL fragment.
  * We remove the token from the visible URL before calling Better Auth by fetch.
- * Also accepts legacy /api/auth/verify-email?token= links that the SPA intercepted.
+ * Also recognises old /confirm-email and intercepted /api/auth/verify-email links.
  */
 export function ConfirmEmailPage(){
  const started=useRef(false);
@@ -13,8 +13,9 @@ export function ConfirmEmailPage(){
    if(started.current)return;
    started.current=true;
    const fragment=new URLSearchParams(window.location.hash.replace(/^#/,''));
-   const token=fragment.get('token')||new URLSearchParams(window.location.search).get('token');
-   window.history.replaceState({},'', '/confirm-email');
+   const token=fragment.get('verify-email')||fragment.get('token')||new URLSearchParams(window.location.search).get('token');
+   // Remove the secret immediately; keep the already-loaded homepage document.
+   window.history.replaceState({},'', window.location.pathname==='/'?'/':'/confirm-email');
    if(!token){setStatus('failed');setError('The verification link is missing its token. Request another email.');return;}
    const check=async()=>{
      try{
