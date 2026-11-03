@@ -5,11 +5,16 @@ import './CatalogueBookEditor.css';
 
 type Person={id:string;name:string};
 type Saved={id:string;editionId:string|null;recordingId:string|null;saved:boolean};
-type Props={authors:Person[];imageStorage:boolean;onSaved:(id:string,notice:string)=>void;onCancel:()=>void};
+type ExistingWork={id:string;title:string;authors?:string|null;status?:string};
+type Props={authors:Person[];imageStorage:boolean;onSaved:(id:string,notice:string)=>void;onCancel:()=>void;onEditExisting?:(id:string)=>void};
+function validIsbn13(raw:string){if(!raw)return true;const digits=raw.replace(/[ -]/g,'');if(!/^\\d{13}$/.test(digits))return false;return [...digits].reduce((total,d,index)=>total+Number(d)*(index%2?3:1),0)%10===0}
+function validIsbn10(raw:string){if(!raw)return true;const digits=raw.replace(/[ -]/g,'').toUpperCase();if(!/^\\d{9}[\\dX]$/.test(digits))return false;return [...digits].reduce((total,d,index)=>total+(10-index)*(d==='X'?10:Number(d)),0)%11===0}
+const normalize=(value:string)=>value.normalize('NFKC').toLocaleLowerCase().replace(/[^\\p{L}\\p{N}]+/gu,' ').trim();
+
 const workTypes=['book','short_story','collection','graphic_novel','comic','poetry','play','reference','other'];
 const formats=['paperback','hardback','ebook','audiobook','audio_cd','other_print','other_digital','unknown'];
 const name=(s:string)=>s.replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
-export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel}:Props){
+export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEditExisting}:Props){
  const [title,setTitle]=useState(''),[author,setAuthor]=useState(''),[type,setType]=useState('book');
  const [language,setLanguage]=useState('en'),[firstPublished,setFirstPublished]=useState(''),[synopsis,setSynopsis]=useState('');
  const [addEdition,setAddEdition]=useState(true),[format,setFormat]=useState('paperback'),[editionLanguage,setEditionLanguage]=useState('en');
@@ -22,6 +27,24 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel}:Prop
  const [permission,setPermission]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState('');
  const isAudio=format==='audiobook'||format==='audio_cd';
  const [suggestions,setSuggestions]=useState<string[]>([]);
+ const [existingWorks,setExistingWorks]=useState<ExistingWork[]>([]);
+ const [duplicateCheckError,setDuplicateCheckError]=useState('');
+ const [duplicateCheckComplete,setDuplicateCheckComplete]=useState(false);
+ const [allowSameTitle,setAllowSameTitle]=useState(false);
+ useEffect(()=>{
+  let active=true;
+  apiGet<{items:ExistingWork[]}>('/api/catalogue-admin/works?limit=100').then(r=>{
+   if(active){setExistingWorks(r.items||[]);setDuplicateCheckComplete(true)}
+  }).catch(()=>{
+   if(active){setDuplicateCheckError('Could not check existing titles. Reopen the editor after the catalogue is available.');setDuplicateCheckComplete(true)}
+  });
+  return()=>{active=false};
+ },[]);
+ const possibleDuplicates=useMemo(()=>title.trim().length>=3?existingWorks.filter(w=>normalize(w.title)===normalize(title)).slice(0,10):[],[existingWorks,title]);
+ const isbn13Valid=validIsbn13(isbn13);
+ const isbn10Valid=validIsbn10(isbn10);
+ const duplicateBlocked=possibleDuplicates.length>0&&!allowSameTitle;
+ useEffect(()=>{setAllowSameTitle(false)},[title]);
  useEffect(()=>{
   let cancelled=false;
   if(author.trim().length<2){setSuggestions(authors.slice(0,10).map(p=>p.name));return}
@@ -40,7 +63,11 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel}:Prop
  const canUpload=!!file&&imageStorage&&!!rightsHolder.trim()&&!!licenceName.trim()&&!!sourceUrl.trim()&&permission;
  const totalFields=useMemo(()=>[title,author,synopsis,format,releaseDate,isbn13].filter(Boolean).length,[title,author,synopsis,format,releaseDate,isbn13]);
  async function submit(e:FormEvent){
-  e.preventDefault();setSaving(true);setError('');
+  e.preventDefault();
+  if(!duplicateCheckComplete||duplicateCheckError){setError('Existing-book check is unavailable; the new book has not been saved.');return}
+  if(duplicateBlocked){setError('A book with this title already exists. Review the matching records before creating another.');return}
+  if(!isbn13Valid||!isbn10Valid){setError('Check the ISBN digits and checksum before saving.');return}
+  setSaving(true);setError('');
   try{
    if(file&&imageStorage&&!canUpload)throw new Error('Complete the image rights fields or remove the cover file before saving.');
    const edition=addEdition?{
@@ -82,6 +109,8 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel}:Prop
     <section className="cs-book-editor-section">
      <header><span className="cs-book-section-number">01</span><div><h3>Book details</h3><p>The shared information for every edition</p></div></header>
      <label>Book title <span>*</span><input required maxLength={500} autoFocus value={title} onChange={e=>setTitle(e.target.value)} placeholder="Enter the book title"/></label>
+     {possibleDuplicates.length>0&&<div className="cs-book-duplicate-warning" role="alert"><strong>Possible existing book</strong><p>Review these catalogue records first. Different editions should belong to the same book.</p>{possibleDuplicates.map(w=><div className="cs-book-duplicate-result" key={w.id}><span><strong>{w.title}</strong>{w.authors?' · '+w.authors:''}</span>{onEditExisting&&<button type="button" onClick={()=>onEditExisting(w.id)}>Open existing book</button>}</div>)}<label className="cs-book-editor-toggle"><input type="checkbox" checked={allowSameTitle} onChange={e=>setAllowSameTitle(e.target.checked)}/> I checked these records and this is genuinely a different book with the same title</label></div>}
+     {duplicateCheckError&&<p className="cs-admin-error" role="alert">{duplicateCheckError}</p>}
      <label>Author<input list="cas-author-suggestions" maxLength={500} value={author} onChange={e=>setAuthor(e.target.value)} placeholder="Search for or enter an author"/><datalist id="cas-author-suggestions">{suggestions.map(p=><option key={p} value={p}/>)}</datalist>
      <small>An existing author will be linked automatically. A new author is created when needed.</small></label>
      <div className="cs-book-editor-two">
@@ -100,8 +129,8 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel}:Prop
        <label>Edition language<input maxLength={40} value={editionLanguage} onChange={e=>setEditionLanguage(e.target.value)} placeholder="en"/></label>
       </div>
       <div className="cs-book-editor-two">
-       <label>ISBN-13<input maxLength={30} inputMode="numeric" value={isbn13} onChange={e=>setIsbn13(e.target.value)} placeholder="978…"/></label>
-       <label>ISBN-10<input maxLength={30} value={isbn10} onChange={e=>setIsbn10(e.target.value)} placeholder="Optional"/></label>
+       <label>ISBN-13<input maxLength={17} inputMode="numeric" aria-invalid={!isbn13Valid} value={isbn13} onChange={e=>setIsbn13(e.target.value)} placeholder="978…"/>{!isbn13Valid&&<small role="alert" className="cs-book-invalid">Enter a valid 13-digit ISBN, including its check digit.</small>}</label>
+       <label>ISBN-10<input maxLength={13} aria-invalid={!isbn10Valid} value={isbn10} onChange={e=>setIsbn10(e.target.value)} placeholder="Optional"/>{!isbn10Valid&&<small role="alert" className="cs-book-invalid">Enter a valid 10-character ISBN, including its check digit.</small>}</label>
       </div>
       <div className="cs-book-editor-two">
        <label>ASIN<input maxLength={20} value={asin} onChange={e=>setAsin(e.target.value)} placeholder="Amazon identifier (if known)"/></label>
@@ -141,6 +170,6 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel}:Prop
   </div>
   {error&&<p className="cs-admin-error" role="alert">{error}</p>}
   <div className="cs-book-editor-footer"><button type="button" disabled={saving} onClick={onCancel}>Cancel</button>
-   <button className="cs-book-save" disabled={saving||!title.trim()||(!!file&&imageStorage&&!canUpload)} type="submit">{saving?'Saving book…':'Save book to catalogue'}</button></div>
+   <button className="cs-book-save" disabled={saving||!title.trim()||!duplicateCheckComplete||!!duplicateCheckError||duplicateBlocked||!isbn13Valid||!isbn10Valid||(!!file&&imageStorage&&!canUpload)} type="submit">{saving?'Saving book…':!duplicateCheckComplete?'Checking catalogue…':'Save book to catalogue'}</button></div>
  </form>;
 }
