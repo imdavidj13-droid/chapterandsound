@@ -74,7 +74,7 @@ export function CatalogueManualManager(){
  const select=(key:string,value:string|boolean)=>setValues(x=>({...x,[key]:value}));
  const dynamicTarget=area==='credits'?(values.target==='recording'?'recordings':values.target==='edition'?'editions':'works'):
   area==='identifiers'?(({work:'works',edition:'editions',recording:'recordings',person:'people',series:'series',organisation:'organisations'} as Record<string,string>)[String(values.entityKind||'edition')]||'editions'):'';
- const displayFields=current.fields.filter(f=>!editing||!['workId','schemeId'].includes(f.name));
+ const displayFields=current.fields.filter(f=>!editing||(!['workId','schemeId'].includes(f.name)&&!(area==='editions'&&['isbn13','isbn10','asin','publisherId','publishedAt'].includes(f.name))));
  function startNew(){
   setEditing('');setNotice('');setError('');
   const v:Record<string,string|boolean>={};
@@ -123,6 +123,7 @@ export function CatalogueManualManager(){
   {notice&&<p role="status" className="cs-admin-success">{notice}</p>}
   {editing!==null&&<form className="cs-admin-form" onSubmit={save}>
    <h3>{editing?'Edit record':'Add to catalogue'}</h3>
+   {editing&&area==='editions'&&<p>To add another ISBN, ASIN or publication event, use the identifier or publication sections under Editions. Existing references are retained.</p>}
    {displayFields.map(f=>{
     const raw=values[f.name],value=raw===undefined?'':String(raw);
     if(f.type==='checkbox')return <label key={f.name}><input type="checkbox" checked={raw===true} onChange={e=>select(f.name,e.target.checked)}/>{f.label}</label>;
