@@ -1,3 +1,4 @@
+import {manualCatalogueAPI} from './catalogue-manual-api.js';
 import {authConfigured,createAuth} from './auth.js';
 import {isVerifiedSiteOwner} from './admin-role.js';
 
@@ -76,6 +77,7 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
  if(!db)return fail('The BOOK_DB catalogue binding is not configured yet',503);
  if(!await catalogueReady(db))return fail('The catalogue database has not had its dedicated migrations applied yet',503);
  if(path==='health'&&request.method==='GET')return json({ready:true,catalogue:'BOOK_DB',schema:'installed'});
+ if(segments[0]==='manual')return manualCatalogueAPI(request,db,session.user.id,path);
  try{
   if(request.method==='GET'){
    const q=str(url.searchParams.get('q'),150),l=limit(url),o=offset(url);
