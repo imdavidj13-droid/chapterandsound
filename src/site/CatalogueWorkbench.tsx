@@ -2,7 +2,8 @@ import {useCallback,useEffect,useState} from 'react';
 import type {FormEvent} from 'react';
 import {apiGet,apiWrite} from './api';
 
-type Work={id:string;title:string;type:string;status:string;authors:string|null;editions:number;language:string|null;firstPublicationDate:string|null};
+type Work={id:string;title:string;type:string;status:string;revision:number;authors:string|null;editions:number;language:string|null;firstPublicationDate:string|null};
+type WorkDetails={work:Work&{synopsis:string};credits:{id:string;name:string;role:string;personId:string}[]};
 type Person={id:string;name:string;status:string};
 type Edition={id:string;workId:string;title:string;format:string;pageCount:number|null};
 type Recording={id:string;workId:string;title:string;performanceType:string;durationSeconds:number|null};
@@ -25,6 +26,9 @@ export function CatalogueWorkbench(){
  const [performance,setPerformance]=useState('unknown'),[abridgement,setAbridgement]=useState('unknown'),[durationHours,setDurationHours]=useState(''),[durationMinutes,setDurationMinutes]=useState('');
  const [activeForm,setActiveForm]=useState<RecordType|null>(null);
  const [showCredit,setShowCredit]=useState(false);
+ const [editingId,setEditingId]=useState(''),[editRevision,setEditRevision]=useState(0);
+ const [editSynopsis,setEditSynopsis]=useState(''),[editCredits,setEditCredits]=useState<WorkDetails['credits']>([]);
+ const [opening,setOpening]=useState(false);
  const load=useCallback(async()=>{
   setLoading(true);setError('');
   try{
@@ -42,6 +46,30 @@ export function CatalogueWorkbench(){
  },[]);
  useEffect(()=>{void load()},[load]);
  const refresh=()=>void load();
+ async function openWork(workId:string){
+  setOpening(true);setError('');setNotice('');setActiveForm(null);
+  try{
+   const detail=await apiGet<WorkDetails>('/api/catalogue-admin/works/'+encodeURIComponent(workId));
+   setEditingId(workId);setEditRevision(detail.work.revision);
+   setTitle(detail.work.title);setType(detail.work.type);setLanguage(detail.work.language||'');
+   setPublicationDate(detail.work.firstPublicationDate||'');setEditSynopsis(detail.work.synopsis||'');
+   setEditCredits(detail.credits);
+  }catch(e){setError(e instanceof Error?e.message:'Unable to open book')}
+  finally{setOpening(false)}
+ }
+ async function updateWork(e:FormEvent){
+  e.preventDefault();if(!editingId)return;
+  setSaving(true);setError('');setNotice('');
+  try{
+   const saved=await apiWrite<{id:string;revision:number;saved:boolean}>('/api/catalogue-admin/works/'+encodeURIComponent(editingId),'PATCH',{
+    title,type,language,firstPublicationDate:publicationDate,synopsis:editSynopsis,expectedRevision:editRevision
+   });
+   setEditRevision(saved.revision);setNotice('Book changes saved to BOOK_DB. Revision '+saved.revision+'.');
+   await load();
+  }catch(e){setError(e instanceof Error?e.message:'Book update failed. Your unsaved changes are still in the form.')}
+  finally{setSaving(false)}
+ }
+
  async function save(e:FormEvent){
   e.preventDefault();setSaving(true);setError('');setNotice('');
   const duration=durationHours||durationMinutes?Number(durationHours||0)*3600+Number(durationMinutes||0)*60:null;
@@ -76,10 +104,23 @@ export function CatalogueWorkbench(){
   </div>
   <div className="cs-admin-heading" style={{marginTop:24}}><div><h2>Catalogue management</h2><p>Real records from the separate BOOK_DB database. New records start as private drafts.</p></div><button type="button" onClick={refresh} disabled={loading}>Refresh database</button></div>
   <div className="cs-admin-actions" role="tablist" aria-label="Catalogue data areas">
-   {(['works','people','editions','recordings'] as RecordType[]).map(x=><button role="tab" aria-selected={tab===x} key={x} className={tab===x?'primary':''} type="button" onClick={()=>{setTab(x);setActiveForm(null);setError('');setNotice('')}}>{x==='works'?'Books':x==='people'?'Authors & narrators':x==='recordings'?'Audiobooks':'Editions'}</button>)}
+   {(['works','people','editions','recordings'] as RecordType[]).map(x=><button role="tab" aria-selected={tab===x} key={x} className={tab===x?'primary':''} type="button" onClick={()=>{setTab(x);setActiveForm(null);setEditingId('');setError('');setNotice('')}}>{x==='works'?'Books':x==='people'?'Authors & narrators':x==='recordings'?'Audiobooks':'Editions'}</button>)}
   </div>
   {error&&<p role="alert" className="cs-admin-error">{error}</p>}
   {notice&&<p role="status" className="cs-admin-success">{notice}</p>}
+  {editingId&&tab==='works'&&<form className="cs-admin-form" onSubmit={updateWork}>
+   <div className="cs-admin-heading"><div><h3>Edit book metadata</h3><p>Book ID: <code>{editingId}</code> · Revision {editRevision}. Saves to BOOK_DB; descriptions remain private until reviewed.</p></div>
+   <button type="button" disabled={saving} onClick={()=>setEditingId('')}>Close editor</button></div>
+   <label>Title *<input required maxLength={500} value={title} onChange={e=>setTitle(e.target.value)}/></label>
+   <label>Type<select value={type} onChange={e=>setType(e.target.value)}>{typeLabels.map(x=><option value={x} key={x}>{label(x)}</option>)}</select></label>
+   <label>Original language<input maxLength={40} placeholder="en-GB" value={language} onChange={e=>setLanguage(e.target.value)}/></label>
+   <label>Original publication date<input maxLength={10} placeholder="YYYY, YYYY-MM or YYYY-MM-DD" value={publicationDate} onChange={e=>setPublicationDate(e.target.value)}/></label>
+   <label>Editorial synopsis (private draft)<textarea rows={6} maxLength={12000} value={editSynopsis} onChange={e=>setEditSynopsis(e.target.value)} placeholder="Enter sourced or editorial book description…"/></label>
+   <h4>Current contributors</h4>
+   <p>{editCredits.length?editCredits.map(c=>c.name+' ('+label(c.role)+')').join(', '):'No contributor credits assigned yet. Use Assign contributor below.'}</p>
+   <p>Edition-specific ISBNs, publication details, genres and cover uploads are managed in their own upcoming editor panels.</p>
+   <button type="submit" className="primary" disabled={saving||!title.trim()}>{saving?'Saving…':'Save changes'}</button>
+  </form>}
   <div className="cs-admin-heading" style={{marginTop:22}}><div><h3>{tab==='works'?'Books':tab==='people'?'Contributors':tab==='editions'?'Editions':'Audiobook recordings'}</h3></div>
    <button className="primary" type="button" onClick={()=>setActiveForm(v=>v===tab?null:tab)}>{activeForm===tab?'Cancel':'+ Create draft'}</button></div>
   {activeForm===tab&&<form className="cs-admin-form" onSubmit={save}>
@@ -113,7 +154,7 @@ export function CatalogueWorkbench(){
      tab==='people'?people.map(x=>({id:x.id,name:x.name,status:x.status})):
      tab==='editions'?editions.map(x=>({id:x.id,name:x.title,status:x.format+' · '+x.status})):
      recordings.map(x=>({id:x.id,name:x.title,status:x.performanceType+' · '+(x.durationSeconds==null?'Runtime unknown':Math.round(x.durationSeconds/60)+' minutes')}))
-    ).map(x=><tr key={x.id}><td>{x.name}</td><td>{x.status}</td><td><code title={x.id}>{short(x.id)}</code></td></tr>)}
+    ).map(x=><tr key={x.id}><td>{x.name}</td><td>{x.status}</td><td><code title={x.id}>{short(x.id)}</code>{tab==='works'&&<button type="button" disabled={opening||saving} onClick={()=>void openWork(x.id)} style={{marginLeft:8}}>Edit</button>}</td></tr>)}
    </tbody></table>
    {!loading&&(tab==='works'?works:tab==='people'?people:tab==='editions'?editions:recordings).length===0&&<p className="cs-admin-empty">No catalogue records yet.</p>}
   </div>
