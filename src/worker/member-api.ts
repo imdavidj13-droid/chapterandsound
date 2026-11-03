@@ -1,9 +1,10 @@
+import {ensureMemberCatalogueReference} from './catalogue-member-bridge.js';
 import {authConfigured,createAuth} from './auth.js';
 
 type BindValue=string|number|null;
 interface Statement {bind(...values:BindValue[]):Statement;first<T>():Promise<T|null>;all<T>():Promise<{results:T[]}>;run():Promise<unknown>;}
 interface DB {prepare(sql:string):Statement;}
-export interface MemberEnv {DB?:DB;BETTER_AUTH_SECRET?:string;PUBLIC_ORIGIN?:string;MAIL_API_KEY?:string;MAIL_FROM?:string;}
+export interface MemberEnv {DB?:DB;BOOK_DB?:DB;BETTER_AUTH_SECRET?:string;PUBLIC_ORIGIN?:string;MAIL_API_KEY?:string;MAIL_FROM?:string;}
 const reply=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
 const bad=(message:string,status=400)=>reply({error:message},status);
 const asString=(value:unknown,max=250)=>typeof value==='string'?value.trim().slice(0,max):'';
@@ -147,8 +148,8 @@ export async function memberAPI(request:Request,env:MemberEnv):Promise<Response>
         const status=asString(v.status,25);
         if(!['want_to_read','in_progress','paused','finished','dnf'].includes(status))return bad('Invalid reading status');
         if(!workId)return bad('Choose a book');
-        const work=await db.prepare('SELECT id FROM works WHERE id=?').bind(workId).first();
-        if(!work)return bad('The selected book is not in the catalogue',404);
+        const compatible=await ensureMemberCatalogueReference(db,env.BOOK_DB,workId,editionId);
+        if(!compatible.ok)return bad(compatible.error||'Book unavailable',compatible.status||400);
         if(editionId){
           const edition=await db.prepare('SELECT id FROM editions WHERE id=? AND work_id=?').bind(editionId,workId).first();
           if(!edition)return bad('Edition does not belong to this book',400);
@@ -203,8 +204,8 @@ export async function memberAPI(request:Request,env:MemberEnv):Promise<Response>
         const v=await input(request);const bookId=asString(v.bookId,80);
         const editionId=asString(v.editionId,80)||null;
         if(!bookId)return bad('Choose a book');
-        const work=await db.prepare('SELECT id FROM works WHERE id=?').bind(bookId).first();
-        if(!work)return bad('Book not found',404);
+        const compatible=await ensureMemberCatalogueReference(db,env.BOOK_DB,bookId,editionId);
+        if(!compatible.ok)return bad(compatible.error||'Book unavailable',compatible.status||400);
         const format=editionId?await db.prepare('SELECT format FROM editions WHERE id=? AND work_id=?').bind(editionId,bookId).first<{format:string}>():null;
         if(editionId&&!format)return bad('Incorrect book edition',400);
         const story=rating(v.storyRating),narration=rating(v.audioRating);
