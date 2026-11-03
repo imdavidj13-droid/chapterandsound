@@ -38,13 +38,19 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
  const [allowSameTitle,setAllowSameTitle]=useState(false);
  useEffect(()=>{
   let active=true;
-  apiGet<{items:ExistingWork[]}>('/api/catalogue-admin/works?limit=100').then(r=>{
-   if(active){setExistingWorks(r.items||[]);setDuplicateCheckComplete(true)}
-  }).catch(()=>{
-   if(active){setDuplicateCheckError('Could not check existing titles. Reopen the editor after the catalogue is available.');setDuplicateCheckComplete(true)}
-  });
-  return()=>{active=false};
- },[]);
+  setDuplicateCheckComplete(false);
+  setDuplicateCheckError('');
+  if(title.trim().length<3){setExistingWorks([]);setDuplicateCheckComplete(true);return}
+  const timer=window.setTimeout(()=>{
+   const query=new URLSearchParams({q:title.trim(),limit:'100'});
+   apiGet<{items:ExistingWork[]}>('/api/catalogue-admin/works?'+query).then(result=>{
+    if(active){setExistingWorks(result.items||[]);setDuplicateCheckComplete(true)}
+   }).catch(()=>{
+    if(active){setExistingWorks([]);setDuplicateCheckError('Cannot check existing titles right now. Please retry before saving.');setDuplicateCheckComplete(true)}
+   });
+  },250);
+  return()=>{active=false;window.clearTimeout(timer)};
+ },[title]);
  const possibleDuplicates=useMemo(()=>title.trim().length>=3?existingWorks.filter(w=>normalize(w.title)===normalize(title)).slice(0,10):[],[existingWorks,title]);
  const isbn13Valid=validIsbn13(isbn13);
  const isbn10Valid=validIsbn10(isbn10);
@@ -128,7 +134,7 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
     <section className="cs-book-editor-section">
      <header><span className="cs-book-section-number">01</span><div><h3>Book details</h3><p>The shared information for every edition</p></div></header>
      <label>Book title <span>*</span><input required maxLength={500} autoFocus value={title} onChange={e=>setTitle(e.target.value)} placeholder="Enter the book title"/></label>
-     {possibleDuplicates.length>0&&<div className="cs-book-duplicate-warning" role="alert"><strong>Possible existing book</strong><p>Matches among the first 100 catalogue records. Review before adding: different editions should belong to the same book.</p>{possibleDuplicates.map(w=><div className="cs-book-duplicate-result" key={w.id}><span><strong>{w.title}</strong>{w.authors?' · '+w.authors:''}</span>{onEditExisting&&<button type="button" onClick={()=>onEditExisting(w.id)}>Open existing book</button>}</div>)}<label className="cs-book-editor-toggle"><input type="checkbox" checked={allowSameTitle} onChange={e=>setAllowSameTitle(e.target.checked)}/> I checked these records and this is genuinely a different book with the same title</label></div>}
+     {possibleDuplicates.length>0&&<div className="cs-book-duplicate-warning" role="alert"><strong>Possible existing book</strong><p>Matches from a catalogue search for this title. Different editions should belong to the same book. Review before adding.</p>{possibleDuplicates.map(w=><div className="cs-book-duplicate-result" key={w.id}><span><strong>{w.title}</strong>{w.authors?' · '+w.authors:''}</span>{onEditExisting&&<button type="button" onClick={()=>onEditExisting(w.id)}>Open existing book</button>}</div>)}<label className="cs-book-editor-toggle"><input type="checkbox" checked={allowSameTitle} onChange={e=>setAllowSameTitle(e.target.checked)}/> I checked these records and this is genuinely a different book with the same title</label></div>}
      {duplicateCheckError&&<p className="cs-admin-error" role="alert">{duplicateCheckError}</p>}
      <div className="cs-book-person-picker"><label htmlFor="cas-author-search">Author <span>*</span></label>
       <input id="cas-author-search" autoComplete="off" maxLength={500} value={author} onChange={e=>{setAuthor(e.target.value);setSelectedAuthorId('');setCreateAuthor(false)}} placeholder="Search existing catalogue authors" />
