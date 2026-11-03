@@ -48,9 +48,9 @@ export function ThemeShell({theme,onThemeChange,member,children,isHome,path,erro
    </div>
   </div></div>;
 }
-export function RoomHome({member,books,reviews}:{member:MemberIdentity|null;books:BookPreview[];reviews:ReviewPreview[]}){
+export function RoomHome({member,books,reviews,presentation}:{member:MemberIdentity|null;books:BookPreview[];reviews:ReviewPreview[];presentation?:{heading:string;intro:string}}){
  return <div className="room-dashboard">
- <section className="room-welcome"><p className="eyebrow">The Reading Room / {member?'Your home':'Welcome'}</p><h1>{member?`Welcome to your reading world, ${member.displayName}.`:'Welcome to the Reading Room.'}</h1><p>Honest reviews, books you read and listen to, and the stories that stay with you.</p><div className="room-format-strip"><span>▤ Print</span><span>▯ Ebooks</span><span>◉ Audiobooks</span></div></section>
+ <section className="room-welcome"><p className="eyebrow">The Reading Room / {member?'Your home':'Welcome'}</p><h1>{member?`Welcome to your reading world, ${member.displayName}.`:(presentation?.heading||'Welcome to the Reading Room.')}</h1><p>{presentation?.intro||'Honest reviews, books you read and listen to, and the stories that stay with you.'}</p><div className="room-format-strip"><span>▤ Print</span><span>▯ Ebooks</span><span>◉ Audiobooks</span></div></section>
  <div className="room-home-columns">
   <section className="room-home-panel room-latest">
    <p className="eyebrow">Latest community review</p>
