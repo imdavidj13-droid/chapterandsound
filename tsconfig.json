@@ -12,7 +12,8 @@
     ],
     "types": [
       "node",
-      "vite/client"
+      "vite/client",
+      "@cloudflare/workers-types"
     ],
     "outDir": "dist",
     "jsx": "react-jsx"
