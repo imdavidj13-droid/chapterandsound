@@ -1,0 +1,43 @@
+/* Dedicated Chapter & Sound manual book editor — forest-green identity */
+.cs-book-editor{--cas-green:#214d3b;--cas-green-dark:#15392c;--cas-green-soft:#e9f1e9;--cas-border:#d9e3d9;--cas-ink:#223429;--cas-muted:#637466;font-family:inherit;color:var(--cas-ink);background:#f8faf7;border:1px solid var(--cas-border);border-radius:20px;overflow:hidden;margin:24px 0;box-shadow:0 12px 32px #12332112}
+.cs-book-editor *{box-sizing:border-box}
+.cs-book-editor-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:28px 32px;background:var(--cas-green-dark);color:#fff}
+.cs-book-eyebrow{letter-spacing:.12em;font-weight:750;font-size:11px;color:#c0dccb}
+.cs-book-editor-heading h2{color:#fff;font-size:clamp(25px,3vw,34px);line-height:1.15;margin:8px 0}
+.cs-book-editor-heading p{color:#d8e7dd;margin:0;font-size:14px;max-width:680px}
+.cs-book-editor-heading button{border:1px solid #ffffff88!important;color:white!important;background:transparent!important;border-radius:10px;padding:11px 16px;white-space:nowrap}
+.cs-book-editor-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(240px,0.85fr);gap:24px;padding:24px}
+.cs-book-editor-fields{display:flex;flex-direction:column;gap:22px;min-width:0}
+.cs-book-editor-section{border:1px solid var(--cas-border);background:white;padding:24px;border-radius:16px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.cs-book-editor-section header{display:flex;align-items:center;gap:13px;margin-bottom:2px}
+.cs-book-section-number{background:var(--cas-green-soft);color:var(--cas-green-dark);border-radius:11px;padding:11px;font-weight:800;min-width:42px;text-align:center}
+.cs-book-editor-section h3{color:var(--cas-green-dark);font-size:18px;margin:0 0 3px}
+.cs-book-editor-section header p{color:var(--cas-muted);margin:0;font-size:12px}
+.cs-book-editor-section label{display:flex;flex-direction:column;gap:7px;font-size:13px;font-weight:700;color:var(--cas-ink)}
+.cs-book-editor-section label>span{color:#b05b40}
+.cs-book-editor-section input:not([type=checkbox]):not([type=file]),.cs-book-editor-section select,.cs-book-editor-section textarea{width:100%;min-height:46px;padding:11px 13px;background:#fff!important;color:var(--cas-ink)!important;border:1px solid #b9c9bb!important;outline:none;border-radius:11px!important;font:inherit;font-size:15px;box-shadow:none}
+.cs-book-editor-section textarea{min-height:126px;resize:vertical}
+.cs-book-editor-section input:focus,.cs-book-editor-section select:focus,.cs-book-editor-section textarea:focus{border-color:#327b58!important;box-shadow:0 0 0 3px #327b5824!important}
+.cs-book-editor-section label small{font-weight:400}
+.cs-book-editor-section small{font-size:12px;line-height:1.5;color:var(--cas-muted)}
+.cs-book-editor-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.cs-book-editor-toggle{flex-direction:row!important;align-items:flex-start!important;gap:10px!important;line-height:1.45}
+.cs-book-editor-toggle input{margin-top:2px;width:18px;height:18px;accent-color:var(--cas-green)}
+.cs-book-editor-side{display:flex;flex-direction:column;gap:18px;min-width:0}
+.cs-book-cover-preview{width:min(100%,248px);aspect-ratio:2/3;margin:auto;border-radius:8px;overflow:hidden;border:1px solid #bfd0c0;box-shadow:0 9px 22px #1a39271e}
+.cs-book-cover-preview img{width:100%;height:100%;object-fit:contain;background:#e4ebe3}
+.cs-book-cover-placeholder{height:100%;padding:24px 14px;background:linear-gradient(150deg,#275d47,#113c2b);color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:13px}
+.cs-book-cover-placeholder span{font-size:55px;color:#b4d1bc}
+.cs-book-cover-placeholder strong{font-family:Georgia,serif;font-size:21px;line-height:1.24}
+.cs-book-cover-placeholder small{color:#c5decd}
+.cs-book-editor-section input[type=file]{max-width:100%;font-size:13px}
+.cs-book-storage-warning{padding:10px 12px;background:#fff4dd;color:#784b14!important;border-radius:10px}
+.cs-book-editor-summary{background:var(--cas-green-soft);border-radius:14px;padding:19px;color:var(--cas-green-dark)}
+.cs-book-editor-summary p{font-size:13px;margin:8px 0 0;line-height:1.5}
+.cs-book-editor-footer{display:flex;justify-content:flex-end;align-items:center;gap:12px;border-top:1px solid var(--cas-border);padding:22px 26px;background:#fff}
+.cs-book-editor-footer button{min-height:46px;border-radius:11px;padding:12px 23px;font-weight:750}
+.cs-book-editor-footer .cs-book-save{background:var(--cas-green)!important;border:1px solid var(--cas-green)!important;color:white!important}
+.cs-book-editor-footer .cs-book-save:hover{background:var(--cas-green-dark)!important}
+.cs-book-editor-footer button:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:860px){.cs-book-editor-grid{grid-template-columns:minmax(0,1fr);padding:16px}.cs-book-editor-heading{padding:22px}.cs-book-editor-section{padding:18px}.cs-book-cover-preview{width:min(220px,100%)}}
+@media(max-width:480px){.cs-book-editor-two{grid-template-columns:minmax(0,1fr)}.cs-book-editor-footer{padding:16px}.cs-book-editor-footer button{flex:1;padding:10px}.cs-book-editor-heading{align-items:flex-start}.cs-book-editor-heading button{padding:8px}}
