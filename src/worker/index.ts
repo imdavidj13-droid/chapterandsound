@@ -14,11 +14,16 @@ export default {
   async fetch(request:Request,env:Env):Promise<Response>{
     const url=new URL(request.url);
     if(!url.pathname.startsWith('/api/')) return new Response('Not found',{status:404});
-    if(url.pathname==='/api/auth/sign-up/email'&&request.method==='POST'&&env.SIGNUP_MODE!=='public'){
+    if(url.pathname==='/api/auth/sign-up/email'&&request.method==='POST'){
       const data:unknown=await request.clone().json().catch(()=>null);
-      const email=data&&typeof data==='object'&&!Array.isArray(data)?(data as {email?:unknown}).email:null;
-      if(typeof email!=='string'||!env.ADMIN_EMAIL||email.trim().toLowerCase()!==env.ADMIN_EMAIL.trim().toLowerCase()){
+      const fields=data&&typeof data==='object'&&!Array.isArray(data)?data as {email?:unknown;name?:unknown;username?:unknown}:null;
+      const email=fields?.email;
+      if(env.SIGNUP_MODE!=='public'&&(typeof email!=='string'||!env.ADMIN_EMAIL||email.trim().toLowerCase()!==env.ADMIN_EMAIL.trim().toLowerCase())){
         return json({error:'Public signup is not open yet. The administrator is completing verification.'},403);
+      }
+      const handle=fields?.username;
+      if(typeof handle!=='string'||!/^[a-zA-Z][a-zA-Z0-9_]{2,29}$/.test(handle)||fields?.name!==handle){
+        return json({error:'Choose a username of 3–30 letters, numbers or underscores, starting with a letter.'},400);
       }
     }
     if(url.pathname.startsWith('/api/auth/')){
@@ -32,10 +37,13 @@ export default {
       if(!session)return json({member:null});
       const user=session.user;
       // Only the authenticated Better Auth session may determine the member ID.
-      await env.DB!.prepare('INSERT OR IGNORE INTO members(id,email_normalized,display_name,email_verified_at) VALUES(?,?,?,?)')
-       .bind(user.id,user.email.toLowerCase(),user.name,user.emailVerified?new Date().toISOString():null).run();
+      const handle=(user as typeof user & {username?:string|null}).username?.toLowerCase()??null;
+      await env.DB!.prepare('INSERT OR IGNORE INTO members(id,email_normalized,display_name,handle,email_verified_at) VALUES(?,?,?,?,?)')
+       .bind(user.id,user.email.toLowerCase(),handle?'@'+handle:user.name,handle,user.emailVerified?new Date().toISOString():null).run();
+      if(handle)await env.DB!.prepare("UPDATE members SET handle=?,display_name=? WHERE id=? AND (handle IS NULL OR handle=?)")
+        .bind(handle,'@'+handle,user.id,handle).run();
       const role=await syncSiteRole(env.DB!,{id:user.id,email:user.email,emailVerified:user.emailVerified},env.ADMIN_EMAIL);
-      return json({member:{id:user.id,displayName:user.name,verified:user.emailVerified,role}});
+      return json({member:{id:user.id,displayName:handle?'@'+handle:user.name,handle,verified:user.emailVerified,role}});
     }
     if(url.pathname.startsWith('/api/member/'))return memberAPI(request,env);
     if(url.pathname.startsWith('/api/book/'))return bookDetailsAPI(request,env);
