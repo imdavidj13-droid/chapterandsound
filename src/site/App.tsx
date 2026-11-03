@@ -1,3 +1,4 @@
+import {ConfirmEmailPage} from './ConfirmEmailPage';
 import {PublicReaderPage} from './PublicReaderPage';
 import {ThemeShell,RoomHome,RoomShelf} from './themes/ThemeShell';
 import type {ThemeId} from './themes/ThemeShell';
@@ -176,6 +177,7 @@ export function App(){
   else if(['/discussions','/recommendations','/clubs','/challenges','/lists'].includes(path)||['/discussion/','/recommendation/','/club/','/challenge/','/list/'].some(p=>path.startsWith(p)))body=<CommunityWorkspace path={path} books={api.books??[]} member={member}/>;
   else if(['/authors','/narrators','/series'].includes(path)||path.startsWith('/person/')||path.startsWith('/series/'))body=<PeopleAndSeries path={path}/>;
   else if(second.includes(path)||path==='/community')body=<Discovery path={path} data={api}/>;
+  else if(path==='/confirm-email'||path==='/api/auth/verify-email')body=<ConfirmEmailPage/>;
   else if(['/signin','/signup','/reset-password','/verify'].includes(path))body=<Login path={path}/>;
   else if(theme==='reading-room'&&path==='/shelf'&&member?.verified)body=<RoomShelf member={member}/>;
   else if(personal.includes(path)||['/add-book','/journal','/onboarding','/admin','/write-review'].includes(path))body=<MemberPage path={path} member={member} data={api}/>;
