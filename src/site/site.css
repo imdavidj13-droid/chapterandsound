@@ -60,3 +60,13 @@
 .review-report-panel h2{font-size:1.65rem}
 .review-back{margin-top:40px}
 @media(max-width:600px){.review-interactions{align-items:stretch;flex-direction:column}.review-interactions .button{width:100%}.review-report-link{text-align:left}}
+
+
+/* Audited moderation workspace. This design is independent of the public reading themes. */
+.moderation-workspace{max-width:1050px;margin:auto}
+.moderation-list{display:grid;gap:20px}
+.moderation-list article{padding:30px}
+.moderation-list article h2{font-size:1.45rem}
+.moderation-list blockquote{margin:18px 0;padding:15px 20px;border-left:3px solid var(--red);background:#f6f1eb;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
+.moderation-list label{margin-top:20px}
+@media(max-width:600px){.moderation-list article{padding:20px}.moderation-list .actions{flex-direction:column}.moderation-list .button{width:100%}}
