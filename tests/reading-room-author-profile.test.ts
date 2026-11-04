@@ -6,6 +6,7 @@ const profile=readFileSync(new URL('../src/site/themes/ReadingRoomAuthorProfile.
 const publicApi=readFileSync(new URL('../src/worker/catalogue-public-api.ts',import.meta.url),'utf8');
 const app=readFileSync(new URL('../src/site/App.tsx',import.meta.url),'utf8');
 const styles=readFileSync(new URL('../src/site/themes/themes.css',import.meta.url),'utf8');
+const shell=readFileSync(new URL('../src/site/themes/ThemeShell.tsx',import.meta.url),'utf8');
 
 test('Reading Room author profile uses a standalone editorial author layout',()=>{
  assert.match(profile,/room-author-banner/);
@@ -34,4 +35,37 @@ test('author profile is only replaced for the Reading Room theme',()=>{
  assert.match(app,/theme==='reading-room'&&path\.startsWith\('\/person\/'\)/);
  assert.match(app,/<ReadingRoomAuthorProfile id=/);
  assert.match(app,/<PeopleAndSeries path=\{path\}\/>/);
+});
+
+test('book cards show real review ratings, excerpts, editions and compact covers',()=>{
+ assert.match(profile,/api\/book\//);
+ assert.match(profile,/data\.ratings\.story\.count/);
+ assert.match(profile,/review\?\.count/);
+ assert.match(profile,/No community reviews yet/);
+ assert.match(profile,/review\?\.body/);
+ assert.match(profile,/book\.summary\?snippet/);
+ assert.match(profile,/formats\.map\(formatLabel\)/);
+ assert.match(styles,/room-author-books\{display:grid;grid-template-columns:repeat\(auto-fill/);
+ assert.match(styles,/max-width:205px/);
+});
+test('similar authors are derived only from shared published book subjects',()=>{
+ assert.match(profile,/Similar Authors/);
+ assert.match(profile,/similarAuthors/);
+ assert.match(publicApi,/JOIN work_subjects common ON common\.work_id=other\.id/);
+ assert.match(publicApi,/COUNT\(DISTINCT common\.subject_id\) AS sharedSubjects/);
+ assert.match(profile,/No similar authors can be verified/);
+});
+test('reading room author sidebar displays own notes and verified book-format counts',()=>{
+ assert.match(profile,/room-author-notes-card/);
+ assert.match(profile,/privateNote/);
+ assert.match(profile,/room-author-collection-card/);
+ assert.match(profile,/allFormats\.map\(formatLabel\)/);
+ assert.doesNotMatch(profile,/Narrator Spotlight|Gabrielle Glaister/);
+});
+test('both website appearances have one real searchable header on every route',()=>{
+ assert.match(shell,/function GlobalBookSearch/);
+ assert.match(shell,/action="\/search" method="get" role="search"/);
+ assert.match(shell,/<SiteBrand\/><GlobalBookSearch\/>/);
+ assert.match(shell,/<GlobalBookSearch compact\/>/);
+ assert.match(shell,/name="q"/);
 });
