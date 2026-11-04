@@ -34,7 +34,29 @@ test('audio editions are held when narrator/duration cannot be verified',()=>{
   originalLanguage:'eng',firstPublicationDate:'2010',
   editions:[{sourceKey:'/books/OL1M',format:'audiobook',isbn13:'9780306406157',
    publisher:'Publisher',publicationDate:'2010',language:'eng'}]});
- assert.equal(result.ready,false);
- assert.ok(result.missing.includes('edition[1].duration'));
- assert.ok(result.missing.includes('edition[1].narratorIdentifiers'));
+ assert.equal(result.ready,true);
+ assert.ok(result.optionalMissing.includes('edition[1].duration'));
+ assert.ok(result.optionalMissing.includes('edition[1].narratorIdentifiers'));
+ assert.deepEqual(result.blocking,[]);
+ assert.equal(result.verifiedEditionCount,0);
+});
+
+test('incomplete optional descriptive fields remain visible but do not become fabricated values',()=>{
+ const result=assessImportQuality({title:'A Novel',author:'A Writer',workSourceKey:'/works/OL1W',
+  authorSourceKeys:['/authors/OL1A'],
+  editions:[{sourceKey:'/books/OL1M',format:'paperback'}]});
+ assert.equal(result.ready,true);
+ assert.ok(result.optionalMissing.includes('work.description'));
+ assert.ok(result.optionalMissing.includes('work.subjects'));
+ assert.ok(result.optionalMissing.includes('edition[1].ISBN'));
+ assert.ok(result.score<100);
+ assert.equal(result.verifiedEditionCount,0);
+});
+test('missing author identity and incomplete edition discovery still block draft readiness',()=>{
+ const quality=assessImportQuality({title:'A Novel',author:'A Writer',workSourceKey:'/works/OL1W',
+  editionCountReported:15,
+  editions:[{sourceKey:'/books/OL1M',format:'paperback'}]});
+ assert.equal(quality.ready,false);
+ assert.ok(quality.blocking.includes('work.authorIdentifiers'));
+ assert.ok(quality.blocking.includes('work.editionCoverage (1/15 loaded)'));
 });
