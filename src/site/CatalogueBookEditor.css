@@ -181,3 +181,21 @@
 .cs-book-metadata-existing button{border:1px solid #c5d7ca;background:white;color:#285841;padding:7px 10px;border-radius:7px;cursor:pointer}
 @media(max-width:1000px){.cs-book-metadata-columns{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:600px){.cs-book-metadata-panel{padding:15px}.cs-book-metadata-panel form>button{width:100%}}
+
+/* Rights-aware cover editor embedded in the Images tab */
+.cs-book-cover-editor{background:#fff;border:1px solid #d5e1d6;border-radius:14px;padding:24px;color:#21412f}
+.cs-book-cover-editor h3{font-size:22px;color:#173c2b;margin:0 0 8px}
+.cs-book-cover-editor>p{font-size:13px;line-height:1.6;color:#5a7060;max-width:750px}
+.cs-book-cover-editor-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(220px,.8fr);gap:24px;margin-top:20px}
+.cs-book-cover-editor-form{display:flex;flex-direction:column;gap:15px}
+.cs-book-cover-editor-form label{display:flex;flex-direction:column;gap:7px;font-size:13px;font-weight:750;color:#2c4c37}
+.cs-book-cover-editor-form input:not([type=checkbox]),.cs-book-cover-editor-form select{width:100%;min-height:48px;background:#fff;color:#21402c;border:1px solid #b9cdbd;border-radius:9px;padding:10px 12px;font:inherit}
+.cs-book-cover-editor-form input[type=file]{padding-top:9px}
+.cs-book-cover-editor-form .cs-book-cover-confirm{display:flex;flex-direction:row;align-items:flex-start;line-height:1.5;gap:10px}
+.cs-book-cover-confirm input{margin-top:3px;accent-color:#21573c}
+.cs-book-cover-editor-form>button{background:#20553a;border:1px solid #20553a;color:#fff;border-radius:10px;min-height:48px;padding:12px 18px;font-weight:800;cursor:pointer}
+.cs-book-cover-editor-form button:disabled{opacity:.5;cursor:not-allowed}
+.cs-book-cover-preview-panel{background:#f4f8f3;border:1px solid #d9e4d9;border-radius:12px;padding:18px;text-align:center}
+.cs-book-cover-preview-panel h4{font-size:16px;margin:0 0 15px}
+.cs-book-cover-preview-panel p{font-size:12px;line-height:1.5;color:#617464}
+@media(max-width:800px){.cs-book-cover-editor-grid{grid-template-columns:1fr}.cs-book-cover-editor{padding:16px}}
