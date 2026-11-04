@@ -1,6 +1,6 @@
 /** R2-backed approved catalogue images.
  * No storage fallback or fake image URLs. Uploads require verified owner access
- * in catalogue-admin-api, a rights attestation and matching metadata entities.
+ * in catalogue-admin-api and matching metadata entities. Missing rights\n * documentation is recorded as unverified; no permission is fabricated.
  */
 type Scalar=string|number|null;
 interface Statement{bind(...args:Scalar[]):Statement;first<T>():Promise<T|null>}
@@ -37,11 +37,14 @@ export async function catalogueUploadImage(request:Request,db:Database,bucket:Ca
  const kind=clean(data.get('entityKind'),20),entityId=clean(data.get('entityId'),100);
  const mapping=target(kind);
  if(!mapping||!validId(entityId))return json({error:'Choose an existing book, edition or contributor'},400);
- const rightsHolder=clean(data.get('rightsHolder'),500),licence=clean(data.get('licenceName'),250);
+ // The administrator can supply an image without manually cataloguing licence
+ // details. Treat such uploads as unverified; never invent a rights holder,
+ // permission or external source URL.
+ const rightsHolder=clean(data.get('rightsHolder'),500);
+ const licence=clean(data.get('licenceName'),250);
  const source=clean(data.get('sourceUrl'),1500);
- if(!rightsHolder||!licence||!source||!/^https:\/\//.test(source))
-  return json({error:'Rights holder, image licence or permission, and an HTTPS source URL are required'},400);
- if(data.get('rightsConfirmed')!=='yes')return json({error:'Confirm that public display is permitted by the rights holder'},400);
+ if(source&&!/^https:\/\//.test(source))return json({error:'Image source must use HTTPS'},400);
+ const rightsVerified=!!rightsHolder&&!!licence&&!!source&&data.get('rightsConfirmed')==='yes';
  const exists=await db.prepare('SELECT id FROM '+mapping.table+' WHERE id=?').bind(entityId).first();
  if(!exists)return json({error:'Target catalogue record was not found'},404);
  const file=data.get('file');
@@ -54,14 +57,14 @@ export async function catalogueUploadImage(request:Request,db:Database,bucket:Ca
  try{
   await bucket.put(key,raw,{httpMetadata:{contentType:media.mime}});
   await db.batch([
-   db.prepare('INSERT INTO media_rights(id,rights_holder,licence_name,source_url,verified_by,verified_at,public_display,api_redistribution) VALUES(?,?,?,?,?,CURRENT_TIMESTAMP,1,0)').bind(rightsId,rightsHolder,licence,source,actor),
+   db.prepare('INSERT INTO media_rights(id,rights_holder,licence_name,source_url,verified_by,verified_at,public_display,api_redistribution) VALUES(?,?,?,?,?,CASE WHEN ?=1 THEN CURRENT_TIMESTAMP ELSE NULL END,1,0)').bind(rightsId,rightsHolder||'Unspecified',licence||'Not provided — administrator upload',source||null,rightsVerified?actor:null,rightsVerified?1:0),
    db.prepare("INSERT INTO media_assets(id,r2_key,sha256,mime_type,size_bytes,state,approved_at,rights_id) VALUES(?,?,?,?,?,'approved',CURRENT_TIMESTAMP,?)").bind(assetId,key,hash,media.mime,raw.byteLength,rightsId),
    // Exactly one approved primary image per target and role. Replacing a link
    // does not delete or rewrite the old asset or rights evidence.
    db.prepare('DELETE FROM media_links WHERE entity_kind=? AND entity_id=? AND role=? AND is_primary=1').bind(kind,entityId,mapping.role),
    db.prepare('INSERT INTO media_links(id,asset_id,entity_kind,entity_id,role,is_primary) VALUES(?,?,?,?,?,1)').bind(linkId,assetId,kind,entityId,mapping.role),
    db.prepare('INSERT INTO catalogue_audit_log(id,actor_external_id,action,target_kind,target_id,details_json) VALUES(?,?,?,?,?,?)')
-    .bind(crypto.randomUUID(),actor,'upload_media',kind,entityId,JSON.stringify({assetId,rightsId,source,rightsHolder,licence,hash}))
+    .bind(crypto.randomUUID(),actor,'upload_media',kind,entityId,JSON.stringify({assetId,rightsId,source:source||null,rightsHolder:rightsHolder||null,licence:licence||null,rightsVerified,hash}))
   ]);
   return json({uploaded:true,assetId,url:'/api/catalogue-media/'+assetId},201);
  }catch(e){
