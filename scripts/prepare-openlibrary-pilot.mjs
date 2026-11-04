@@ -61,6 +61,8 @@ if(opts['--seeds']&&(!wanted.size||wanted.size>250||[...wanted].some(x=>!/^\/wor
 }
 mkdirSync(output,{recursive:true});
 const workRecords=new Map(),authors=new Map(),editions=new Map();
+const firstPassMatches=new Map();
+let firstWorkScan=null;
 const valid13=value=>{
  const v=normalize(value).replace(/[ -]/g,'');
  if(!/^\d{13}$/.test(v)||!/^97[89]/.test(v))return false;
@@ -98,7 +100,7 @@ if(opts['--author-name']||opts['--author-key']){
  }
  if(matching.length!==1)throw Error('Author name matched '+matching.length+' profiles. Resolve the exact author identity before pilot selection.');
  const possible=[];
- await scan(opts['--works'],(key,record)=>{
+ firstWorkScan=await scan(opts['--works'],(key,record)=>{
   if(!/^\/works\/OL\d+W$/.test(key))return;
   const keys=(record.authors||[]).map(a=>a?.author?.key||a?.key);
   if(!keys.includes(matching[0]))return;
@@ -107,6 +109,7 @@ if(opts['--author-name']||opts['--author-key']){
    const match=requestedTitles.find(title=>norm===title||norm.startsWith(title+' '));
    if(!match)return;
    const found=matchedTitles.get(match)||[];
+   firstPassMatches.set(key,record);
    found.push({key,title:record.title,firstPublicationDate:normalize(record.first_publish_date),
     hasDescription:Boolean(normalize(typeof record.description==='string'?record.description:record.description?.value)),
     subjectCount:Array.isArray(record.subjects)?record.subjects.length:0});
@@ -153,9 +156,10 @@ if(opts['--author-name']||opts['--author-key']){
  }
  if(!wanted.size&&!candidateAlternatives.size)throw Error('No source works match the pilot selection.');
 }
-// Read every competing source record and its linked editions for the review report.
+// Reuse selected raw works captured on the author/title scan, rather than
+// decompressing all 41.7 million works a second time.
 const scannedKeys=new Set([...wanted,...candidateAlternatives]);
-const workScan=await scan(opts['--works'],(key,record)=>{
+function captureWork(key,record){
  if(scannedKeys.has(key)){
   const authorKeys=(record.authors||[]).map(a=>a?.author?.key||a?.key).filter(x=>typeof x==='string');
   workRecords.set(key,{key,title:normalize(record.title),authorKeys,
@@ -165,7 +169,14 @@ const workScan=await scan(opts['--works'],(key,record)=>{
    firstPublicationDate:normalize(record.first_publish_date),
    revision:record.revision||null});
  }
-});
+}
+let workScan;
+if(firstWorkScan && [...scannedKeys].every(key=>firstPassMatches.has(key))){
+ for(const key of scannedKeys)captureWork(key,firstPassMatches.get(key));
+ workScan={...firstWorkScan,reusedFirstPass:true};
+}else{
+ workScan=await scan(opts['--works'],captureWork);
+}
 const authorIds=new Set([...workRecords.values()].flatMap(w=>w.authorKeys));
 const authorScan=await scan(opts['--authors'],(key,record)=>{
  if(authorIds.has(key)&&normalize(record.name))authors.set(key,normalize(record.name));
