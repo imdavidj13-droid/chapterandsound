@@ -206,6 +206,32 @@ export default {
       if(url.pathname==='/api/editions'){
         const workId=(url.searchParams.get('workId')??'').slice(0,80);
         if(!workId)return json({error:'workId required'},400);
+        if(env.BOOK_DB){
+          // Public bookshelf edition selection must use the same catalogue
+          // as book discovery, including new BOOK_DB-only publications.
+          const catalogueResponse=await publicCatalogueAPI(
+            new Request(new URL('/api/catalogue-public/book/'+encodeURIComponent(workId),url.origin)),
+            env.BOOK_DB
+          );
+          if(catalogueResponse.ok){
+            const canonical=await catalogueResponse.json() as {editions:Array<{
+              id:string;format:string;publisher?:string|null;publishedAt?:string|null;
+              language?:string|null;isbn13?:string|null;asin?:string|null;
+              pageCount?:number|null;durationMinutes?:number|null;
+              abridged?:boolean|null;verificationStatus?:string|null
+            }>};
+            return json({items:canonical.editions.map(e=>({
+              id:e.id,workId,format:e.format,publisher:e.publisher??null,
+              publishedAt:e.publishedAt??null,language:e.language??null,
+              isbn13:e.isbn13??null,asin:e.asin??null,pageCount:e.pageCount??null,
+              durationMinutes:e.durationMinutes??null,abridged:e.abridged??null,
+              verificationState:e.verificationStatus??'unverified'
+            }))});
+          }
+          // A missing canonical book can still be an original website book.
+          // Database errors must not masquerade as 'no editions'.
+          if(catalogueResponse.status!==404)return catalogueResponse;
+        }
         const {results}=await env.DB.prepare(`SELECT e.id,e.work_id AS workId,e.format,e.publisher,e.published_at AS publishedAt,
            e.language,e.isbn13,e.asin,e.page_count AS pageCount,
            e.duration_minutes AS durationMinutes,e.abridged,e.verification_status AS verificationState
