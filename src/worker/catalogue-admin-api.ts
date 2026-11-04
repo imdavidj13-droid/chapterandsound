@@ -2,6 +2,7 @@ import {catalogueUploadImage} from './catalogue-media-api.js';
 import type {CatalogueImageBucket} from './catalogue-media-api.js';
 import {manualCatalogueAPI,validIsbn13,validIsbn10} from './catalogue-manual-api.js';
 import {catalogueBookMetadataAPI} from './catalogue-book-metadata-api.js';
+import {previewCatalogueImport} from './catalogue-import-preview.js';
 import {authConfigured,createAuth} from './auth.js';
 import {isVerifiedSiteOwner} from './admin-role.js';
 
@@ -80,6 +81,16 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
  const segments=path.split('/').filter(Boolean);
  if(!db)return fail('The BOOK_DB catalogue binding is not configured yet',503);
  if(!await catalogueReady(db))return fail('The catalogue database has not had its dedicated migrations applied yet',503);
+ if(path==='import/preview'&&request.method==='POST'){
+  const size=Number(request.headers.get('Content-Length')||0);
+  if(size>300000)return fail('Import preview is limited to 300 KB',413);
+  let payload:unknown;
+  try{const text=await request.text();if(text.length>300000)return fail('Import preview is limited to 300 KB',413);payload=JSON.parse(text)}
+  catch{return fail('Provide valid import preview JSON')}
+  const record=fields(payload);
+  try{return json(await previewCatalogueImport(db,record?.candidates))}
+  catch(error){return fail(error instanceof Error?error.message:'Invalid import candidates')}
+ }
  if(path==='health'&&request.method==='GET')return json({ready:true,catalogue:'BOOK_DB',schema:'installed',imageStorage:!!env.CATALOGUE_MEDIA});
  if(request.method==='DELETE'&&segments.length===2&&segments[0]==='people'){
   const personId=segments[1]||'';
