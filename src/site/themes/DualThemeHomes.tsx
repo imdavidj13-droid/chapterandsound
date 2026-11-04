@@ -68,7 +68,7 @@ export function EditorialHome({member,books,reviews,presentation}:HomeProps){
  const newMember=!verified||(!loading&&shelf.length===0);
  const current=shelf.filter(item=>item.status==='in_progress').slice(0,2);
  const saved=shelf.find(item=>item.status==='want_to_read');
- const finished=year?.uniqueBooks??'—';
+
  const firstName=member?.displayName?.trim().split(/\s+/)[0]||'reader';
  const own=ownReviews.map(r=>({...r,spoilers:Boolean(r.spoilers)}));
  if(loading)return <div className="dual-editorial-home"><p className="dual-loading" role="status">Opening your reading world…</p></div>;
@@ -95,7 +95,7 @@ export function ReadingRoomHome({member,books,reviews}:HomeProps){
  const verified=Boolean(member?.verified);
  const newMember=!verified||(!loading&&shelf.length===0);
  const firstName=member?.displayName?.trim().split(/\s+/)[0]||'reader';
- const finished=shelf.filter(item=>item.status==='finished').length;
+ const finished=year?.uniqueBooks??'—';
  const current=shelf.filter(item=>item.status==='in_progress').slice(0,2);
  const saved=shelf.find(item=>item.status==='want_to_read');
  if(loading)return <div className="dual-room-home"><p className="dual-loading" role="status">Loading your bookshelf…</p></div>;
