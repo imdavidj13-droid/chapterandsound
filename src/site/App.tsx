@@ -254,7 +254,7 @@ export function App(){
   // The verification component must mount immediately so it can consume its
   // one-use token. Other routes wait for both session and saved theme.
   if(!bootReady&&!verifyFromEmail)return <div className="cs-startup" role="status" aria-live="polite"><span className="cs-startup-brand">Chapter <em>&</em> Sound</span><span className="cs-startup-line">Opening your reading world…</span></div>;
-  if(path==='/admin'&&member?.verified&&member.role==='admin')return <AdminConsole/>;
-  if(path==='/admin'&&member?.verified&&member.role!=='admin')return <div className="cs-startup"><h1>Administrator access required</h1><p>This control centre is available only to authorised site administrators.</p><a href="/account">Return to account</a></div>;
+  if((path==='/admin'||path.startsWith('/admin/'))&&member?.verified&&member.role==='admin')return <AdminConsole path={path} navigate={navigate}/>;
+  if((path==='/admin'||path.startsWith('/admin/'))&&member?.verified&&member.role!=='admin')return <div className="cs-startup"><h1>Administrator access required</h1><p>This control centre is available only to authorised site administrators.</p><a href="/account">Return to account</a></div>;
   return <ThemeShell theme={theme} onThemeChange={changeTheme} member={member} path={path} isHome={path==='/'} error={themeError||(backendStatus==='offline'?'Live catalogue and review services are not connected. Content stays empty until verified records are available.':undefined)}>{body}</ThemeShell>;
 }

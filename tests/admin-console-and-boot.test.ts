@@ -17,8 +17,8 @@ test('verification token is not delayed by session/theme loading gate',()=>{
  assert.match(app,/if\(!bootReady&&!verifyFromEmail\)/);
 });
 test('admin shell is independent and only mounted for a verified role',()=>{
- assert.match(app,/path==='\/admin'&&member\?\.verified&&member\.role==='admin'/);
- assert.match(app,/<AdminConsole\/>/);
+ assert.match(app,/path\.startsWith\('\/admin\/'\)\)\&\&member\?\.verified\&\&member\.role==='admin'/);
+ assert.match(app,/<AdminConsole path=\{path\} navigate=\{navigate\}\/>/);
 });
 test('administrative API refuses unverified or mismatched owner and checks persisted role',()=>{
  assert.match(worker,/if\(!session\?\.user\.emailVerified\)return fail/);

@@ -269,9 +269,10 @@
 .cs-admin-brand small{display:block;font:600 .6rem/2 system-ui,sans-serif;letter-spacing:.23em;color:#a8c8b1;margin-top:6px}
 .cs-admin-nav-label{font:700 .65rem system-ui,sans-serif;color:#a3bca9;letter-spacing:.19em;padding:0 13px}
 .cs-admin-nav nav{display:grid;gap:2px;margin:7px 0}
-.cs-admin-nav nav button{border:0;border-radius:8px;text-align:left;color:#d2e2d7;background:transparent;padding:11px 13px;display:flex;align-items:center;gap:13px}
-.cs-admin-nav nav button>span{font-size:1.2rem;line-height:1;width:21px;text-align:center}
-.cs-admin-nav nav button:hover,.cs-admin-nav nav button.active{background:#315f45;color:#fff}
+.cs-admin-nav nav a{border:0;border-radius:8px;text-align:left;text-decoration:none;color:#d2e2d7;background:transparent;padding:11px 13px;display:flex;align-items:center;gap:13px}
+.cs-admin-nav nav a>span{font-size:1.2rem;line-height:1;width:21px;text-align:center}
+.cs-admin-nav nav a:hover,.cs-admin-nav nav a.active{background:#315f45;color:#fff}
+.cs-admin-nav nav a:focus-visible{outline:2px solid #c9e4d1;outline-offset:2px}
 .cs-admin-nav-end{border-top:1px solid #477157;margin-top:auto;padding:17px 13px 0;display:grid;gap:11px;font-size:.78rem}
 .cs-admin-nav-end a{color:#e4eee7!important}
 .cs-admin-nav-end p{margin:0 0 4px;color:#abc1ae}

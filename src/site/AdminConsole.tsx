@@ -29,8 +29,14 @@ const fields:Partial<Record<Tab,string[]>>={
 };
 const format=(v:unknown)=>v===null||v===undefined||v===''?'—':String(v);
 const nice=(s:string)=>s.replace(/([a-z])([A-Z])/g,'$1 $2').replaceAll('_',' ');
-export function AdminConsole(){
- const [tab,setTab]=useState<Tab>('overview'),[overview,setOverview]=useState<Overview|null>(null);
+const adminPath=(tab:Tab)=>tab==='overview'?'/admin':'/admin/'+tab;
+const adminTab=(path:string):Tab=>{
+ const selected=path==='/admin'?'overview':path.slice('/admin/'.length);
+ return tabs.find(t=>t.id===selected)?.id||'overview';
+};
+export function AdminConsole({path,navigate}:{path:string;navigate:(to:string)=>void}){
+ const tab=adminTab(path);
+ const [overview,setOverview]=useState<Overview|null>(null);
  const [items,setItems]=useState<Row[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const [notice,setNotice]=useState(''),[query,setQuery]=useState(''),[offset,setOffset]=useState(0);
  const [busy,setBusy]=useState(false),[createOpen,setCreateOpen]=useState(false),[editId,setEditId]=useState('');
@@ -60,7 +66,7 @@ export function AdminConsole(){
   finally{setLoading(false)}
  },[tab,query,offset,menuOpen]);
  useEffect(()=>{void load()},[load]);
- const changeTab=(next:Tab)=>{setTab(next);setQuery('');setOffset(0);setNotice('');setEditId('');setCreateOpen(false);setMenuOpen(false)};
+ const changeTab=(next:Tab)=>{navigate(adminPath(next));setQuery('');setOffset(0);setNotice('');setEditId('');setCreateOpen(false);setMenuOpen(false)};
  async function action(section:string,method:'POST'|'PATCH',data:Record<string,unknown>,confirm?:string){
   if(confirm&&!window.confirm(confirm))return;
   setBusy(true);setError('');setNotice('');
@@ -97,7 +103,7 @@ export function AdminConsole(){
   <aside className={'cs-admin-nav'+(menuOpen?' open':'')}>
    <a className="cs-admin-brand" href="/admin">Chapter <em>&</em> Sound <small>CONTROL CENTRE</small></a>
    <p className="cs-admin-nav-label">MANAGEMENT</p>
-   <nav aria-label="Administration modules">{tabs.map(x=><button type="button" key={x.id} className={tab===x.id?'active':''} aria-current={tab===x.id?'page':undefined} onClick={()=>changeTab(x.id)}><span aria-hidden="true">{x.symbol}</span>{x.name}</button>)}</nav>
+   <nav aria-label="Administration modules">{tabs.map(x=><a key={x.id} href={adminPath(x.id)} className={tab===x.id?'active':''} aria-current={tab===x.id?'page':undefined} onClick={()=>{setQuery('');setOffset(0);setNotice('');setEditId('');setCreateOpen(false);setMenuOpen(false)}}><span aria-hidden="true">{x.symbol}</span>{x.name}</a>)}</nav>
    <div className="cs-admin-nav-end"><p>Owner-only access · Live database</p><a href="/account">← Return to my account</a><a href="/">View public website</a></div>
   </aside>
   {menuOpen&&<button className="cs-admin-overlay" aria-label="Close administration navigation" onClick={()=>setMenuOpen(false)}/>}
