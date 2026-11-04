@@ -6,10 +6,10 @@ type Book={id:string;title:string;coverUrl?:string|null;summary?:string|null;for
 type Recording={id:string;workId:string;title:string};
 type ShelfRecord={workId:string;privateNote?:string|null;status?:string};
 type SimilarAuthor={id:string;name:string;portraitUrl?:string|null;sharedSubjects:number};
-type Profile={person:Author;works:Book[];recordings:Recording[];similarAuthors?:SimilarAuthor[]};
+type Profile={person:Author;works:Book[];recordings:Recording[];subjects?:string[];similarAuthors?:SimilarAuthor[]};
 type ReviewHighlight={count:number;average:number|null;body:string|null;title:string|null};
 type BookDetailResponse={reviews:{title?:string|null;body?:string|null;spoilers?:number|boolean;storyRating?:number|null}[];ratings:{story:{count:number;average:number|null}}};
-type Tab='books'|'shelf'|'about'|'audio'|'similar';
+type Tab='books'|'shelf'|'about'|'audio'|'similar'|'interviews';
 
 const initials=(name:string)=>name.trim().split(/\s+/).slice(0,2).map(p=>p[0]?.toUpperCase()||'').join('');
 const formatLabel=(format:string)=>({
@@ -47,17 +47,17 @@ export function ReadingRoomAuthorProfile({id,memberVerified}:{id:string;memberVe
  const [shelf,setShelf]=useState<Set<string>>(new Set());
  const [shelfNotes,setShelfNotes]=useState<ShelfRecord[]>([]);
  const [reviews,setReviews]=useState<Record<string,ReviewHighlight>>({});
- const [tab,setTab]=useState<Tab>('books');
+ const [tab,setTab]=useState<Tab>(memberVerified?'shelf':'books');
  const [loading,setLoading]=useState(true),[error,setError]=useState('');
  useEffect(()=>{
   let active=true;
-  setLoading(true);setError('');setProfile(null);setTab('books');setReviews({});
+  setLoading(true);setError('');setProfile(null);setTab(memberVerified?'shelf':'books');setReviews({});
   apiGet<Profile>('/api/person/'+encodeURIComponent(id))
    .then(data=>{if(active)setProfile(data)})
    .catch(e=>{if(active)setError(e instanceof Error?e.message:'Author profile unavailable')})
    .finally(()=>{if(active)setLoading(false)});
   return()=>{active=false};
- },[id]);
+ },[id,memberVerified]);
  useEffect(()=>{
   if(!memberVerified){setShelf(new Set());setShelfNotes([]);return}
   let active=true;
@@ -104,7 +104,7 @@ export function ReadingRoomAuthorProfile({id,memberVerified}:{id:string;memberVe
     <p className="room-author-kicker">AUTHOR PROFILE</p>
     <h1>{person.name}</h1>
     {hasBio?<p className="room-author-intro">{person.biography}</p>:<p className="room-author-intro">Discover the books and editions by {person.name}.</p>}
-    <div className="room-author-metrics"><span>{books.length} {books.length===1?'published book':'published books'}</span>{audioBooks.length>0&&<span>{audioBooks.length} {audioBooks.length===1?'book with audio':'books with audio'}</span>}</div>
+    <div className="room-author-metrics"><span>{books.length} {books.length===1?'published book':'published books'}</span>{audioBooks.length>0&&<span>{audioBooks.length} {audioBooks.length===1?'book with audio':'books with audio'}</span>}{profile.subjects?.slice(0,2).map(subject=><span key={subject}>{subject}</span>)}</div>
    </div>
   </section>
   <div className="room-author-main-layout">
@@ -113,10 +113,12 @@ export function ReadingRoomAuthorProfile({id,memberVerified}:{id:string;memberVe
      {memberVerified&&<button type="button" onClick={()=>setTab('shelf')} className={tab==='shelf'?'active':''} aria-current={tab==='shelf'?'page':undefined}>On My Shelf <span>{onShelf.length}</span></button>}
      <button type="button" onClick={()=>setTab('books')} className={tab==='books'?'active':''} aria-current={tab==='books'?'page':undefined}>All Books <span>{books.length}</span></button>
      <button type="button" onClick={()=>setTab('about')} className={tab==='about'?'active':''} aria-current={tab==='about'?'page':undefined}>About</button>
+     <button type="button" onClick={()=>setTab('interviews')} className={tab==='interviews'?'active':''} aria-current={tab==='interviews'?'page':undefined}>Interviews</button>
      <button type="button" onClick={()=>setTab('similar')} className={tab==='similar'?'active':''} aria-current={tab==='similar'?'page':undefined}>Similar Authors</button>
      {recordings.length>0&&<button type="button" onClick={()=>setTab('audio')} className={tab==='audio'?'active':''} aria-current={tab==='audio'?'page':undefined}>Audiobooks</button>}
     </nav>
-    {tab==='about'?<section className="room-author-about-panel"><h2>About {person.name}</h2><p>{hasBio?person.biography:'A biography has not been added to this author profile yet.'}</p></section>:
+    {tab==='interviews'?<section className="room-author-about-panel"><h2>Interviews with {person.name}</h2><p>No verified interviews have been published here yet.</p></section>:
+     tab==='about'?<section className="room-author-about-panel"><h2>About {person.name}</h2><p>{hasBio?person.biography:'A biography has not been added to this author profile yet.'}</p></section>:
      tab==='similar'?<section className="room-author-about-panel">
       <h2>Similar Authors</h2><p>Writers with published books that share catalogue subjects with {person.name}.</p>
       {similar.length?<div className="room-author-similar-grid">{similar.map(other=><a key={other.id} href={'/person/'+encodeURIComponent(other.id)} className="room-author-similar-person">
