@@ -58,7 +58,13 @@ export async function previewCatalogueImport(db:Database,candidates:unknown):Pro
      JOIN editions e ON ei.entity_kind='edition' AND ei.entity_id=e.id JOIN works w ON w.id=e.work_id
      WHERE ei.normalized_value IN (${placeholders}) AND scheme.code IN ('ISBN13','ISBN10') LIMIT 5`)
      .bind(...values).all<{editionId:string;workId:string;title:string}>();
-   if(results.length){add('existing_edition','An edition with this ISBN already exists; no second record should be created.',{existingEditionId:results[0]!.editionId,existingWorkId:results[0]!.workId});continue}
+   if(results.length){
+    const multiple=(raw.editions?.length||0)>1;
+    add(multiple?'review_match':'existing_edition',
+     multiple?'One or more edition ISBNs already exist. Reconcile all edition records and add only verified missing editions to the existing work.':
+     'An edition with this ISBN already exists; do not create a duplicate.',
+     {existingEditionId:results[0]!.editionId,existingWorkId:results[0]!.workId});continue
+   }
   }
   if(sourceId&&sourceKey){
    const {results}=await db.prepare(`SELECT sr.id FROM source_records sr JOIN metadata_sources ms ON ms.id=sr.source_id
