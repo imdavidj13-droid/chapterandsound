@@ -16,7 +16,7 @@ test('saved book workflow has direct routes for drafts, published, creation and 
  assert.match(workbench,/navigate\('\/admin\/catalogue\/book\/'\+encodeURIComponent\(bookId\)\)/);
 });
 test('nested catalogue URLs are routed through the authenticated admin shell',()=>{
- assert.match(admin,/path\.slice\('\/admin\/'\)\.split\('\/'\)\[0\]/);
+ assert.match(admin,/path\.slice\('\/admin\/'.length\)\.split\('\/'\)\[0\]/);
  assert.match(admin,/<CatalogueWorkbench path=\{path\} navigate=\{navigate\}\/>/);
  assert.match(app,/path\.startsWith\('\/admin\/'\)/);
 });
