@@ -147,3 +147,14 @@ For a small manually searched book, Admin → Import Centre now offers **Get boo
 - Only manually initiated, low-volume API lookup is supported. Bulk workflows use the downloaded monthly dumps.
 
 This is a **pre-import metadata review**, not a production bulk ingestion engine. No live data was imported, and it is not a promise that every field exists in Open Library. Records with gaps must be enriched from compatible sources or held without pretending they are complete.
+
+## Data-quality correction after initial Simon Kernick dry run
+
+A work-only search result commonly lacks edition detail and should **not** receive an arbitrary ISBN from Open Library's aggregated search index. The discovery endpoint now emits work identity only. A separate source-backed edition lookup or offline dump is required to attach ISBNs.
+
+The preview now distinguishes:
+- **Required**: title, work source key, author identity/source key, at least one edition with source identifier and format, and complete source edition coverage when the provider reports a total.
+- **Optional but tracked**: synopsis, subjects, original language, first publication date, and edition ISBN/publisher/date/language. Audiobook narrator and duration remain tracked and cannot be invented.
+- **Draft-ready structure** does not mean complete metadata, verified rights, or permission to publish. The completeness percentage and outstanding optional gaps remain visible.
+
+This prevents unproductive manual editing driven by an overly strict all-fields gate. Outstanding optional fields should be enriched in source-adapter batches, not filled with fabricated values. No production import endpoint has been enabled.
