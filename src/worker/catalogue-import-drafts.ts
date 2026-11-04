@@ -11,6 +11,7 @@ interface Statement{
  bind(...args:Scalar[]):Statement;
  first<T>():Promise<T|null>;
  all<T>():Promise<{results:T[]}>;
+ run():Promise<{meta?:{changes?:number}}>;
 }
 export interface DraftImportDB{prepare(query:string):Statement;batch(statements:Statement[]):Promise<unknown[]>}
 type Candidate=ImportCandidate&{authorId?:string};
