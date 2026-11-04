@@ -64,7 +64,8 @@ export function ReadingRoomAuthorProfile({id,memberVerified}:{id:string;memberVe
   <div className="room-author-breadcrumb"><a href="/authors">Authors</a><span aria-hidden="true">/</span><span>{person.name}</span></div>
   <section className="room-author-banner">
    <div className="room-author-avatar">
-    {person.portraitUrl?<img src={person.portraitUrl} alt={'Portrait of '+person.name} onError={e=>{e.currentTarget.hidden=true;e.currentTarget.parentElement?.classList.add('room-author-avatar-empty')}}/>:<span aria-hidden="true">{initials(person.name)}</span>}
+    <span aria-hidden="true">{initials(person.name)}</span>
+    {person.portraitUrl&&<img src={person.portraitUrl} alt={'Portrait of '+person.name} onError={e=>{e.currentTarget.hidden=true}}/>}
    </div>
    <div className="room-author-banner-content">
     <p className="room-author-kicker">AUTHOR PROFILE</p>
