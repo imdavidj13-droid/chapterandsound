@@ -35,9 +35,9 @@ if(resolution){
  if(!Array.isArray(resolution.books)||!resolution.books.length)throw Error('Resolution must contain books.');
  const seenKeys=new Set();
  for(const book of resolution.books){
-  const title=String(book.title||'').normalize('NFKC').toLowerCase().replace(/[^\\p{L}\\p{N}]+/gu,' ').trim();
+  const title=String(book.title||'').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
   const keys=[book.canonicalWorkKey,...(book.aliasWorkKeys||[])];
-  if(!title||resolutionByTitle.has(title)||keys.length<1||keys.some(k=>!/^\\/works\\/OL\\d+W$/.test(k)||seenKeys.has(k)))
+  if(!title||resolutionByTitle.has(title)||keys.length<1||keys.some(k=>!/^\/works\/OL\d+W$/.test(k)||seenKeys.has(k)))
    throw Error('Resolution contains duplicate titles, work keys, or invalid identifiers.');
   for(const key of keys)seenKeys.add(key);
   resolutionByTitle.set(title,{...book,keys});
