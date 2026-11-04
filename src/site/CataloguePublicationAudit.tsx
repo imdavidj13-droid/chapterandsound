@@ -1,7 +1,7 @@
 import {useEffect,useState} from 'react';
 
 type PublicBook={id:string;title:string;author:string|null;authorId?:string|null;coverUrl?:string|null;summary:string|null;year:number|null};
-type PublicEdition={id:string;format:string;isbn13?:string|null;publisher?:string|null;coverUrl?:string|null};
+type PublicEdition={id:string;format:string;isbn13?:string|null;publisher?:string|null;publishedAt?:string|null;coverUrl?:string|null};
 type BookResponse={book:PublicBook;editions:PublicEdition[]};
 type PersonResponse={person:{id:string;name:string};works:{id:string;title:string}[]};
 type SearchBook={id:string;title:string;author?:string|null};
@@ -80,6 +80,17 @@ export function CataloguePublicationAudit({workId,status}:{workId:string;status:
      });
      add('Saved vs public ISBNs',isbnMismatch?'failed':'passed',
       isbnMismatch?'An edition ISBN differs from the saved identifier.':'All stored ISBN-13 values agree with the public editions.');
+     const publicationMismatch=metadata.events.filter(e=>e.type==='released').some(event=>{
+      const edition=book!.editions.find(e=>e.id===event.editionId);
+      return !edition||Boolean(event.date)&&edition.publishedAt!==event.date;
+     });
+     add('Saved vs public release dates',publicationMismatch?'failed':'passed',
+      publicationMismatch?'A saved release date differs from the public edition details.':'Saved release dates agree with the public editions.');
+     const publishers=new Map<string,string>();
+     for(const event of metadata.events)if(event.publisher&&!publishers.has(event.editionId))publishers.set(event.editionId,event.publisher);
+     const publisherMismatch=[...publishers].some(([id,name])=>book!.editions.find(e=>e.id===id)?.publisher!==name);
+     add('Saved vs public publishers',publisherMismatch?'failed':'passed',
+      publisherMismatch?'At least one edition publisher differs from the saved publication history.':'Publisher information matches the saved publication history.');
     }
     const searchUrl='/api/books?'+new URLSearchParams({q:book.book.title,limit:'60'});
     try{
