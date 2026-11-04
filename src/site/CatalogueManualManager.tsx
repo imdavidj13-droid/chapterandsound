@@ -96,6 +96,20 @@ export function CatalogueManualManager(){
    setValues(v);setEditing(x.id);setRevision(Number(res.item.revision)||1);
   }catch(e){setError(e instanceof Error?e.message:'Unable to load record')}
  }
+ async function deleteUnusedContributor(person:Row){
+  if(area!=='people'||!person.id||saving)return;
+  const displayName=String(person.name||person.id);
+  if(!window.confirm('Permanently delete unused contributor “'+displayName+'”? This is allowed only if the contributor has no linked catalogue records.'))return;
+  setSaving(true);setError('');setNotice('');
+  try{
+   const result=await apiWrite<{deleted:boolean}>('/api/catalogue-admin/people/'+encodeURIComponent(person.id),'DELETE');
+   if(!result.deleted)throw Error('Deletion was not confirmed by the server.');
+   setNotice('Unused contributor deleted from the catalogue: '+displayName);
+   if(editing===person.id)setEditing(null);
+   await Promise.all([loadRows(),loadChoices()]);
+  }catch(e){setError(e instanceof Error?e.message:'Contributor could not be deleted safely.')}
+  finally{setSaving(false)}
+ }
  async function save(event:FormEvent){
   event.preventDefault();setSaving(true);setError('');setNotice('');
   const endpoint='/api/catalogue-admin/manual/'+area+(editing?'/'+encodeURIComponent(editing):'');
@@ -144,7 +158,7 @@ export function CatalogueManualManager(){
     {rows.map((x,i)=><tr key={x.id||String(i)}>
       <td>{String(x.name??x.value??x.title??x.code??x.id??'Record')}</td>
       <td>{Object.entries(x).filter(([k,v])=>!['id','name','title','value'].includes(k)&&v!=null).slice(0,4).map(([k,v])=>label(k)+': '+String(v)).join(' · ')}</td>
-      <td>{current.editable&&x.id?<button type="button" onClick={()=>void editRow(x)}>Edit</button>:<code>{String(x.id||'—').slice(0,8)}</code>}</td>
+      <td>{current.editable&&x.id?<div className="cs-admin-actions"><button type="button" onClick={()=>void editRow(x)}>Edit</button>{area==='people'&&<button type="button" disabled={saving} onClick={()=>void deleteUnusedContributor(x)} aria-label={'Delete unused contributor '+String(x.name||'')}>Delete</button>}</div>:<code>{String(x.id||'—').slice(0,8)}</code>}</td>
     </tr>)}
    </tbody></table>
    {!loading&&rows.length===0&&<p>No records in this section yet.</p>}
