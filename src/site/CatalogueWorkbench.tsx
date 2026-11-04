@@ -3,6 +3,7 @@ import {CatalogueManualManager} from './CatalogueManualManager';
 import {CatalogueLinkedEditions} from './CatalogueLinkedEditions';
 import {CatalogueCoverEditor} from './CatalogueCoverEditor';
 import {CatalogueDiagnostics} from './CatalogueDiagnostics';
+import {CatalogueImportCentre} from './CatalogueImportCentre';
 import {CataloguePublicationAudit} from './CataloguePublicationAudit';
 import {useCallback,useEffect,useState} from 'react';
 import type {FormEvent} from 'react';
@@ -263,6 +264,7 @@ export function CatalogueWorkbench({path,navigate}:{path:string;navigate:(to:str
    </div>
    <div className="cs-admin-pager"><button disabled={listPage===0||listLoading} onClick={()=>setListPage(p=>Math.max(0,p-1))}>Previous</button><span>Page {listPage+1}</span><button disabled={listedWorks.length<50||listLoading} onClick={()=>setListPage(p=>p+1)}>Next</button></div>
   </>}
+  {view==='all'&&<CatalogueImportCentre/>}
   {view==='all'&&<CatalogueDiagnostics/>}
   {view==='all'&&<section className="cs-catalogue-advanced">
    <div><h3>Advanced catalogue tools</h3><p>Manage authors, additional editions, recording credits, genres, publishers, series and identifiers without creating a second catalogue.</p></div>
