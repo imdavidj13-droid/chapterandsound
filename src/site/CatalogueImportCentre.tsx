@@ -2,7 +2,7 @@ import {useState} from 'react';
 import {apiGet,apiWrite} from './api';
 
 type Decision='create_draft'|'needs_enrichment'|'existing_edition'|'review_match'|'invalid'|'duplicate_in_batch';
-type Row={index:number;title:string;author:string;isbn13:string|null;decision:Decision;reason:string;quality:{ready:boolean;score:number;missing:string[];blocking:string[];optionalMissing:string[];warnings:string[];editionCount:number;verifiedEditionCount:number;formatCoverage:string[]};existingWorkId?:string;existingEditionId?:string};
+type Row={index:number;title:string;author:string;isbn13:string|null;decision:Decision;reason:string;authorMatches?:{id:string;name:string}[];quality:{ready:boolean;score:number;missing:string[];blocking:string[];optionalMissing:string[];warnings:string[];editionCount:number;verifiedEditionCount:number;formatCoverage:string[]};existingWorkId?:string;existingEditionId?:string};
 type Result={dryRun:true;rows:Row[];summary:Record<Decision,number>};
 const example=JSON.stringify({candidates:[
  {sourceId:'openlibrary',sourceKey:'/works/OL123W',title:'Example book',author:'Example Author',isbn13:'9780306406157',format:'paperback'}
@@ -17,8 +17,12 @@ export function CatalogueImportCentre(){
  const [lookup,setLookup]=useState(''),[lookupLoading,setLookupLoading]=useState(false),[lookupNotice,setLookupNotice]=useState('');
  const [found,setFound]=useState<{sourceKey?:string;title?:string;author?:string}[]>([]);
  const [enriching,setEnriching]=useState<string|null>(null);
+ const [selectedAuthors,setSelectedAuthors]=useState<Record<string,string>>({});
+ const [draftConfirmed,setDraftConfirmed]=useState(false);
+ const [draftSaving,setDraftSaving]=useState(false);
+ const [draftResult,setDraftResult]=useState<{saved:true;imported:{id:string;title:string;editionIds:string[]}[]}|null>(null);
  async function discover(){
-  setLookupLoading(true);setError('');setResult(null);setLookupNotice('');
+  setLookupLoading(true);setError('');setResult(null);setDraftResult(null);setDraftConfirmed(false);setSelectedAuthors({});setLookupNotice('');
   try{
    const response=await apiGet<{source:string;lookupOnly:true;candidates:Record<string,unknown>[];notice:string}>('/api/catalogue-admin/import/discover?q='+encodeURIComponent(lookup));
    setFound(response.candidates);
@@ -28,7 +32,7 @@ export function CatalogueImportCentre(){
   finally{setLookupLoading(false)}
  }
  async function enrich(workKey:string){
-  setEnriching(workKey);setError('');setResult(null);
+  setEnriching(workKey);setError('');setResult(null);setDraftResult(null);setDraftConfirmed(false);
   try{
    const response=await apiGet<{candidate:Record<string,unknown>;partial:boolean;notice:string}>(
     '/api/catalogue-admin/import/enrich?workKey='+encodeURIComponent(workKey));
@@ -45,7 +49,7 @@ export function CatalogueImportCentre(){
   finally{setEnriching(null)}
  }
  async function check(){
-  setLoading(true);setError('');setResult(null);
+  setLoading(true);setError('');setResult(null);setDraftResult(null);setDraftConfirmed(false);
   try{
    const parsed=JSON.parse(input);
    if(!parsed||!Array.isArray(parsed.candidates))throw Error('Expected a JSON object with a candidates array.');
@@ -53,6 +57,25 @@ export function CatalogueImportCentre(){
    setResult(response);
   }catch(e){setError(e instanceof Error?e.message:'Unable to preview batch')}
   finally{setLoading(false)}
+ }
+ const draftRows=result?.rows.filter(row=>row.decision==='create_draft')||[];
+ const maySave=Boolean(result&&result.rows.length===draftRows.length&&draftRows.length>0&&draftRows.length<=10
+  &&draftRows.reduce((n,row)=>n+row.quality.editionCount,0)<=50
+  &&draftRows.every(row=>!(row.authorMatches?.length)||(row.authorMatches.length===1&&selectedAuthors[row.author]===row.authorMatches[0]?.id))
+  &&draftRows.every(row=>!row.quality.formatCoverage.some(format=>format.includes('audio'))));
+ async function saveDrafts(){
+  if(!maySave||!draftConfirmed||draftSaving)return;
+  setDraftSaving(true);setError('');setDraftResult(null);
+  try{
+   const parsed=JSON.parse(input) as {candidates:Record<string,unknown>[]};
+   const candidates=parsed.candidates.map(candidate=>({
+    ...candidate,authorId:selectedAuthors[String(candidate.author)]||candidate.authorId
+   }));
+   const response=await apiWrite<{saved:true;imported:{id:string;title:string;editionIds:string[]}[]}>(
+    '/api/catalogue-admin/import/drafts','POST',{candidates,confirmed:true});
+   setDraftResult(response);setResult(null);setDraftConfirmed(false);
+  }catch(e){setError(e instanceof Error?e.message:'Draft import failed. Confirm no records were saved before retrying.')}
+  finally{setDraftSaving(false)}
  }
  return <section className="cs-import-centre" aria-label="Catalogue import preview">
   <header><div><p className="cs-admin-eyebrow">IMPORT CENTRE · PHASE ONE</p>
@@ -72,11 +95,16 @@ export function CatalogueImportCentre(){
    </div>)}
   </div>}
   <p className="cs-import-help">Paste a JSON manifest with a <code>candidates</code> array. Each candidate needs a title and author. ISBN, source ID, source key, format and publication date are optional. The example is fictional and will not be imported.</p>
-  <textarea spellCheck={false} value={input} onChange={e=>{setInput(e.target.value);setResult(null)}} rows={12} aria-label="Import candidate JSON" placeholder={example}/>
+  <textarea spellCheck={false} value={input} onChange={e=>{setInput(e.target.value);setResult(null);setDraftResult(null);setDraftConfirmed(false);setSelectedAuthors({})}} rows={12} aria-label="Import candidate JSON" placeholder={example}/>
   <div className="cs-import-actions"><button type="button" className="primary" disabled={!input.trim()||loading} onClick={()=>void check()}>{loading?'Checking against BOOK_DB…':'Preview batch'}</button>
    <button type="button" onClick={()=>{setInput(example);setResult(null)}}>Insert example</button>
    <button type="button" onClick={()=>{setInput('');setResult(null);setError('')}}>Clear</button></div>
   {error&&<p className="cs-admin-error" role="alert">{error}</p>}
+  {draftResult&&<div className="cs-import-draft-success" role="status">
+   <h4>{draftResult.imported.length} books saved as private drafts</h4>
+   <p>Nothing was published. Review each draft before publishing.</p>
+   <ul>{draftResult.imported.map(work=><li key={work.id}><a href={'/admin/catalogue/book/'+encodeURIComponent(work.id)}>{work.title}</a> — {work.editionIds.length} editions</li>)}</ul>
+  </div>}
   {result&&<div className="cs-import-results" role="region" aria-label="Dry-run results">
    <h4>Dry-run results · {result.rows.length} candidates</h4>
    <div className="cs-import-summary">
@@ -85,7 +113,26 @@ export function CatalogueImportCentre(){
    <div className="cs-import-table-scroll"><table><thead><tr><th>Book / author</th><th>Editions</th><th>Completeness</th><th>Decision</th><th>Missing information</th></tr></thead>
     <tbody>{result.rows.map(row=><tr key={row.index}><td><strong>{row.title||'Missing title'}</strong><small>{row.author||'Missing author'}</small></td><td>{row.quality.editionCount} supplied · {row.quality.verifiedEditionCount} verified</td><td><strong>{row.quality.score}%</strong></td><td><span className={'cs-import-status status-'+row.decision}>{labels[row.decision]}</span></td><td>{row.reason}{row.quality.missing.length>0&&<details className="cs-import-missing"><summary>{row.quality.blocking?.length||0} required · {row.quality.optionalMissing?.length||0} optional gaps</summary><ul>{row.quality.missing.map(field=><li key={field}><strong>{row.quality.blocking?.includes(field)?'Required':'Optional'}</strong> · {field}</li>)}</ul></details>}{row.quality.warnings.length>0&&<p className="cs-import-warning">{row.quality.warnings.join(' ')}</p>}{row.existingWorkId&&<><small>Existing work: {row.existingWorkId}</small><a href={'/admin/catalogue/book/'+encodeURIComponent(row.existingWorkId)}>Open saved book</a></>}</td></tr>)}</tbody>
    </table></div>
-   <p className="cs-import-footnote">No database writes were performed. A draft-ready structure is not a fully enriched book. Remaining optional gaps are explicitly reported; no records can be imported or published from this screen; source licensing and identity checks remain required.</p>
+   <section className="cs-import-draft-gate" aria-label="Save reviewed books as drafts">
+    <h4>Save complete source records as drafts</h4>
+    <p>Only a fully reviewed batch of up to ten books and fifty editions can be saved. No books are published. Existing authors require explicit identity confirmation.</p>
+    {draftRows.length>0&&draftRows.map(row=>row.authorMatches?.length?<div className="cs-import-author-match" key={row.index}>
+      <strong>{row.author}</strong>
+      {row.authorMatches.length===1?<button type="button" className={selectedAuthors[row.author]===row.authorMatches[0]?.id?'selected':''}
+       onClick={()=>{setSelectedAuthors(previous=>({...previous,[row.author]:row.authorMatches![0]!.id}));setDraftConfirmed(false)}}>
+        {selectedAuthors[row.author]===row.authorMatches[0]?.id?'✓ Confirmed existing author':'Confirm existing author'} · {row.authorMatches[0]?.name}
+       </button>:<span>Multiple catalogue contributors share this name. Resolve the identity in Authors before importing.</span>}
+     </div>:null)}
+    {result.rows.length>10&&<p className="cs-import-warning">Select a batch of no more than 10 books before saving.</p>}
+    {result.rows.some(row=>row.decision!=='create_draft')&&<p className="cs-import-warning">This batch includes incomplete, duplicate or ambiguous records. Resolve these before saving drafts.</p>}
+    <label className="cs-import-confirm">
+     <input type="checkbox" checked={draftConfirmed} disabled={!maySave||draftSaving} onChange={e=>setDraftConfirmed(e.target.checked)}/>
+     I have verified the source records, canonical author identities and permitted use of this metadata. Save as private drafts only.
+    </label>
+    <button type="button" className="cs-import-save-drafts" disabled={!maySave||!draftConfirmed||draftSaving}
+     onClick={()=>void saveDrafts()}>{draftSaving?'Saving private drafts…':'Save reviewed books as drafts'}</button>
+   </section>
+   <p className="cs-import-footnote">Preview remains read-only. The separate confirmed Save as Drafts action creates private catalogue records; publishing is never automatic. Covers are not imported.</p>
   </div>}
  </section>;
 }
