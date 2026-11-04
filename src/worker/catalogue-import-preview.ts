@@ -1,18 +1,19 @@
 import {validIsbn13,validIsbn10} from './catalogue-manual-api.js';
+import {assessImportQuality,type ImportQuality,type WorkForReview} from './catalogue-import-quality.js';
 
 type Param=string|number|null;
 interface Statement{bind(...args:Param[]):Statement;all<T>():Promise<{results:T[]}>}
 interface Database{prepare(sql:string):Statement}
-export type ImportCandidate={sourceId?:string;sourceKey?:string;title?:string;author?:string;isbn13?:string;isbn10?:string;format?:string;publicationDate?:string};
-type Decision='create_draft'|'existing_edition'|'review_match'|'invalid'|'duplicate_in_batch';
-export type PreviewRow={index:number;title:string;author:string;isbn13:string|null;isbn10:string|null;decision:Decision;reason:string;existingWorkId?:string;existingEditionId?:string;matches?:{id:string;title:string}[]};
+export type ImportCandidate=WorkForReview&{sourceId?:string;sourceKey?:string};
+type Decision='create_draft'|'needs_enrichment'|'existing_edition'|'review_match'|'invalid'|'duplicate_in_batch';
+export type PreviewRow={index:number;title:string;author:string;isbn13:string|null;isbn10:string|null;decision:Decision;reason:string;existingWorkId?:string;existingEditionId?:string;matches?:{id:string;title:string}[];quality:ImportQuality};
 const norm=(value:unknown,max=500)=>typeof value==='string'?value.normalize('NFKC').trim().replace(/\s+/g,' ').slice(0,max):'';
 const normalizedTitle=(v:string)=>v.toLocaleLowerCase('en-GB').replace(/[^\p{L}\p{N}]+/gu,' ').trim().replace(/\s+/g,' ');
 const normalizeIsbn=(v:string)=>v.replace(/[\s-]/g,'').toUpperCase();
 const allowedFormats=new Set(['paperback','hardback','ebook','audiobook','audio_cd','unknown']);
 export async function previewCatalogueImport(db:Database,candidates:unknown):Promise<{dryRun:true;rows:PreviewRow[];summary:Record<Decision,number>}>{
  if(!Array.isArray(candidates)||!candidates.length||candidates.length>100)throw Error('Provide 1–100 catalogue candidates per dry run.');
- const summary:Record<Decision,number>={create_draft:0,existing_edition:0,review_match:0,invalid:0,duplicate_in_batch:0};
+ const summary:Record<Decision,number>={create_draft:0,needs_enrichment:0,existing_edition:0,review_match:0,invalid:0,duplicate_in_batch:0};
  const rows:PreviewRow[]=[];
  const seen=new Set<string>();
  for(let index=0;index<candidates.length;index++){
@@ -23,7 +24,8 @@ export async function previewCatalogueImport(db:Database,candidates:unknown):Pro
   const isbn10=normalizeIsbn(norm(raw.isbn10,32))||null;
   const format=norm(raw.format,30).toLowerCase();
   const publicationDate=norm(raw.publicationDate,10);
-  const base={index:index+1,title,author,isbn13,isbn10};
+  const quality=assessImportQuality({...raw,title,author,isbn13:isbn13||undefined,isbn10:isbn10||undefined});
+  const base={index:index+1,title,author,isbn13,isbn10,quality};
   const add=(decision:Decision,reason:string,other:Partial<PreviewRow>={})=>{summary[decision]++;rows.push({...base,decision,reason,...other})};
   if(!title||!author){add('invalid','A title and author are required.');continue}
   if(isbn13&&!validIsbn13(isbn13)){add('invalid','Invalid ISBN-13 check digit.');continue}
@@ -58,7 +60,8 @@ export async function previewCatalogueImport(db:Database,candidates:unknown):Pro
     WHERE lower(w.canonical_title)=lower(?) AND lower(p.preferred_name)=lower(?)
     LIMIT 8`).bind(title,author).all<{id:string;title:string}>();
   if(results.length){add('review_match','A work with this title and author exists. Verify edition and identity before linking.',{matches:results});continue}
-  add('create_draft','No matching ISBN or exact title/author was found. Eligible for reviewed draft creation, not automatic publication.');
+  if(!quality.ready){add('needs_enrichment','No duplicate detected, but work/edition metadata is incomplete. Enrich it before draft import.');continue}
+  add('create_draft','Full work and edition metadata supplied; eligible for final identity and rights review before draft import.');
  }
  return {dryRun:true,rows,summary};
 }
