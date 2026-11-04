@@ -148,3 +148,7 @@
 .add-book-search-cover-placeholder{background:#244a35;color:#fff;display:grid;place-items:center;font:1rem Georgia,serif}
 @media(max-width:650px){.add-book-feature{grid-template-columns:98px minmax(0,1fr);gap:18px;padding:15px}.add-book-feature-cover{width:98px}.add-book-edition-step .add-edition-list{grid-template-columns:1fr}.add-book-feature-author{margin-bottom:12px}}
 @media(max-width:400px){.add-book-feature{grid-template-columns:1fr}.add-book-feature-cover{width:115px}.shelf-line{flex-wrap:wrap}.shelf-line>.button{margin-left:auto}}
+
+/* Contributor portrait from the canonical catalogue, with initials fallback. */
+.person-portrait{position:relative;overflow:hidden}
+.person-portrait img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;border-radius:50%}
