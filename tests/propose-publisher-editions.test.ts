@@ -106,3 +106,25 @@ test('multiple source candidate ISBNs never become automatic edition assignments
  assert.equal(result.report.candidateOnly[0].sourceEditionHasMultipleISBNs,true);
  assert.equal(result.report.totals.proposedAdditions,1);
 });
+
+test('publisher audiobook creates a provisional recording only with narrator and duration',()=>{
+ const input=fixture();
+ const audio={title:'Book 0',author:'Simon Kernick',isbn13:'9781448126644',
+  format:'audiobook',audioDelivery:'download',durationMinutes:634,
+  narrators:['Paul Thornley'],publicationDate:'2012-01-19',
+  imprint:'Transworld Digital',
+  sourceUrl:'https://www.penguin.co.uk/books/405969/siege-by-simon-kernick/9781448126644',
+  checkedOn:'2026-11-04'};
+ const result=proposePublisherEditions(input,{records:[audio]});
+ assert.equal(result.report.totals.proposedAudiobooks,1);
+ const ed=result.candidates.candidates[0].editions[1];
+ assert.equal(ed.durationSeconds,38040);
+ assert.deepEqual(ed.narratorNames,['Paul Thornley']);
+ assert.equal(ed.pageCount,null);
+ assert.equal(ed.importEligible,false);
+ assert.ok(ed.validationIssues.includes('narrator_identity_pending_canonical_link'));
+ assert.throws(()=>proposePublisherEditions(input,{records:[{...audio,narrators:[]}]}),
+  /Invalid publisher edition evidence/);
+ assert.throws(()=>proposePublisherEditions(input,{records:[{...audio,durationMinutes:null}]}),
+  /Invalid publisher edition evidence/);
+});
