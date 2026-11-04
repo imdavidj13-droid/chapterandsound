@@ -4,17 +4,22 @@ import {apiGet} from '../api';
 type Author={id:string;name:string;biography?:string|null;portraitUrl?:string|null};
 type Book={id:string;title:string;coverUrl?:string|null;summary?:string|null;formats?:string[];firstPublishedYear?:number|null};
 type Recording={id:string;workId:string;title:string};
-type ShelfRecord={workId:string};
-type Profile={person:Author;works:Book[];recordings:Recording[]};
-type Tab='books'|'shelf'|'about'|'audio';
+type ShelfRecord={workId:string;privateNote?:string|null;status?:string};
+type SimilarAuthor={id:string;name:string;portraitUrl?:string|null;sharedSubjects:number};
+type Profile={person:Author;works:Book[];recordings:Recording[];similarAuthors?:SimilarAuthor[]};
+type ReviewHighlight={count:number;average:number|null;body:string|null;title:string|null};
+type BookDetailResponse={reviews:{title?:string|null;body?:string|null;spoilers?:number|boolean;storyRating?:number|null}[];ratings:{story:{count:number;average:number|null}}};
+type Tab='books'|'shelf'|'about'|'audio'|'similar';
 
 const initials=(name:string)=>name.trim().split(/\s+/).slice(0,2).map(p=>p[0]?.toUpperCase()||'').join('');
 const formatLabel=(format:string)=>({
  paperback:'Paperback',hardback:'Hardback',ebook:'Ebook',audiobook:'Audiobook'
 } as Record<string,string>)[format]||format.replaceAll('_',' ');
 
-function BookCard({book,onShelf}:{book:Book;onShelf:boolean}){
+function BookCard({book,onShelf,review}:{book:Book;onShelf:boolean;review?:ReviewHighlight}){
  const [failed,setFailed]=useState(false);
+ const snippet=(text:string,max:number)=>text.length>max?text.slice(0,max).trimEnd()+'…':text;
+ const formats=book.formats||[];
  return <article className="room-author-book-card">
   <a href={'/book/'+encodeURIComponent(book.id)} className="room-author-book-art" aria-label={'View '+book.title}>
    {book.coverUrl&&!failed?<img src={book.coverUrl} alt={'Cover of '+book.title} loading="lazy" onError={()=>setFailed(true)}/>:<span className="room-author-book-fallback" aria-label="Cover unavailable">{book.title}</span>}
@@ -22,10 +27,17 @@ function BookCard({book,onShelf}:{book:Book;onShelf:boolean}){
   </a>
   <div className="room-author-book-info">
    <h3><a href={'/book/'+encodeURIComponent(book.id)}>{book.title}</a></h3>
-   {book.firstPublishedYear&&<p className="room-author-book-year">First published {book.firstPublishedYear}</p>}
-   {book.summary&&<p className="room-author-book-summary">{book.summary}</p>}
-   {book.formats&&book.formats.length>0&&<p className="room-author-book-formats">{book.formats.map(formatLabel).join(' · ')}</p>}
-   <a className="room-author-book-cta" href={'/book/'+encodeURIComponent(book.id)}>Explore book <span aria-hidden="true">→</span></a>
+   {book.firstPublishedYear&&<p className="room-author-book-year">{book.firstPublishedYear}</p>}
+   <div className="room-author-review-line">
+    {review?.count?<>
+     <span className="room-author-stars" aria-label={'Average story rating '+review.average?.toFixed(1)+' out of 5'}>{'★'.repeat(Math.round(review.average||0))}{'☆'.repeat(5-Math.round(review.average||0))}</span>
+     <span>{review.average?.toFixed(1)}/5 · {review.count} {review.count===1?'rating':'ratings'}</span>
+    </>:<span>No community reviews yet</span>}
+   </div>
+   <p className="room-author-book-summary">{book.summary?snippet(book.summary,125):'Description not yet available.'}</p>
+   {review?.body&&<p className="room-author-review-excerpt"><strong>Reader review</strong> {snippet(review.body,95)}</p>}
+   <p className="room-author-book-formats">{formats.length?formats.map(formatLabel).join('  ·  '):'Edition formats not confirmed'}</p>
+   <a className="room-author-book-cta" href={'/book/'+encodeURIComponent(book.id)}>{review?.count?'Read reviews':'View book'} <span aria-hidden="true">→</span></a>
   </div>
  </article>;
 }
@@ -33,11 +45,13 @@ function BookCard({book,onShelf}:{book:Book;onShelf:boolean}){
 export function ReadingRoomAuthorProfile({id,memberVerified}:{id:string;memberVerified:boolean}){
  const [profile,setProfile]=useState<Profile|null>(null);
  const [shelf,setShelf]=useState<Set<string>>(new Set());
+ const [shelfNotes,setShelfNotes]=useState<ShelfRecord[]>([]);
+ const [reviews,setReviews]=useState<Record<string,ReviewHighlight>>({});
  const [tab,setTab]=useState<Tab>('books');
  const [loading,setLoading]=useState(true),[error,setError]=useState('');
  useEffect(()=>{
   let active=true;
-  setLoading(true);setError('');setProfile(null);setTab('books');
+  setLoading(true);setError('');setProfile(null);setTab('books');setReviews({});
   apiGet<Profile>('/api/person/'+encodeURIComponent(id))
    .then(data=>{if(active)setProfile(data)})
    .catch(e=>{if(active)setError(e instanceof Error?e.message:'Author profile unavailable')})
@@ -45,13 +59,29 @@ export function ReadingRoomAuthorProfile({id,memberVerified}:{id:string;memberVe
   return()=>{active=false};
  },[id]);
  useEffect(()=>{
-  if(!memberVerified){setShelf(new Set());return}
+  if(!memberVerified){setShelf(new Set());setShelfNotes([]);return}
   let active=true;
   apiGet<{items:ShelfRecord[]}>('/api/member/shelf')
-   .then(data=>{if(active)setShelf(new Set(data.items.map(item=>item.workId)))})
-   .catch(()=>{if(active)setShelf(new Set())});
+   .then(data=>{if(active){setShelf(new Set(data.items.map(item=>item.workId)));setShelfNotes(data.items)}})
+   .catch(()=>{if(active){setShelf(new Set());setShelfNotes([])}});
   return()=>{active=false};
  },[memberVerified,id]);
+ // Public reviews and rating totals come from the existing book detail API.
+ // Do not invent review excerpts or scores for titles with no published reviews.
+ useEffect(()=>{
+  if(!profile?.works.length)return;
+  let active=true;
+  void Promise.all(profile.works.slice(0,40).map(async book=>{
+   try{
+    const data=await apiGet<BookDetailResponse>('/api/book/'+encodeURIComponent(book.id));
+    const published=data.reviews||[];
+    const first=published.find(review=>!review.spoilers&&Boolean(review.body?.trim()));
+    return [book.id,{count:data.ratings.story.count,average:data.ratings.story.average,
+     body:first?.body||null,title:first?.title||null}] as const;
+   }catch{return [book.id,{count:0,average:null,body:null,title:null}] as const}
+  })).then(entries=>{if(active)setReviews(Object.fromEntries(entries))});
+  return()=>{active=false};
+ },[profile]);
  const books=profile?.works||[];
  const onShelf=useMemo(()=>books.filter(book=>shelf.has(book.id)),[books,shelf]);
  if(loading)return <div className="room-author-profile-loading" role="status">Loading author profile…</div>;
