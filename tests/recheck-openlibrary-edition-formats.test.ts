@@ -20,7 +20,7 @@ test('classifies only explicit physical format',()=>{
 });
 test('exact edition, work and ISBN allow local-only enrichment',async()=>{
  const original=fixture();
- const output=await enrich(original,async path=>path==='/books/OL1M.json'?raw:null);
+ const output=await enrich(original,async (path: string)=>path==='/books/OL1M.json'?raw:null);
  assert.equal(output.report.totals.formatsResolved,1);
  assert.equal(output.report.totals.remainingUnknownFormats,9);
  assert.equal(output.candidates.candidates[0].editions[0].format,'hardback');
