@@ -158,3 +158,42 @@ The preview now distinguishes:
 - **Draft-ready structure** does not mean complete metadata, verified rights, or permission to publish. The completeness percentage and outstanding optional gaps remain visible.
 
 This prevents unproductive manual editing driven by an overly strict all-fields gate. Outstanding optional fields should be enriched in source-adapter batches, not filled with fabricated values. No production import endpoint has been enabled.
+
+## Reviewed draft ingestion (new)
+
+Endpoint: `POST /api/catalogue-admin/import/drafts`, behind verified owner, persisted admin role and same-origin checks. It accepts `{candidates:[...],confirmed:true}`.
+
+**Important safety contract:**
+
+- Maximum 10 works and 50 editions per transaction; the full preview must report `create_draft` for every candidate.
+- Imports are **private drafts**: `works.status='draft'`, `editions.verification_status='draft'` and `publication_status='draft'`.
+- The operation never publishes, adds covers, edits an existing work or merges ambiguous author identities.
+- Existing contributor names require explicitly confirmed canonical `authorId`; a name match alone is insufficient.
+- Repeated work keys are rejected using source IDs captured in `catalogue_audit_log`. ISBN duplication is checked across all edition identifiers.
+- A single Cloudflare D1 `batch` transaction saves the works, authors, editions, identifiers, publishers, private synopsis and audit records. D1 failures abort the batch.
+- Audiobook editions are **held**, not misrepresented as completed, until a source-backed recording/narrator import adapter is implemented.
+- Foreign provider keys cannot be used as Open Library edition keys without an approved identity mapping.
+- The actual production Cloudflare database has **not** been written to during this development; no imported-book count should be claimed.
+
+In the admin Import Centre, run the dry-run first. Confirm each existing author identity and the permission to use the metadata, then choose **Save reviewed books as drafts** only when all entries are eligible. Newly saved drafts are accessible through the normal draft editor.
+
+### Approved-source metadata fusion
+
+`src/worker/catalogue-import-merge.ts` adds a deterministic enrichment function: it fills missing work/edition fields from a secondary source only when the title/author agree **and** there is an exact shared work key or edition ISBN. It never overwrites existing claims, merges authors on name alone, or silently adds unidentified external editions. Conflicts remain explicit.
+
+Offline CLI:
+
+```powershell
+npx tsx scripts/merge-catalogue-manifests.ts --primary ".private-catalogue-pilot/candidates-01.json" --supplement "approved-extra-metadata.json" --out ".private-catalogue-pilot/combined-01.json"
+```
+
+This produces a combined candidate manifest and `.report.json` with field conflict counts. Supplementary sources must be reviewed for terms and permissions before copying or persisting their metadata. There is no general-purpose online harvesting or paid-source connection yet.
+
+**What remains before a 10-book pilot is complete:** obtaining and validating a usable source dump or approved feed, mapping author identities once, handling missing/ambiguous edition formats, completing audiobook narration/recording adapters, successfully running typecheck/migration/tests/build, creating a recovery backup, executing an explicitly reviewed draft batch, and verifying 10 drafts end-to-end.
+
+### Additional tests
+
+- `tests/catalogue-import-drafts.test.ts` covers draft-only atomic writes, author confirmations and replay/ISBN collisions.
+- `tests/catalogue-import-merge.test.ts` covers source-backed field fusion, conflict retention, and identity rejection.
+
+The repository commits add test code; they do **not** establish that the current GitHub Actions or live deployment have passed.
