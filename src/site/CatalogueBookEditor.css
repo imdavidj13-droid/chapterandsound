@@ -256,3 +256,35 @@
 .cs-publication-audit-item a{color:#225d40;white-space:nowrap;font-size:12px;font-weight:750}
 .cs-publication-audit small{color:#637466;line-height:1.55}
 @media(max-width:650px){.cs-publication-audit{padding:15px}.cs-publication-audit-item{align-items:flex-start;flex-direction:column}}
+
+/* Catalogue Import Centre: explicit dry-run status, no production-write affordance. */
+.cs-import-centre{background:#fff;border:1px solid #d3e1d8;border-radius:15px;padding:23px;margin:24px 0}
+.cs-import-centre>header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.cs-import-centre h3{font:normal 1.65rem Georgia,serif;color:#204631;margin:7px 0}
+.cs-import-centre header p:not(.cs-admin-eyebrow),.cs-import-help{color:#546d5a;font-size:.85rem;line-height:1.6;max-width:760px}
+.cs-import-dry-run{background:#e7f1e6;border:1px solid #c9dcca;color:#265438;padding:8px 12px;border-radius:20px;white-space:nowrap;font-size:.74rem;font-weight:700}
+.cs-import-centre textarea{width:100%;resize:vertical;border:1px solid #bbd0c0;border-radius:10px;padding:15px;background:#f8faf7;color:#1d3a2a;font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
+.cs-import-centre textarea:focus{outline:2px solid #89aa90}
+.cs-import-actions{display:flex;flex-wrap:wrap;gap:9px;margin:13px 0}
+.cs-import-actions button{border:1px solid #b6ceb8;border-radius:8px;padding:10px 15px;cursor:pointer;background:#fff;color:#295338}
+.cs-import-actions .primary{background:#20563b;color:#fff}
+.cs-import-actions button:disabled{opacity:.5;cursor:not-allowed}
+.cs-import-results{margin-top:20px;border-top:1px solid #deeadf;padding-top:18px}
+.cs-import-results h4{font:normal 1.3rem Georgia,serif;color:#1e4230}
+.cs-import-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin:15px 0}
+.cs-import-summary>div{background:#f5f8f3;border:1px solid #e0e9dd;border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:5px}
+.cs-import-summary strong{font:normal 1.6rem Georgia,serif;color:#1d4330}
+.cs-import-summary span{font-size:.72rem;color:#56705c}
+.cs-import-table-scroll{overflow-x:auto}
+.cs-import-table-scroll table{width:100%;border-collapse:collapse;font-size:.78rem;text-align:left}
+.cs-import-table-scroll th,.cs-import-table-scroll td{padding:12px;border-bottom:1px solid #e4ebe2;vertical-align:top}
+.cs-import-table-scroll th{background:#f1f5ef;color:#3f6049;font-weight:750;white-space:nowrap}
+.cs-import-table-scroll td strong,.cs-import-table-scroll td small{display:block}
+.cs-import-table-scroll td small{color:#68806c;margin-top:5px;overflow-wrap:anywhere}
+.cs-import-table-scroll td a{display:block;color:#28613e;margin-top:8px}
+.cs-import-status{display:inline-block;font-weight:750;border-radius:7px;padding:5px 8px;background:#e3efe4;color:#276044;white-space:nowrap}
+.cs-import-status.status-invalid{background:#fff0ed;color:#9c3329}
+.cs-import-status.status-review_match,.cs-import-status.status-duplicate_in_batch{background:#fff3dd;color:#765218}
+.cs-import-status.status-existing_edition{background:#e7eef7;color:#365673}
+.cs-import-footnote{font-size:.76rem;color:#607365;line-height:1.6;margin:18px 0 0}
+@media(max-width:800px){.cs-import-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.cs-import-centre{padding:15px}.cs-import-centre>header{flex-direction:column}.cs-import-dry-run{align-self:flex-start}}
