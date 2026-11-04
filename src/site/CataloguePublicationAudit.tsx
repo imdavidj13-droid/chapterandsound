@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useEffect,useState} from 'react';
 
 type PublicBook={id:string;title:string;author:string|null;authorId?:string|null;coverUrl?:string|null;summary:string|null;year:number|null};
 type PublicEdition={id:string;format:string;isbn13?:string|null;publisher?:string|null;coverUrl?:string|null};
@@ -120,6 +120,9 @@ export function CataloguePublicationAudit({workId,status}:{workId:string;status:
    }
   }finally{setChecks(results);setCheckedAt(new Date().toISOString());setBusy(false)}
  }
+ // Recheck automatically when a record becomes published; keep a manual retry
+ // because public caches and Cloudflare deployments may lag briefly.
+ useEffect(()=>{if(status==='published'||status==='verified')void audit()},[workId,status]);
  const failed=checks.filter(c=>c.status==='failed').length,warning=checks.filter(c=>c.status==='warning').length;
  return <section className="cs-publication-audit" aria-label="Published book audit">
   <header><div><h3>Publication checks</h3><p>Verify this saved book against the real public website, author directory and cover endpoint. Read-only; no records are changed.</p></div>
