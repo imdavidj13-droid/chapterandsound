@@ -81,6 +81,32 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
  const segments=path.split('/').filter(Boolean);
  if(!db)return fail('The BOOK_DB catalogue binding is not configured yet',503);
  if(!await catalogueReady(db))return fail('The catalogue database has not had its dedicated migrations applied yet',503);
+ if(path==='import/discover'&&request.method==='GET'){
+  const q=str(url.searchParams.get('q'),100);
+  if(q.length<3)return fail('Search needs at least three characters');
+  const upstream=new URL('https://openlibrary.org/search.json');
+  upstream.searchParams.set('q',q);
+  upstream.searchParams.set('fields','key,title,author_name,first_publish_year,isbn');
+  upstream.searchParams.set('limit','10');
+  try{
+   // A single owner-initiated lookup only. Open Library prohibits using its API for bulk harvesting.
+   const response=await fetch(upstream,{headers:{'Accept':'application/json',
+    'User-Agent':'ChapterAndSoundCatalogue/0.1 ('+(env.ADMIN_EMAIL||'catalogue-admin')+')'},signal:AbortSignal.timeout(12000)});
+   if(!response.ok)return fail('Open Library lookup returned '+response.status,502);
+   const payload=await response.json() as {docs?:{key?:string;title?:string;author_name?:string[];first_publish_year?:number;isbn?:string[]}[]};
+   const candidates=(payload.docs||[]).slice(0,10).flatMap(doc=>{
+    const title=str(doc.title,500),author=str(doc.author_name?.[0],300),key=str(doc.key,200);
+    if(!title||!author||!/^\/works\/OL[0-9]+W$/.test(key))return [];
+    const isbns=(doc.isbn||[]).filter(x=>typeof x==='string'&&validIsbn13(x));
+    return [{sourceId:'openlibrary',sourceKey:key,title,author,
+     publicationDate:Number.isInteger(doc.first_publish_year)?String(doc.first_publish_year):'',
+     // Search results aggregate many editions. Never assign one of many ISBNs
+     // to a speculative "first edition" without checking the specific edition.
+     isbn13:isbns.length===1?isbns[0]:'',format:''}];
+   });
+   return json({source:'openlibrary',lookupOnly:true,candidates,notice:'Preview-only lookup. Bulk imports must use approved dumps; ISBNs from multi-edition search results require edition verification.'});
+  }catch(error){console.error('Open Library manual lookup failed',error);return fail('Open Library could not be reached. Retry the lookup later.',502)}
+ }
  if(path==='import/preview'&&request.method==='POST'){
   const size=Number(request.headers.get('Content-Length')||0);
   if(size>300000)return fail('Import preview is limited to 300 KB',413);
