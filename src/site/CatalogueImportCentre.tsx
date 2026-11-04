@@ -1,14 +1,14 @@
 import {useState} from 'react';
 import {apiGet,apiWrite} from './api';
 
-type Decision='create_draft'|'existing_edition'|'review_match'|'invalid'|'duplicate_in_batch';
-type Row={index:number;title:string;author:string;isbn13:string|null;decision:Decision;reason:string;existingWorkId?:string;existingEditionId?:string};
+type Decision='create_draft'|'needs_enrichment'|'existing_edition'|'review_match'|'invalid'|'duplicate_in_batch';
+type Row={index:number;title:string;author:string;isbn13:string|null;decision:Decision;reason:string;quality:{ready:boolean;score:number;missing:string[];warnings:string[];editionCount:number;verifiedEditionCount:number;formatCoverage:string[]};existingWorkId?:string;existingEditionId?:string};
 type Result={dryRun:true;rows:Row[];summary:Record<Decision,number>};
 const example=JSON.stringify({candidates:[
  {sourceId:'openlibrary',sourceKey:'/works/OL123W',title:'Example book',author:'Example Author',isbn13:'9780306406157',format:'paperback'}
 ]},null,2);
 const labels:Record<Decision,string>={
- create_draft:'Ready for draft review',existing_edition:'Existing edition',review_match:'Identity review',invalid:'Invalid',duplicate_in_batch:'Repeated in batch'
+ create_draft:'Metadata ready for review',needs_enrichment:'Needs metadata',existing_edition:'Existing edition',review_match:'Identity review',invalid:'Invalid',duplicate_in_batch:'Repeated in batch'
 };
 export function CatalogueImportCentre(){
  const [input,setInput]=useState('');
@@ -37,7 +37,7 @@ export function CatalogueImportCentre(){
  return <section className="cs-import-centre" aria-label="Catalogue import preview">
   <header><div><p className="cs-admin-eyebrow">IMPORT CENTRE · PHASE ONE</p>
     <h3>Review a catalogue batch</h3>
-    <p>Validate up to 100 candidates against the existing book catalogue. This preview never imports or publishes any records.</p></div>
+    <p>Check books, authors and edition data for completeness before importing. Missing fields are flagged so you can enrich them in batches, not edit every book later.</p></div>
    <span className="cs-import-dry-run">Read-only dry run</span></header>
   <div className="cs-import-lookup"><label>Look up a title or author in Open Library
    <input type="search" placeholder="e.g. Simon Kernick" value={lookup} onChange={e=>setLookup(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();if(lookup.trim().length>=3&&!lookupLoading)void discover()}}}/>
@@ -54,10 +54,10 @@ export function CatalogueImportCentre(){
    <div className="cs-import-summary">
     {(Object.keys(labels) as Decision[]).map(key=><div key={key}><strong>{result.summary[key]}</strong><span>{labels[key]}</span></div>)}
    </div>
-   <div className="cs-import-table-scroll"><table><thead><tr><th>Book / author</th><th>ISBN-13</th><th>Decision</th><th>Why</th></tr></thead>
-    <tbody>{result.rows.map(row=><tr key={row.index}><td><strong>{row.title||'Missing title'}</strong><small>{row.author||'Missing author'}</small></td><td>{row.isbn13||'—'}</td><td><span className={'cs-import-status status-'+row.decision}>{labels[row.decision]}</span></td><td>{row.reason}{row.existingWorkId&&<><small>Existing work: {row.existingWorkId}</small><a href={'/admin/catalogue/book/'+encodeURIComponent(row.existingWorkId)}>Open saved book</a></>}</td></tr>)}</tbody>
+   <div className="cs-import-table-scroll"><table><thead><tr><th>Book / author</th><th>Editions</th><th>Completeness</th><th>Decision</th><th>Missing information</th></tr></thead>
+    <tbody>{result.rows.map(row=><tr key={row.index}><td><strong>{row.title||'Missing title'}</strong><small>{row.author||'Missing author'}</small></td><td>{row.quality.editionCount} supplied · {row.quality.verifiedEditionCount} verified</td><td><strong>{row.quality.score}%</strong></td><td><span className={'cs-import-status status-'+row.decision}>{labels[row.decision]}</span></td><td>{row.reason}{row.quality.missing.length>0&&<details className="cs-import-missing"><summary>{row.quality.missing.length} missing fields</summary><ul>{row.quality.missing.map(field=><li key={field}>{field}</li>)}</ul></details>}{row.quality.warnings.length>0&&<p className="cs-import-warning">{row.quality.warnings.join(' ')}</p>}{row.existingWorkId&&<><small>Existing work: {row.existingWorkId}</small><a href={'/admin/catalogue/book/'+encodeURIComponent(row.existingWorkId)}>Open saved book</a></>}</td></tr>)}</tbody>
    </table></div>
-   <p className="cs-import-footnote">No database writes were performed. “Ready for draft review” is not a permission to automatically import or publish metadata; source licensing and identity checks remain required.</p>
+   <p className="cs-import-footnote">No database writes were performed. A high completeness percentage does not establish identity or source rights; no records can be imported or published from this screen; source licensing and identity checks remain required.</p>
   </div>}
  </section>;
 }
