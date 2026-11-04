@@ -16,7 +16,7 @@ const isIsbn13=value=>{
  const sum=[...value.slice(0,12)].reduce((n,c,i)=>n+Number(c)*(i%2?3:1),0);
  return (10-sum%10)%10===Number(value[12]);
 };
-const permitted=new Set(['paperback','hardback','ebook']);
+const permitted=new Set(['paperback','hardback','ebook','audiobook']);
 const factProvenance=(fact,field)=>({source:'penguin_uk_product_page',
  sourceUrl:fact.sourceUrl,identifier:fact.isbn13,field,status:'source_explicit',
  checkedOn:fact.checkedOn});
@@ -52,7 +52,12 @@ export function proposePublisherEditions(enriched,evidence){
    !/^https:\/\/www\.penguin\.co\.uk\/books\/[^?#]+$/.test(fact.sourceUrl)||
    !fact.sourceUrl.endsWith('/'+isbn)||
    !/^\d{4}-\d{2}-\d{2}$/.test(fact.publicationDate||'')||
-   !Number.isSafeInteger(fact.pageCount)||fact.pageCount<=0||
+   (fact.format==='audiobook'
+    ?(!Number.isSafeInteger(fact.durationMinutes)||fact.durationMinutes<=0||
+      fact.durationMinutes>3000||!Array.isArray(fact.narrators)||
+      !fact.narrators.length||fact.narrators.some(n=>!norm(n))||
+      fact.audioDelivery!=='download')
+    :(!Number.isSafeInteger(fact.pageCount)||fact.pageCount<=0))||
    !norm(fact.title)||!norm(fact.author))
    throw Error('Invalid publisher edition evidence');
   if(seenFacts.has(isbn))throw Error('Duplicate evidence ISBN '+isbn);
@@ -89,9 +94,17 @@ export function proposePublisherEditions(enriched,evidence){
    title:book.title,isbn13:isbn,isbn13Candidates:[isbn],isbn10:null,
    isbn10Candidates:[],format:fact.format,physicalFormat:null,
    publisher:null,imprint:fact.imprint||null,
-   publicationDate:fact.publicationDate,pageCount:fact.pageCount,
+   publicationDate:fact.publicationDate,
+   pageCount:fact.format==='audiobook'?null:fact.pageCount,
+   durationSeconds:fact.format==='audiobook'?fact.durationMinutes*60:null,
+   narratorNames:fact.format==='audiobook'?[...fact.narrators]:[],
+   narratorSourceKeys:[],
+   audioDelivery:fact.format==='audiobook'?'download':null,
    language:null,coverIds:[],publisherEvidenceUrl:fact.sourceUrl,
-   fieldProvenance:Object.fromEntries(['isbn13','format','imprint','publicationDate','pageCount'].map(field=>
+   fieldProvenance:Object.fromEntries(
+    ['isbn13','format','imprint','publicationDate',
+     ...(fact.format==='audiobook'?['durationSeconds','narratorNames','audioDelivery']:['pageCount'])]
+    .map(field=>
     [field,factProvenance(fact,field)])),
    identityStatus:'publisher_isbn_provisional',
    potentialDuplicateSourceKeys:potentialDuplicateKeys,
@@ -99,6 +112,7 @@ export function proposePublisherEditions(enriched,evidence){
    validationIssues:['publisher_imprint_not_equivalent_to_publisher',
     'publisher_edition_identity_pending_canonical_cross_check',
     'rights_and_cover_review_required',
+    ...(fact.format==='audiobook'?['narrator_identity_pending_canonical_link']:[]),
     ...(potentialDuplicateKeys.length?['possible_duplicate_openlibrary_edition']:[])]
   };
   book.editions.push(edition);
@@ -115,6 +129,7 @@ export function proposePublisherEditions(enriched,evidence){
     alreadyPresent:existing.length,candidateOnlyLinks:candidateOnly.length,
     proposedAdditions:proposed.length,
     proposedWithPotentialDuplicates:proposed.filter(p=>p.potentialDuplicateSourceKeys.length).length,
+    proposedAudiobooks:proposed.filter(p=>p.format==='audiobook').length,
     blocked:blocked.length,
     resultingEditions:books.reduce((n,b)=>n+b.editions.length,0),
     unknownFormats:books.reduce((n,b)=>n+b.editions.filter(e=>e.format==='unknown').length,0)},
