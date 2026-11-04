@@ -29,6 +29,7 @@ export async function importCatalogueDrafts(db:DraftImportDB,input:unknown,actor
  if(blocker)throw new ImportConflict('Batch held for review: '+blocker.title+' — '+blocker.decision+'. '+blocker.reason);
  const statements:Statement[]=[];
  const personIds=new Map<string,string>();
+ const authorKeysByName=new Map<string,string>();
  const publishers=new Map<string,string>();
  const schemes=new Map<string,string>();
  const imported:{id:string;title:string;editionIds:string[]}[]=[];
@@ -41,6 +42,12 @@ export async function importCatalogueDrafts(db:DraftImportDB,input:unknown,actor
    .bind(workKey).first<{id:string}>();
   if(previous)throw new ImportConflict('Source work already imported as draft: '+workKey+' (work '+previous.id+')');
   const title=clean(candidate.title),author=clean(candidate.author),personKey=author.toLowerCase();
+  const sourceAuthors=(candidate.authorSourceKeys||[]).filter(key=>/^\/authors\/OL\d+A$/.test(key)).sort().join('|');
+  if(!sourceAuthors)throw new ImportConflict('Verified author source identifiers are required for '+author);
+  const previousAuthorKeys=authorKeysByName.get(personKey);
+  if(previousAuthorKeys&&previousAuthorKeys!==sourceAuthors)
+   throw new ImportConflict('Two source author identities share this name; manual disambiguation required: '+author);
+  authorKeysByName.set(personKey,sourceAuthors);
   const authors=(await db.prepare("SELECT id,preferred_name AS name FROM people WHERE lower(trim(preferred_name))=lower(?) AND identity_status NOT IN ('merged','suppressed') LIMIT 3")
    .bind(author).all<{id:string;name:string}>()).results;
   let personId=personIds.get(personKey);
@@ -76,7 +83,7 @@ export async function importCatalogueDrafts(db:DraftImportDB,input:unknown,actor
    if(!['paperback','hardback','ebook','other_print','other_digital','unknown'].includes(format))
     throw new ImportConflict('Edition format cannot be safely mapped: '+editionKey);
    const editionId=id();editionIds.push(editionId);
-   const count=Number.isSafeInteger(edition.pageCount)&&edition.pageCount!>0?edition.pageCount!:null;
+   const count=typeof edition.pageCount==='number'&&Number.isSafeInteger(edition.pageCount)&&edition.pageCount>0?edition.pageCount:null;
    statements.push(db.prepare("INSERT INTO editions(id,work_id,format,language,page_count,publication_status,verification_status) VALUES(?,?,?,?,?,'draft','draft')")
     .bind(editionId,workId,format,clean(edition.language,20)||null,count));
    for(const [code,value] of [['ISBN13',edition.isbn13],['ISBN10',edition.isbn10]] as const){
