@@ -7,25 +7,37 @@ export type HomeBook={id:string;title:string;author?:string;coverUrl?:string|nul
 export type HomeReview={id:string;title?:string|null;bookTitle?:string;bookId?:string;authorName?:string;authorHandle?:string|null;storyRating?:number|null;body?:string|null;spoilers?:boolean};
 type ShelfBook={id:string;workId:string;bookTitle:string;author?:string|null;coverUrl?:string|null;status:string;format?:string|null;progressValue?:number|null;progressUnit?:string|null};
 type MemberReview={id:string;bookId:string;bookTitle:string;title?:string|null;body?:string|null;storyRating?:number|null;status:string;visibility:string;spoilers?:boolean};
-type HomeRecords={shelf:ShelfBook[];ownReviews:MemberReview[];loading:boolean;error:string};
+type FavouritePerson={id:string;name:string;role:'author'|'narrator';portraitUrl?:string|null};
+type ReadingYear={uniqueBooks:number;finishedExperiences:number};
+type HomeRecords={shelf:ShelfBook[];ownReviews:MemberReview[];year:ReadingYear|null;tastes:string[];favourites:FavouritePerson[];loading:boolean;error:string};
 type HomeProps={member:HomeMember;books:HomeBook[];reviews:HomeReview[];presentation?:{heading:string;intro:string}};
 const label=(format?:string|null)=>({audiobook:'Audiobook',ebook:'Ebook',paperback:'Paperback',hardback:'Hardback',audio_cd:'Audio CD'} as Record<string,string>)[format||'']||format||'Edition not selected';
 const href=(id:string)=>'/book/'+encodeURIComponent(id);
+function parseTastes(json?:string):string[]{
+ try{const values=JSON.parse(json||'[]') as unknown;return Array.isArray(values)?values.filter((x):x is string=>typeof x==='string').slice(0,5):[]}
+ catch{return []}
+}
 function useHomeRecords(member:HomeMember):HomeRecords{
- const [state,setState]=useState<HomeRecords>({shelf:[],ownReviews:[],loading:Boolean(member?.verified),error:''});
+ const [state,setState]=useState<HomeRecords>({shelf:[],ownReviews:[],year:null,tastes:[],favourites:[],loading:Boolean(member?.verified),error:''});
  useEffect(()=>{
-  if(!member?.verified){setState({shelf:[],ownReviews:[],loading:false,error:''});return}
+  if(!member?.verified){setState({shelf:[],ownReviews:[],year:null,tastes:[],favourites:[],loading:false,error:''});return}
   let active=true;
-  setState({shelf:[],ownReviews:[],loading:true,error:''});
+  setState({shelf:[],ownReviews:[],year:null,tastes:[],favourites:[],loading:true,error:''});
   void Promise.allSettled([
    apiGet<{items:ShelfBook[]}>('/api/member/shelf'),
-   apiGet<{items:MemberReview[]}>('/api/member/reviews')
-  ]).then(([shelf,reviews])=>{
+   apiGet<{items:MemberReview[]}>('/api/member/reviews'),
+   apiGet<ReadingYear>('/api/member/reading-year?year='+new Date().getFullYear()),
+   apiGet<{item:{genre_json:string}|null}>('/api/member/preferences'),
+   apiGet<{items:FavouritePerson[]}>('/api/member/favourites')
+  ]).then(([shelf,reviews,year,preferences,favourites])=>{
    if(!active)return;
    setState({
     shelf:shelf.status==='fulfilled'&&Array.isArray(shelf.value.items)?shelf.value.items:[],
     ownReviews:reviews.status==='fulfilled'&&Array.isArray(reviews.value.items)
      ?reviews.value.items.filter(r=>r.status==='published'&&r.visibility==='public'):[],
+    year:year.status==='fulfilled'?year.value:null,
+    tastes:preferences.status==='fulfilled'?parseTastes(preferences.value.item?.genre_json):[],
+    favourites:favourites.status==='fulfilled'&&Array.isArray(favourites.value.items)?favourites.value.items:[],
     loading:false,
     error:shelf.status==='rejected'?'Your bookshelf could not be loaded. Try again later.':''
    });
@@ -51,7 +63,7 @@ function Progress({item}:{item:ShelfBook}){
  return <div className="dual-progress-copy">{item.progressValue!=null&&<p className="dual-progress-label">{item.progressUnit==='percent'?item.progressValue+'% complete':(item.progressUnit==='pages'?'Page ':item.progressUnit==='audio_minutes'?'Audio minute ':'Position ')+item.progressValue}</p>}{item.progressUnit==='percent'&&item.progressValue!=null&&<div className="dual-progress-track" role="progressbar" aria-label={'Reading progress for '+item.bookTitle} aria-valuenow={Math.min(100,Math.max(0,item.progressValue))} aria-valuemin={0} aria-valuemax={100}><span style={{width:Math.min(100,Math.max(0,item.progressValue))+'%'}}/></div>}</div>;
 }
 export function EditorialHome({member,books,reviews,presentation}:HomeProps){
- const {shelf,ownReviews,loading,error}=useHomeRecords(member);
+ const {shelf,ownReviews,year,tastes,favourites,loading,error}=useHomeRecords(member);
  const verified=Boolean(member?.verified);
  const newMember=!verified||(!loading&&shelf.length===0);
  const current=shelf.filter(item=>item.status==='in_progress').slice(0,2);
@@ -65,10 +77,10 @@ export function EditorialHome({member,books,reviews,presentation}:HomeProps){
   {newMember?<section className="editorial-new-hero">
    <div className="editorial-start-card"><p className="dual-kicker">A bookshelf of your own</p><h2>Your bookshelf starts here.</h2><p>Add a book you're reading, listening to or saving for later.</p><span className="editorial-book-art" aria-hidden="true">▥　▤　▯　❦</span></div>
    <div className="editorial-intro"><p className="dual-kicker">A / {verified?'New member':'Welcome'}</p><h1>{verified?'Welcome to your reading world, '+firstName+'.':presentation?.heading||'Welcome to your reading world.'}</h1><p>Let's find your next favourite story.</p><a className="dual-primary" href={verified?'/add-book':'/signup'}>{verified?'Add your first book':'Create your reading space'} <span aria-hidden="true">→</span></a></div>
-   <aside className="editorial-taste"><h2>Your reading taste</h2><p>{verified?'Build your preferences to shape your recommendations.':'A place for your books, favourite authors and listening discoveries.'}</p><div className="editorial-taste-links"><a href={verified?'/preferences':'/signup'}>Set reading preferences →</a><a href="/authors">Explore authors →</a><a href="/narrators">Meet narrators →</a></div></aside>
+   <aside className="editorial-taste"><h2>Your reading taste</h2>{tastes.length?<div className="editorial-taste-pills">{tastes.map(taste=><span key={taste}>{taste}</span>)}</div>:<p>{verified?'Tell us which genres you enjoy to shape your reading experience.':'A place for your books, favourite authors and listening discoveries.'}</p>}{favourites.length>0&&<div className="editorial-favourites"><h3>People you follow</h3><div>{favourites.filter(person=>person.role==='author').slice(0,3).map(person=><a href={'/person/'+encodeURIComponent(person.id)} key={person.id}><span>{person.portraitUrl?<img src={person.portraitUrl} alt=""/>:person.name.trim().split(/\s+/).slice(0,2).map(part=>part[0]?.toUpperCase()).join('')}</span>{person.name}</a>)}</div></div>}<div className="editorial-taste-links"><a href={verified?'/preferences':'/signup'}>Set reading preferences →</a><a href="/authors">Explore authors →</a><a href="/narrators">Meet narrators →</a></div></aside>
   </section>:<><header className="editorial-return-hero"><p className="dual-kicker">B / Your reading world</p><h1>Welcome back, {firstName}.</h1><p>A little further into a good story.</p><a href="/add-book" className="dual-primary">+ Add a book</a></header>
   <div className="editorial-return-grid"><section className="editorial-reading-panel"><div className="dual-section-heading"><h2>Continue your chapter</h2><a href="/shelf">View all my books →</a></div>{current.length?current.map(item=><article className="editorial-reading-row" key={item.id}><a href={href(item.workId)}><Cover url={item.coverUrl} title={item.bookTitle}/></a><div><h3><a href={href(item.workId)}>{item.bookTitle}</a></h3><p>{item.author||'Author not confirmed'}</p><span className="dual-format">{label(item.format)}</span><Progress item={item}/></div><a href="/shelf" className="dual-small-action">Update progress</a></article>):<div className="dual-empty">No books currently in progress. <a href="/shelf">Open your bookshelf →</a></div>}</section>
-   <aside className="editorial-year-card"><h2>Your year so far</h2><div className="editorial-year-number"><strong>{finished}</strong><span>Books marked finished</span></div><div className="editorial-year-number"><strong>{shelf.length}</strong><span>Books on your shelf</span></div><div className="editorial-year-number"><strong>{ownReviews.length}</strong><span>Published reviews</span></div><a href="/reading-year">View my year →</a></aside>
+   <aside className="editorial-year-card"><h2>Your year so far</h2><div className="editorial-year-number"><strong>{year?.uniqueBooks??'—'}</strong><span>Books completed this year</span></div><div className="editorial-year-number"><strong>{year?.finishedExperiences??'—'}</strong><span>Finishes including rereads</span></div><div className="editorial-year-number"><strong>{shelf.length}</strong><span>Books on your shelf</span></div><a href="/reading-year">View my year →</a></aside>
   </div></>}
   <HomeSection title={newMember?'A few places to begin':'Picked for you'} action="Explore books" href="/books">
    {books.length?<div className="editorial-book-row">{books.slice(0,4).map(book=><LinkedBook key={book.id} book={book}/>)}</div>:<div className="dual-empty">The verified book collection is being prepared. <a href="/books">Browse the catalogue →</a></div>}
