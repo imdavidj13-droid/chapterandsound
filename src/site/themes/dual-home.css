@@ -161,3 +161,13 @@
  .dual-section-heading a{margin-left:0}
 }
 @media(prefers-reduced-motion:reduce){.dual-editorial-home *,.dual-room-home *{scroll-behavior:auto!important;transition:none!important}}
+
+/* Real, user-selected taste and followed people in the Editorial intro inset. */
+.editorial-taste-pills{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 16px}
+.editorial-taste-pills span{background:#e1e6d8;border-radius:30px;font:normal .85rem Georgia,serif;padding:8px 12px;color:#374735}
+.editorial-favourites{margin:18px 0 12px;border-top:1px solid #ddd9cf;padding-top:16px}
+.editorial-favourites h3{font:normal 1rem Georgia,serif;margin:0 0 12px}
+.editorial-favourites>div{display:flex;gap:11px;align-items:flex-start;flex-wrap:wrap}
+.editorial-favourites a{display:flex;align-items:center;flex-direction:column;text-align:center;gap:6px;font-size:.73rem;max-width:86px}
+.editorial-favourites a>span{width:56px;height:56px;display:grid;place-items:center;border-radius:50%;overflow:hidden;background:#cfd8c9;color:#334b39;font-size:1.05rem}
+.editorial-favourites a>span img{width:100%;height:100%;object-fit:cover}
