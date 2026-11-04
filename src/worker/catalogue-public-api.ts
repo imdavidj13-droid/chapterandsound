@@ -39,6 +39,8 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
     ${synopsis()} AS summary,w.first_publication_date AS year,
     (SELECT p.preferred_name FROM contributions c JOIN people p ON p.id=c.person_id
       WHERE c.work_id=w.id AND c.role_code IN ('author','coauthor') ORDER BY c.credit_order,c.id LIMIT 1) AS author,
+    (SELECT p.id FROM contributions c JOIN people p ON p.id=c.person_id
+      WHERE c.work_id=w.id AND c.role_code IN ('author','coauthor') ORDER BY c.credit_order,c.id LIMIT 1) AS authorId,
     (SELECT GROUP_CONCAT(DISTINCT e.format) FROM editions e WHERE e.work_id=w.id) AS editions
     FROM works w WHERE w.status IN ('published','verified')
     AND (?='' OR instr(lower(w.canonical_title),lower(?))>0 OR EXISTS(
@@ -56,15 +58,20 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
   if(role&&!['author','narrator'].includes(role))return json({error:'Unknown role'},400);
   const {results}=await db.prepare(`SELECT p.id,p.preferred_name AS name,p.bio AS biography,
    ${image('person','p.id','portrait')} AS portraitUrl,
-   CASE WHEN EXISTS(SELECT 1 FROM contributions c WHERE c.person_id=p.id AND c.role_code IN ('author','coauthor')) THEN 1 ELSE 0 END AS isAuthor,
-   CASE WHEN EXISTS(SELECT 1 FROM contributions c WHERE c.person_id=p.id AND c.role_code='narrator') THEN 1 ELSE 0 END AS isNarrator
+   CASE WHEN EXISTS(SELECT 1 FROM contributions c JOIN works w ON w.id=c.work_id WHERE c.person_id=p.id
+    AND c.role_code IN ('author','coauthor') AND w.status IN ('published','verified')) THEN 1 ELSE 0 END AS isAuthor,
+   CASE WHEN EXISTS(SELECT 1 FROM contributions c JOIN audio_recordings r ON r.id=c.recording_id JOIN works w ON w.id=r.work_id
+    WHERE c.person_id=p.id AND c.role_code='narrator' AND w.status IN ('published','verified')) THEN 1 ELSE 0 END AS isNarrator
    FROM people p WHERE p.identity_status NOT IN ('merged','suppressed')
    AND (?='' OR instr(lower(p.preferred_name),lower(?))>0)
-   AND (?='' OR (?='author' AND (
-      EXISTS(SELECT 1 FROM contributions c WHERE c.person_id=p.id AND c.role_code IN ('author','coauthor'))
-      OR NOT EXISTS(SELECT 1 FROM contributions c WHERE c.person_id=p.id AND c.role_code IN ('narrator','cast'))
-     ))
-                  OR (?='narrator' AND EXISTS(SELECT 1 FROM contributions c WHERE c.person_id=p.id AND c.role_code='narrator')))
+   AND ((?='' AND (EXISTS(SELECT 1 FROM contributions c JOIN works w ON w.id=c.work_id WHERE c.person_id=p.id
+     AND c.role_code IN ('author','coauthor') AND w.status IN ('published','verified'))
+     OR EXISTS(SELECT 1 FROM contributions c JOIN audio_recordings r ON r.id=c.recording_id JOIN works w ON w.id=r.work_id
+      WHERE c.person_id=p.id AND c.role_code='narrator' AND w.status IN ('published','verified'))))
+    OR (?='author' AND EXISTS(SELECT 1 FROM contributions c JOIN works w ON w.id=c.work_id WHERE c.person_id=p.id
+      AND c.role_code IN ('author','coauthor') AND w.status IN ('published','verified')))
+    OR (?='narrator' AND EXISTS(SELECT 1 FROM contributions c JOIN audio_recordings r ON r.id=c.recording_id JOIN works w ON w.id=r.work_id
+      WHERE c.person_id=p.id AND c.role_code='narrator' AND w.status IN ('published','verified'))))
    ORDER BY p.preferred_name LIMIT ?`).bind(q,q,role,role,role,l).all();
   return json({items:results});
  }
@@ -103,7 +110,9 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
     ${workCover()} AS coverUrl,
     ${synopsis()} AS summary,w.first_publication_date AS year,w.status AS verificationStatus,
     (SELECT p.preferred_name FROM contributions c JOIN people p ON p.id=c.person_id
-     WHERE c.work_id=w.id AND c.role_code IN ('author','coauthor') ORDER BY c.credit_order LIMIT 1) AS author
+     WHERE c.work_id=w.id AND c.role_code IN ('author','coauthor') ORDER BY c.credit_order LIMIT 1) AS author,
+    (SELECT p.id FROM contributions c JOIN people p ON p.id=c.person_id
+     WHERE c.work_id=w.id AND c.role_code IN ('author','coauthor') ORDER BY c.credit_order LIMIT 1) AS authorId
     FROM works w WHERE w.id=? AND w.status IN ('published','verified')`).bind(id).first();
   if(!book)return json({error:'Book not found'},404);
   const {results:editions}=await db.prepare(`SELECT e.id,e.format,
