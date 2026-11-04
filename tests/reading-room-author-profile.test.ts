@@ -69,3 +69,13 @@ test('both website appearances have one real searchable header on every route',(
  assert.match(shell,/<GlobalBookSearch compact\/>/);
  assert.match(shell,/name="q"/);
 });
+
+test('mockup tabs include shelf, about, interviews and evidence-based similar authors',()=>{
+ assert.match(profile,/On My Shelf/);
+ assert.match(profile,/Interviews with/);
+ assert.match(profile,/Similar Authors/);
+ assert.match(profile,/memberVerified\?'shelf':'books'/);
+ assert.match(profile,/profile\.subjects\?\.slice\(0,2\)/);
+ assert.match(publicApi,/JOIN work_subjects ws ON ws\.subject_id=s\.id/);
+ assert.match(publicApi,/subjects:subjects\.map\(s=>s\.label\)/);
+});
