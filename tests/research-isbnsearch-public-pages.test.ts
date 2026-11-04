@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
 // @ts-expect-error The site research module is plain JavaScript.
-import {parseIsbnSearch,checkRobots,validateMatch,research} from '../scripts/research-isbnsearch-public-pages.mjs';
+import {parseIsbnSearch,checkRobots,validateMatch,research,isAccessVerificationPage} from '../scripts/research-isbnsearch-public-pages.mjs';
 const isbn='9780593054703';
 const html='<html><h2>Relentless</h2><p><b>ISBN-13:</b> '+isbn+
  '</p><p><b>ISBN-10:</b> 0593054709</p><p><b>Author:</b> Kernick, Simon</p>'+
@@ -73,4 +73,19 @@ test('report shows why pages did not produce provisional bindings',async()=>{
  });
  assert.equal(result.totals.provisionalFormats,0);
  assert.equal(result.totals.statusCounts.no_structured_isbn,1);
+});
+
+test('browser verification page is not recorded as a successful lookup',async()=>{
+ const challenge='<html><title>ISBN Search - Checking your browser</title></html>';
+ assert.equal(isAccessVerificationPage(challenge),true);
+ let requests=0;
+ const result=await research(fixture(),{
+  getRobots:async()=> 'User-agent: *\nAllow: /isbn/\n',
+  getPage:async()=>{requests++;return challenge;},
+  max:2,delay:0
+ });
+ assert.equal(requests,1);
+ assert.equal(result.totals.checked,0);
+ assert.equal(result.totals.provisionalFormats,0);
+ assert.equal(result.errors[0].error,'access_verification_page');
 });
