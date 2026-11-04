@@ -465,3 +465,11 @@
 @media(max-width:900px){.room-author-main-layout{grid-template-columns:1fr}.room-author-aside{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.editorial-global-search{max-width:none;min-width:0;order:2;flex-basis:100%;width:100%}.editorial-header-inner{flex-wrap:wrap}.editorial-global-search input{height:41px}.room-top-search-form{padding:6px 8px}.room-top-search-form .global-search-icon{font-size:1.2rem}.room-top-search-form button{font-size:0;min-width:30px}.room-top-search-form button::before{content:"⌕";font-size:1.35rem}.room-author-books{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}.room-author-book-card{max-width:none}.room-author-banner{grid-template-columns:1fr}.room-author-avatar{height:128px;width:128px}}
 @media(max-width:470px){.room-author-aside{grid-template-columns:1fr}.room-author-books{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.room-author-book-art{max-height:none}.room-author-book-info{padding:10px}.room-author-review-line{font-size:.64rem}}
+
+/* Editorial accent in the author hero; site tagline, never an invented quotation by the author. */
+.room-author-banner{grid-template-columns:174px minmax(0,1fr) minmax(175px,245px)}
+.room-author-banner-editorial{justify-self:end;position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;gap:15px;max-width:220px;padding:20px 13px;border-left:1px solid #b6cbb5}
+.room-author-banner-editorial span{font-size:.59rem;font-weight:800;letter-spacing:.18em;color:#66816b}
+.room-author-banner-editorial strong{font:italic normal clamp(1.2rem,1.8vw,1.65rem)/1.3 Georgia,serif;color:#34543c}
+@media(max-width:1130px){.room-author-banner{grid-template-columns:160px minmax(0,1fr)}.room-author-banner-editorial{display:none}}
+@media(max-width:700px){.room-author-banner{grid-template-columns:1fr}}
