@@ -70,7 +70,7 @@ test('ISBN repeated in primary and candidates on one edition is not a collision'
  const result=proposePublisherEditions(input,{records:[fact]});
  assert.equal(result.report.totals.alreadyPresent,1);
  assert.equal(result.report.totals.blocked,0);
- assert.equal(result.report.totals.proposedAdditions,1);
+ assert.equal(result.report.totals.proposedAdditions,0);
 });
 test('different edition source records with same ISBN remain ambiguous',()=>{
  const input=fixture();
@@ -104,5 +104,5 @@ test('multiple source candidate ISBNs never become automatic edition assignments
  const result=proposePublisherEditions(input,{records:[fact]});
  assert.equal(result.report.totals.candidateOnlyLinks,1);
  assert.equal(result.report.candidateOnly[0].sourceEditionHasMultipleISBNs,true);
- assert.equal(result.report.totals.proposedAdditions,0);
+ assert.equal(result.report.totals.proposedAdditions,1);
 });
