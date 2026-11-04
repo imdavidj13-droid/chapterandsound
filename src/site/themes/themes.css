@@ -494,3 +494,61 @@
 @media(max-width:1130px){.room-author-profile-page .room-author-banner{grid-template-columns:125px minmax(0,1fr)}.room-author-profile-page .room-author-avatar{width:125px;height:125px}}
 @media(max-width:700px){.room-author-profile-page{padding-top:9px}.room-author-profile-page .room-author-banner{grid-template-columns:95px minmax(0,1fr);min-height:0;padding:15px;gap:15px}.room-author-profile-page .room-author-avatar{width:95px;height:95px;font-size:1.8rem}.room-author-profile-page .room-author-banner h1{font-size:clamp(2rem,8vw,2.65rem)}.room-author-profile-page .room-author-intro{-webkit-line-clamp:3}}
 @media(max-width:430px){.room-author-profile-page .room-author-banner{grid-template-columns:1fr}.room-author-profile-page .room-author-avatar{width:90px;height:90px}}
+
+/* Reading Room bookshelf — a cover-led personal library. */
+.room-shelf-redesign{min-width:0;padding-bottom:65px}
+.room-shelf-intro{position:relative;display:flex;align-items:end;justify-content:space-between;gap:20px;padding:15px 0 25px}
+.room-shelf-intro .eyebrow{color:#50745d;letter-spacing:.18em;font-size:.7rem;margin:0 0 13px}
+.room-shelf-intro h1{font:normal clamp(2.8rem,5vw,4.5rem)/1.05 Georgia,serif;letter-spacing:-.045em;color:#173b29;margin:0 0 8px}
+.room-shelf-intro p:not(.eyebrow){font:normal 1.08rem/1.45 Georgia,serif;color:#5f7565;margin:0}
+.room-shelf-add{display:inline-flex;align-items:center;justify-content:center;background:#25543b;color:#fff;min-height:46px;padding:12px 21px;border-radius:9px;text-decoration:none;font-weight:700;font-size:.85rem;white-space:nowrap;box-shadow:0 4px 10px #21473113}
+.room-shelf-add:hover{background:#173f2b}
+.room-shelf-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:7px 0 37px}
+.room-shelf-summary>div{display:grid;grid-template-columns:33px auto;grid-template-rows:auto auto;align-items:center;column-gap:10px;row-gap:2px;border:1px solid #d7e2d5;border-radius:13px;background:#fffefa;padding:19px 22px;min-width:0}
+.room-shelf-summary-icon{grid-row:1/3;font-size:1.55rem;line-height:1;color:#56745c}
+.room-shelf-summary strong{font:normal 2rem Georgia,serif;line-height:1;color:#173f2b}
+.room-shelf-summary small{font-size:.65rem;text-transform:uppercase;letter-spacing:.09em;color:#657666;line-height:1.45}
+.room-shelf-library{margin-top:7px}
+.room-shelf-library-top{display:flex;align-items:end;justify-content:space-between;gap:10px;margin-bottom:18px}
+.room-shelf-library-top .eyebrow{font-size:.65rem;color:#5a795f;letter-spacing:.16em;margin:0 0 6px}
+.room-shelf-library-top h2{font:normal clamp(1.8rem,3vw,2.6rem)/1.12 Georgia,serif;color:#193e2a;margin:0}
+.room-shelf-library-top>span{font-size:.8rem;color:#607765;white-space:nowrap}
+.room-shelf-redesign .room-shelf-tabs{display:flex;gap:6px;margin:0 0 19px;flex-wrap:wrap;border-bottom:1px solid #d9e2d4;padding-bottom:13px}
+.room-shelf-redesign .room-shelf-tabs button{border:0;border-radius:9px;background:transparent;color:#506b57;padding:9px 14px;min-height:40px;font-size:.8rem;cursor:pointer}
+.room-shelf-redesign .room-shelf-tabs button:hover{background:#e3ece1}
+.room-shelf-redesign .room-shelf-tabs button.selected{background:#264d38;color:#fff}
+.room-shelf-redesign .room-shelf-tabs button span{font-size:.7rem;margin-left:7px}
+.room-shelf-toolbar{display:flex;align-items:end;gap:14px;justify-content:space-between;margin:0 0 25px}
+.room-shelf-redesign .room-shelf-search{flex:1;max-width:550px;margin:0}
+.room-shelf-field-label{display:block;font-size:.75rem;color:#54715b;font-weight:700;margin:0 0 8px}
+.room-shelf-search-input{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid #d0dfcd;border-radius:9px;padding:0 14px}
+.room-shelf-search-input>span{font-size:1.4rem;color:#5b7c62}
+.room-shelf-redesign .room-shelf-search input{margin:0;border:0;padding:12px 0;min-height:44px;background:transparent;box-shadow:none;width:100%}
+.room-shelf-redesign .room-shelf-search input:focus{outline:0}
+.room-shelf-search-input:focus-within{outline:2px solid #8fac91;outline-offset:2px}
+.room-shelf-sort{min-width:170px}
+.room-shelf-sort select{min-height:45px;min-width:170px;padding:10px;border:1px solid #d1dfcf;border-radius:9px;background:#fff;color:#294b37;font:inherit;font-size:.8rem}
+.room-shelf-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,210px));justify-content:start;gap:19px}
+.room-shelf-book{display:flex;flex-direction:column;min-width:0;background:#fffefa;border:1px solid #dfe7dc;border-radius:13px;overflow:hidden;box-shadow:0 5px 20px #182e1d0c}
+.room-shelf-book-cover{position:relative;display:block;margin:13px 13px 0;aspect-ratio:2/3;border-radius:5px;overflow:hidden;background:#254633;box-shadow:0 8px 17px #182f1f24}
+.room-shelf-book-cover img{display:block;width:100%;height:100%;object-fit:cover}
+.room-shelf-book-cover .room-shelf-cover-fallback{display:grid;place-items:center;width:100%;height:100%;font:1.6rem Georgia,serif;color:#f4f5ed}
+.room-shelf-book-cover.room-shelf-cover-missing::before{content:"Cover unavailable";position:absolute;inset:0;display:grid;place-items:center;text-align:center;font:1rem Georgia,serif;color:white;background:#254633}
+.room-shelf-book-badge{position:absolute;right:8px;top:9px;padding:6px 9px;border-radius:20px;font-size:.65rem;font-weight:700;background:#e6f0dfe8;color:#27543a;max-width:108px;text-align:center}
+.room-shelf-book-badge.is-finished{background:#d6e9d9ee}
+.room-shelf-book-badge.is-paused,.room-shelf-book-badge.is-dnf{background:#fff2deee;color:#754b28}
+.room-shelf-book-details{padding:16px 14px 14px;display:flex;flex-direction:column;flex:1}
+.room-shelf-book-details h3{font:normal 1.15rem/1.24 Georgia,serif;color:#173a29;margin:0 0 7px}
+.room-shelf-book-details h3 a{text-decoration:none;color:inherit}
+.room-shelf-book-details h3 a:hover{text-decoration:underline}
+.room-shelf-book-author{font-size:.8rem;color:#697a6b;margin:0 0 9px}
+.room-shelf-book-format{font-size:.73rem;color:#53735b;margin:0 0 11px}
+.room-shelf-book-rating{font-size:.9rem;color:#597556;margin:0 0 8px}
+.room-shelf-book-rating span{font-size:.67rem;color:#819080}
+.room-shelf-book-progress{font-size:.72rem;color:#697d6c;margin:0 0 12px}
+.room-shelf-book-link{display:flex;justify-content:center;align-items:center;gap:10px;text-decoration:none;background:#e5eddf;color:#28523a;border-radius:9px;padding:11px 10px;font:normal .84rem Georgia,serif;margin-top:auto}
+.room-shelf-book-link:hover{background:#d4e3ce}
+.room-shelf-redesign .room-empty-shelf{padding:40px;background:#fffefa;border:1px dashed #ccdbcb;border-radius:14px}
+@media(max-width:1150px){.room-shelf-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.room-shelf-gallery{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}}
+@media(max-width:700px){.room-shelf-redesign .room-shelf-intro{align-items:flex-start;flex-direction:column;padding:6px 0 20px}.room-shelf-summary{gap:9px;margin-bottom:25px}.room-shelf-summary>div{padding:13px}.room-shelf-summary strong{font-size:1.65rem}.room-shelf-toolbar{align-items:stretch;flex-direction:column}.room-shelf-redesign .room-shelf-search,.room-shelf-sort,.room-shelf-sort select{width:100%;max-width:none}.room-shelf-gallery{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.room-shelf-book-cover{margin:10px 10px 0}.room-shelf-book-details{padding:12px 10px}.room-shelf-book-details h3{font-size:1rem}}
+@media(max-width:375px){.room-shelf-gallery{grid-template-columns:1fr 1fr;gap:8px}.room-shelf-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.room-shelf-summary>div{grid-template-columns:22px auto;gap:5px;padding:10px}.room-shelf-summary-icon{font-size:1.1rem}.room-shelf-summary small{font-size:.56rem}}
