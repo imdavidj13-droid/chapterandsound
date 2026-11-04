@@ -4,7 +4,7 @@ type PublicBook={id:string;title:string;author:string|null;authorId?:string|null
 type PublicEdition={id:string;format:string;isbn13?:string|null;publisher?:string|null;coverUrl?:string|null};
 type BookResponse={book:PublicBook;editions:PublicEdition[]};
 type PersonResponse={person:{id:string;name:string};works:{id:string;title:string}[]};
-type SearchBook={id:string;title:string};
+type SearchBook={id:string;title:string;author?:string|null};
 type SearchPerson={id:string;name:string};
 type Check={name:string;status:'passed'|'failed'|'warning';detail:string;href?:string};
 
@@ -46,6 +46,11 @@ export function CataloguePublicationAudit({workId,status}:{workId:string;status:
      const list=await getJson<{items:SearchBook[]}>(searchUrl);
      add('Public book discovery',list.items.some(x=>x.id===workId)?'passed':'failed',
       list.items.some(x=>x.id===workId)?'Book appears in visitor search results.':'Published book is missing from the visitor book listing.','/books');
+     const normalise=(v:string)=>v.trim().normalize('NFKC').toLocaleLowerCase('en-GB').replace(/\s+/g,' ');
+     const duplicates=list.items.filter(x=>x.id!==workId&&normalise(x.title)===normalise(book!.book.title)
+      &&normalise(x.author||'')===normalise(book!.book.author||''));
+     if(duplicates.length)add('Possible public duplicate','warning',duplicates.length+' other public record(s) share this title and author. Review their identities; no records were merged.','/books');
+     else add('Possible public duplicate','passed','No second public record with the same title and author was returned by this search.');
     }catch(e){add('Public book discovery','failed',e instanceof Error?e.message:'Search unavailable');}
     if(book.book.authorId){
      const personUrl='/api/person/'+encodeURIComponent(book.book.authorId);
