@@ -69,23 +69,6 @@ export function ThemeShell({theme,onThemeChange,member,children,isHome,path,erro
    </div>
   </div></div>;
 }
-export function RoomHome({member,books,reviews,presentation}:{member:MemberIdentity|null;books:BookPreview[];reviews:ReviewPreview[];presentation?:{heading:string;intro:string}}){
- return <div className="room-dashboard">
- <section className="room-welcome"><p className="eyebrow">The Reading Room / {member?'Your home':'Welcome'}</p><h1>{member?`Welcome to your reading world, ${member.displayName}.`:(presentation?.heading||'Welcome to the Reading Room.')}</h1><p>{presentation?.intro||'Honest reviews, books you read and listen to, and the stories that stay with you.'}</p><div className="room-format-strip"><span>▤ Print</span><span>▯ Ebooks</span><span>◉ Audiobooks</span></div></section>
- <div className="room-home-columns">
-  <section className="room-home-panel room-latest">
-   <p className="eyebrow">Latest community review</p>
-   {reviews.length?<><h2><a href={'/review/'+encodeURIComponent(reviews[0]!.id)}>{reviews[0]!.spoilers?'Review contains spoilers':reviews[0]!.title||reviews[0]!.bookTitle||'A reader’s thoughts'}</a></h2><p>{reviews[0]!.authorName||'A community reader'}</p><p>{reviews[0]!.spoilers?'Open this review to choose whether to reveal spoilers.':(reviews[0]!.body?.slice(0,210)||'A published review is available.')}</p><a className="room-inline-cta" href={'/review/'+encodeURIComponent(reviews[0]!.id)}>Read full review →</a></>:<><h2>The first review is still to come.</h2><p>Only published reviews will appear here.</p><a className="room-inline-cta" href="/reviews">Explore reviews →</a></>}
-  </section>
-  <section className="room-home-panel"><p className="eyebrow">Your next chapter</p><h2>{member?'Keep your reading moving':'A bookshelf of your own'}</h2><p>{member?'Track your book progress, save private notes and choose when to share.':'Create a reading home that works for print, ebooks and audio.'}</p><a className="room-primary-link" href={member?'/shelf':'/signup'}>{member?'Open my bookshelf':'Join the Reading Room'} →</a><a className="room-inline-cta" href="/add-book">Add a book →</a></section>
-  <section className="room-home-panel room-home-summary"><p className="eyebrow">My Reading Year</p><h2>Every book counts.</h2><p>Explore your own reading history, formats and milestones. Figures come from saved reading records.</p><a className="room-primary-link" href={member?'/reading-year':'/signin'}>{member?'View my year':'Sign in to see your year'} →</a></section>
- </div>
- <section className="room-recent-books"><div className="room-section-heading"><div><p className="eyebrow">On the bookshelf</p><h2>Stories to discover</h2></div><a href="/books">Explore books →</a></div>
- {books.length?<div className="room-book-strip">{books.slice(0,6).map(book=><a href={'/book/'+encodeURIComponent(book.id)} key={book.id} className="room-book"><div className="room-book-blank">{book.coverUrl?<img src={book.coverUrl} alt={'Cover of '+book.title}/>:<span>Chapter<br/>& Sound</span>}</div><h3>{book.title}</h3><p>{book.author||'Author to be confirmed'}</p></a>)}</div>:<div className="room-empty-shelf"><h3>Books will appear as the catalogue is verified.</h3><p>No invented book covers, reading statistics or member reviews are used in your live Reading Room.</p><a href="/books">Browse the book collection →</a></div>}
- </section>
- <section className="room-community-tiles"><a href="/discussions"><strong>Conversations</strong><span>Talk about the stories you love →</span></a><a href="/clubs"><strong>Book clubs</strong><span>Read together at your own pace →</span></a><a href="/challenges"><strong>Reading challenges</strong><span>Try something new →</span></a></section>
- </div>;
-}
 export function RoomShelf({member}:{member:MemberIdentity}){
  type ShelfBook={id:string;workId:string;bookTitle:string;author?:string|null;coverUrl?:string|null;status:string;format:string|null;progressValue:number|null;progressUnit:string|null;privateRating?:number|null;startedAt?:string|null;finishedAt?:string|null};
  const [items,setItems]=useState<ShelfBook[]>([]);
