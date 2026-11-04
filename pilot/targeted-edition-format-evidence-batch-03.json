@@ -37,6 +37,33 @@
       "feature": null,
       "source": "abebooks_exact_isbn",
       "sourceUrl": "https://www.abebooks.co.uk/9780552158091/Crime-Trade-Kernick-Simon-0552158097/plp"
+    },
+    {
+      "title": "Relentless",
+      "isbn13": "9781476706597",
+      "editionSourceKey": "/books/OL29659752M",
+      "format": "ebook",
+      "feature": null,
+      "source": "simon_and_schuster_official_product",
+      "sourceUrl": "https://www.simonandschuster.com/books/Relentless/Simon-Kernick/9781476706597"
+    },
+    {
+      "title": "Relentless",
+      "isbn13": "9781476711331",
+      "editionSourceKey": "/books/OL29676864M",
+      "format": "paperback",
+      "feature": null,
+      "source": "simon_and_schuster_official_product",
+      "sourceUrl": "https://www.simonandschuster.com/books/Relentless/Simon-Kernick/9781476711331"
+    },
+    {
+      "title": "Ultimatum",
+      "isbn13": "9781476706269",
+      "editionSourceKey": "/books/OL36792271M",
+      "format": "ebook",
+      "feature": null,
+      "source": "simon_and_schuster_official_product",
+      "sourceUrl": "https://www.simonandschuster.com/books/Ultimatum/Simon-Kernick/9781476706269"
     }
   ],
   "notes": [
