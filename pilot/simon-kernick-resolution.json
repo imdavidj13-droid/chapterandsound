@@ -1,0 +1,111 @@
+{
+  "authorKey": "/authors/OL1516279A",
+  "sourceSnapshot": "2026-10-31",
+  "rules": "provisional mappings based on one author identity, matching title and source report; require validation before any database write",
+  "books": [
+    {
+      "title": "Relentless",
+      "canonicalWorkKey": "/works/OL6032620W",
+      "aliasWorkKeys": [
+        "/works/OL16047496W",
+        "/works/OL21028427W",
+        "/works/OL26300433W",
+        "/works/OL31955411W"
+      ],
+      "status": "provisional",
+      "verificationRequired": true
+    },
+    {
+      "title": "Siege",
+      "canonicalWorkKey": "/works/OL19359346W",
+      "aliasWorkKeys": [
+        "/works/OL21851509W",
+        "/works/OL26305605W",
+        "/works/OL31920511W"
+      ],
+      "status": "provisional",
+      "verificationRequired": true
+    },
+    {
+      "title": "The Crime Trade",
+      "canonicalWorkKey": "/works/OL6032624W",
+      "aliasWorkKeys": [
+        "/works/OL15165101W",
+        "/works/OL20872034W"
+      ],
+      "status": "provisional",
+      "verificationRequired": true
+    },
+    {
+      "title": "A Good Day to Die",
+      "canonicalWorkKey": "/works/OL6032625W",
+      "aliasWorkKeys": [
+        "/works/OL15836671W"
+      ],
+      "status": "provisional",
+      "verificationRequired": true
+    },
+    {
+      "title": "The Payback",
+      "canonicalWorkKey": "/works/OL19359345W",
+      "aliasWorkKeys": [
+        "/works/OL19359344W"
+      ],
+      "status": "provisional",
+      "verificationRequired": true
+    },
+    {
+      "title": "The Murder Exchange",
+      "canonicalWorkKey": "/works/OL6032622W",
+      "aliasWorkKeys": [
+        "/works/OL20942680W",
+        "/works/OL24754773W",
+        "/works/OL33761986W",
+        "/works/OL43236769W"
+      ],
+      "status": "provisional",
+      "verificationRequired": true
+    },
+    {
+      "title": "Severed",
+      "canonicalWorkKey": "/works/OL6032621W",
+      "aliasWorkKeys": [
+        "/works/OL17576421W",
+        "/works/OL21028425W",
+        "/works/OL25124259W",
+        "/works/OL29371150W"
+      ],
+      "status": "provisional",
+      "verificationRequired": true
+    },
+    {
+      "title": "Ultimatum",
+      "canonicalWorkKey": "/works/OL20354953W",
+      "aliasWorkKeys": [
+        "/works/OL24305095W",
+        "/works/OL27104130W"
+      ],
+      "status": "provisional",
+      "verificationRequired": true
+    },
+    {
+      "title": "Stay Alive",
+      "canonicalWorkKey": "/works/OL20880489W",
+      "aliasWorkKeys": [
+        "/works/OL19351617W"
+      ],
+      "status": "provisional",
+      "verificationRequired": true
+    },
+    {
+      "title": "The Final Minute",
+      "canonicalWorkKey": "/works/OL20286941W",
+      "aliasWorkKeys": [
+        "/works/OL31220655W",
+        "/works/OL33842039W"
+      ],
+      "status": "provisional",
+      "verificationRequired": true
+    }
+  ]
+}
