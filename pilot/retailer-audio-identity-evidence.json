@@ -1,0 +1,135 @@
+{
+  "mode": "targeted_retailer_audiobook_identity_evidence",
+  "checkedOn": "2026-11-04",
+  "notes": [
+    "No unlicensed descriptions, art or audio copied.",
+    "Some providers do not provide ISBN; stable provider recording IDs are held as source-specific identifiers.",
+    "Severed runtime differs by one minute across retailers and must remain disclosed.",
+    "All records remain review-only; no automatic publication or cloud database writes."
+  ],
+  "records": [
+    {
+      "title": "Relentless",
+      "author": "Simon Kernick",
+      "isbn13": "9781407426464",
+      "provider": "storytel",
+      "providerRecordingId": "isbn13:9781407426464",
+      "narratorNames": [
+        "Paul Thornley"
+      ],
+      "durationMinutes": 578,
+      "publisher": "W. F. Howes Ltd",
+      "releaseDate": "2008-05-01",
+      "sources": [
+        {
+          "url": "https://www.storytel.com/in/books/relentless-55898",
+          "durationMinutes": 578
+        }
+      ],
+      "rightsStatus": "factual_metadata_only"
+    },
+    {
+      "title": "The Crime Trade",
+      "author": "Simon Kernick",
+      "isbn13": null,
+      "provider": "google_play_audiobooks",
+      "providerRecordingId": "AQAAAID-mV8ZsM",
+      "narratorNames": [
+        "Dave John"
+      ],
+      "durationMinutes": 730,
+      "publisher": "W F Howes",
+      "releaseDate": null,
+      "sources": [
+        {
+          "url": "https://play.google.com/store/audiobooks/details/Simon_Kernick_The_Crime_Trade?id=AQAAAID-mV8ZsM",
+          "durationMinutes": 730
+        },
+        {
+          "url": "https://www.bookbeat.com/uk/book/the-crime-trade-1411254",
+          "durationMinutes": 730
+        }
+      ],
+      "rightsStatus": "factual_metadata_only"
+    },
+    {
+      "title": "Severed",
+      "author": "Simon Kernick",
+      "isbn13": null,
+      "provider": "apple_books",
+      "providerRecordingId": "1643814122",
+      "narratorNames": [
+        "Paul Panting"
+      ],
+      "durationMinutes": 540,
+      "publisher": "W. F. Howes Ltd",
+      "releaseDate": "2008-08-01",
+      "sources": [
+        {
+          "url": "https://books.apple.com/gb/audiobook/severed/id1643814122",
+          "durationMinutes": 540
+        },
+        {
+          "url": "https://www.bookbeat.com/uk/book/severed-1410375",
+          "durationMinutes": 540
+        },
+        {
+          "url": "https://www.audiobooks.com/audiobook/severed/295841",
+          "durationMinutes": 541
+        }
+      ],
+      "rightsStatus": "factual_metadata_only"
+    },
+    {
+      "title": "A Good Day to Die",
+      "author": "Simon Kernick",
+      "isbn13": null,
+      "provider": "apple_books",
+      "providerRecordingId": "1643924380",
+      "narratorNames": [
+        "Dave John"
+      ],
+      "durationMinutes": 673,
+      "publisher": "W. F. Howes Ltd",
+      "releaseDate": "2007-05-01",
+      "sources": [
+        {
+          "url": "https://books.apple.com/ie/audiobook/a-good-day-to-die-dennis-milne/id1643924380",
+          "durationMinutes": 673
+        },
+        {
+          "url": "https://www.audiobooks.com/audiobook/good-day-to-die/335850",
+          "durationMinutes": 673
+        }
+      ],
+      "rightsStatus": "factual_metadata_only"
+    },
+    {
+      "title": "The Murder Exchange",
+      "author": "Simon Kernick",
+      "isbn13": null,
+      "provider": "audible",
+      "providerRecordingId": "B076MCBHNG",
+      "narratorNames": [
+        "Dave John"
+      ],
+      "durationMinutes": 758,
+      "publisher": "W. F. Howes Ltd",
+      "releaseDate": "2017-11-09",
+      "sources": [
+        {
+          "url": "https://www.audible.co.uk/search?node=19378390031&page=25",
+          "durationMinutes": 758
+        },
+        {
+          "url": "https://www.goodreads.com/work/editions/1634749-the-murder-exchange",
+          "durationMinutes": null
+        }
+      ],
+      "rightsStatus": "factual_metadata_only",
+      "notes": [
+        "Audible provider ID cross-referenced on Goodreads edition listing; verify direct provider item page before import."
+      ]
+    }
+  ]
+}
