@@ -16,7 +16,7 @@ export type WorkForReview={
  workSourceKey?:string;sourceKey?:string;
  description?:string;subjects?:string[];originalLanguage?:string;
  firstPublicationDate?:string;publicationDate?:string;
- editions?:EditionForReview[];
+ editions?:EditionForReview[];editionCountReported?:number;
  // Older single-edition manifests. They must be enriched before import.
  isbn13?:string;isbn10?:string;format?:string;publisher?:string;language?:string;
 };
@@ -42,6 +42,8 @@ export function assessImportQuality(input:WorkForReview):ImportQuality{
  if(!has(input.originalLanguage))missing.push('work.originalLanguage');
  if(!has(input.firstPublicationDate)&&!has(input.publicationDate))missing.push('work.firstPublicationDate');
  if(!actual.length)missing.push('work.editions (edition-level records required)');
+ if(typeof input.editionCountReported==='number'&&input.editionCountReported>actual.length)
+  missing.push('work.editionCoverage ('+actual.length+'/'+input.editionCountReported+' loaded)');
  let verifiedEditionCount=0;
  const formats=new Set<string>();
  editions.forEach((edition,index)=>{
