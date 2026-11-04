@@ -16,6 +16,7 @@ export async function previewCatalogueImport(db:Database,candidates:unknown):Pro
  const summary:Record<Decision,number>={create_draft:0,needs_enrichment:0,existing_edition:0,review_match:0,invalid:0,duplicate_in_batch:0};
  const rows:PreviewRow[]=[];
  const seen=new Set<string>();
+ const seenIsbns=new Set<string>();
  for(let index=0;index<candidates.length;index++){
   const candidate=candidates[index] as ImportCandidate|null;
   const raw:ImportCandidate=(candidate&&typeof candidate==='object'&&!Array.isArray(candidate))?candidate:{};
@@ -34,12 +35,23 @@ export async function previewCatalogueImport(db:Database,candidates:unknown):Pro
   if(publicationDate&&!/^\d{4}(?:-(?:0[1-9]|1[0-2])(?:-(?:0[1-9]|[12]\d|3[01]))?)?$/.test(publicationDate)){
    add('invalid','Publication date must be YYYY, YYYY-MM or YYYY-MM-DD.');continue
   }
-  const sourceId=norm(raw.sourceId,100),sourceKey=norm(raw.sourceKey,200);
-  const signature=isbn13?'isbn13:'+isbn13:isbn10?'isbn10:'+isbn10:sourceId&&sourceKey?'source:'+sourceId+':'+sourceKey:'work:'+normalizedTitle(title)+'|'+normalizedTitle(author)+'|'+format;
-  if(seen.has(signature)){add('duplicate_in_batch','Another candidate in this batch has this identifier or title/author/format.');continue}
-  seen.add(signature);
-  if(isbn13||isbn10){
-   const values=[isbn13,isbn10].filter((value):value is string=>!!value);
+  const sourceId=norm(raw.sourceId,100),sourceKey=norm(raw.workSourceKey||raw.sourceKey,200);
+  const isbnValues=[isbn13,isbn10,...(raw.editions||[]).flatMap(e=>[e.isbn13||null,e.isbn10||null])]
+   .filter((value):value is string=>!!value).map(normalizeIsbn);
+  if(isbnValues.some(value=>(value.length===13&&!validIsbn13(value))||(value.length===10&&!validIsbn10(value))||![10,13].includes(value.length))){
+   add('invalid','At least one edition has an invalid ISBN checksum.');continue
+  }
+  if((raw.editions||[]).some(e=>!!e.format&&!allowedFormats.has(e.format.toLowerCase()))){
+   add('invalid','An edition has an unsupported format.');continue
+  }
+  if(raw.editions&&raw.editions.length>500){add('invalid','More than 500 editions in one work. Split offline processing into validated batches.');continue}
+  const values=[...new Set(isbnValues)];
+  const signature=sourceId&&sourceKey?'source:'+sourceId+':'+sourceKey:'work:'+normalizedTitle(title)+'|'+normalizedTitle(author);
+  if(seen.has(signature)||values.some(v=>seenIsbns.has(v))){
+   add('duplicate_in_batch','Another candidate in this batch uses the same work or edition identifier.');continue
+  }
+  seen.add(signature);values.forEach(v=>seenIsbns.add(v));
+  if(values.length){
    const placeholders=values.map(()=>'?').join(',');
    const {results}=await db.prepare(`SELECT DISTINCT e.id AS editionId,w.id AS workId,w.canonical_title AS title
      FROM entity_identifiers ei JOIN identifier_schemes scheme ON scheme.id=ei.scheme_id
