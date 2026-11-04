@@ -102,3 +102,12 @@ test('incomplete work, unknown format, and audiobook without recording metadata 
   assert.equal(db.prepare('SELECT count(*) AS n FROM works').get()?.n,0);
  }finally{db.close()}
 });
+
+test('pilot refuses metadata-incomplete drafts rather than creating cleanup work',async()=>{
+ const {db,driver}=fixture();
+ try{
+  const incomplete=draft({description:''});
+  await assert.rejects(()=>importCatalogueDrafts(driver,[incomplete],'owner-fixture'),/complete metadata only/);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM works').get()?.n,0);
+ }finally{db.close()}
+});
