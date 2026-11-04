@@ -32,7 +32,7 @@ Owner-only endpoint:
 - `GET /api/catalogue-admin/import/discover?q=<search>`: one manually initiated Open Library search, maximum 10 results, with a fixed external host. It does not store the response. Because search aggregates editions, it does not choose an arbitrary ISBN from multiple editions.
 - `POST /api/catalogue-admin/import/preview`: accepts 1–100 candidates, maximum 300 KB, reads existing canonical edition ISBNs, previously seen source keys and title/author pairs, and produces a per-row decision report.
 
-Accessible in **Administration → Book Catalogue → All Books → Import Centre**.
+Accessible in **Administration → Book Catalogue → Import Centre**.
 
 ### Candidate manifest
 
@@ -93,7 +93,7 @@ Use **actual verified Open Library work identifiers** for your chosen pilot set;
 node scripts/prepare-openlibrary-pilot.mjs --works "D:\\catalogue-dumps\\ol_dump_works_latest.txt.gz" --authors "D:\\catalogue-dumps\\ol_dump_authors_latest.txt.gz" --editions "D:\\catalogue-dumps\\ol_dump_editions_latest.txt.gz" --seeds "pilot-work-keys.txt" --out ".private-catalogue-pilot"
 ```
 
-Generated files: `candidates-01.json`, `candidates-02.json`, etc. and `report.json`. Paste these batches into Admin → Book Catalogue → All Books → Import Centre for the dry-run check.
+Generated files: `candidates-01.json`, `candidates-02.json`, etc. and `report.json`. Paste these batches into Admin → Book Catalogue → Import Centre for the dry-run check.
 
 - The script intentionally **does not** automatically use Open Library cover images or text descriptions.
 - Ambiguous/multiple authors are reported for manual review.
