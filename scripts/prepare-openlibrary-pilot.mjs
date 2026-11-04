@@ -52,11 +52,14 @@ const valid13=value=>{
  return (10-sum%10)%10===Number(v[12]);
 };
 async function scan(path,onRecord){
+ console.error('[catalogue] Scanning '+path);
+ const started=Date.now();
  const stream=createReadStream(path).pipe(createGunzip());
  const lines=createInterface({input:stream,crlfDelay:Infinity});
  let seen=0,parsed=0;
  for await(const line of lines){
   seen++;
+  if(seen%1000000===0)console.error('[catalogue] '+path+': '+seen.toLocaleString('en-GB')+' records read ('+Math.round((Date.now()-started)/1000)+'s)');
   const chunks=line.split('\t');
   if(chunks.length<5)continue;
   let record;
@@ -64,6 +67,7 @@ async function scan(path,onRecord){
   await onRecord(chunks[1],record);
   parsed++;
  }
+ console.error('[catalogue] Finished '+path+': '+seen.toLocaleString('en-GB')+' records ('+Math.round((Date.now()-started)/1000)+'s)');
  return {lines:seen,parsed};
 }
 if(opts['--author-name']||opts['--author-key']){
