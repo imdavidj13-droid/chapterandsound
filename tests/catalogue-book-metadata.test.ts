@@ -1,6 +1,7 @@
 import {strict as assert} from 'node:assert';
 import {test} from 'node:test';
 import {catalogueBookMetadataAPI} from '../src/worker/catalogue-book-metadata-api';
+import {validIsbn13,validIsbn10} from '../src/worker/catalogue-manual-api';
 
 function fixture(options:{belongs?:boolean;collision?:boolean}={}){
  let batches=0;
@@ -53,4 +54,18 @@ test('valid ISBN can be saved through the audited batch',async()=>{
  assert.equal(response.status,200);
  assert.equal((await response.json() as {saved:boolean}).saved,true);
  assert.equal(f.batches(),1);
+});
+
+test('publisher ISBN 9781407084350 is valid and uses the canonical ISBN-13 checksum',async()=>{
+ assert.equal(validIsbn13('9781407084350'),true);
+ assert.equal(validIsbn13('978-1-4070-8435-0'),true);
+ assert.equal(validIsbn13('9781407084351'),false);
+ const f=fixture();
+ const response=await call(f.database,{action:'identifier',editionId:'e1',code:'ISBN13',value:'9781407084350'});
+ assert.equal(response.status,200);
+ assert.equal(f.batches(),1);
+});
+test('ISBN-10 and ISBN-13 validators remain distinct',()=>{
+ assert.equal(validIsbn10('0593049780'),true);
+ assert.equal(validIsbn13('0593049780'),false);
 });
