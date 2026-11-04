@@ -1,0 +1,48 @@
+{
+  "mode": "exact_edition_format_evidence",
+  "checkedOn": "2026-11-04",
+  "records": [
+    {
+      "title": "Relentless",
+      "isbn13": "9780593054703",
+      "editionSourceKey": "/books/OL28980796M",
+      "format": "paperback",
+      "feature": null,
+      "source": "abebooks_exact_isbn",
+      "sourceUrl": "https://www.abebooks.co.uk/9780593054703/Relentless-Kernick-Simon-0593054709/plp"
+    },
+    {
+      "title": "Relentless",
+      "isbn13": "9780593054710",
+      "editionSourceKey": "/books/OL7544244M",
+      "format": "hardback",
+      "feature": null,
+      "source": "abebooks_exact_isbn",
+      "sourceUrl": "https://www.abebooks.co.uk/9780593054710/Relentless-Kernick-Simon-0593054717/plp"
+    },
+    {
+      "title": "Siege",
+      "isbn13": "9780099567776",
+      "editionSourceKey": "/books/OL29128009M",
+      "format": "paperback",
+      "feature": null,
+      "source": "world_of_books_exact_isbn",
+      "sourceUrl": "https://www.worldofbooks.com/products/siege-scope-1-book-simon-kernick-9780099567776"
+    },
+    {
+      "title": "The Crime Trade",
+      "isbn13": "9780552158091",
+      "editionSourceKey": "/books/OL28264117M",
+      "format": "paperback",
+      "feature": null,
+      "source": "abebooks_exact_isbn",
+      "sourceUrl": "https://www.abebooks.co.uk/9780552158091/Crime-Trade-Kernick-Simon-0552158097/plp"
+    }
+  ],
+  "notes": [
+    "Factual binding observations from exact ISBN retail pages, cross-checked against matching work/edition identifiers.",
+    "The first two also match the two user-provided ISBNsearch screenshots.",
+    "No images, full descriptions, or marketing text retained.",
+    "No automatic inference for ISBN 9781407095301, as its binding was not explicitly provided."
+  ]
+}
