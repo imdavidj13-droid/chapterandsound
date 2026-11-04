@@ -52,7 +52,12 @@ async function scan(path,onRecord){
 const workScan=await scan(opts['--works'],(key,record)=>{
  if(wanted.has(key)){
   const authorKeys=(record.authors||[]).map(a=>a?.author?.key||a?.key).filter(x=>typeof x==='string');
-  workRecords.set(key,{key,title:normalize(record.title),authorKeys,revision:record.revision||null});
+  workRecords.set(key,{key,title:normalize(record.title),authorKeys,
+   description:normalize(typeof record.description==='string'?record.description:record.description?.value),
+   subjects:(record.subjects||[]).filter(x=>typeof x==='string').map(normalize).filter(Boolean).slice(0,40),
+   originalLanguage:normalize(record.original_language?.key||record.original_language),
+   firstPublicationDate:normalize(record.first_publish_date),
+   revision:record.revision||null});
  }
 });
 const authorIds=new Set([...workRecords.values()].flatMap(w=>w.authorKeys));
@@ -63,6 +68,7 @@ const editionScan=await scan(opts['--editions'],(key,record)=>{
  const refs=(record.works||[]).map(x=>x?.key).filter(x=>wanted.has(x));
  if(!refs.length)return;
  const isbns=(record.isbn_13||[]).map(normalize).filter(valid13);
+ const isbn10s=(record.isbn_10||[]).map(normalize).filter(x=>/^\d{9}[\dXx]$/.test(x));
  const normalizedFormat=normalize(record.physical_format).toLowerCase();
  const format=normalizedFormat.includes('paperback')?'paperback':
   normalizedFormat.includes('hardcover')||normalizedFormat.includes('hardback')?'hardback':
@@ -70,7 +76,11 @@ const editionScan=await scan(opts['--editions'],(key,record)=>{
   normalizedFormat.includes('audio')?'audiobook':'';
  for(const workKey of refs){
   // Candidate identity is edition-specific; never guess an ISBN from a work aggregate.
-  const item={key,format,isbn13:[...new Set(isbns)].length===1?isbns[0]:'',publishDate:normalize(record.publish_date),publisher:normalize(record.publishers?.[0])};
+  const item={sourceKey:key,format,isbn13:[...new Set(isbns)].length===1?isbns[0]:'',
+   isbn10:[...new Set(isbn10s)].length===1?isbn10s[0]:'',
+   publicationDate:normalize(record.publish_date),publisher:normalize(record.publishers?.[0]),
+   language:normalize(record.languages?.[0]?.key?.split('/').pop()),
+   pageCount:Number.isSafeInteger(record.number_of_pages)?record.number_of_pages:null};
   if(!editions.has(workKey))editions.set(workKey,[]);
   editions.get(workKey).push(item);
  }
@@ -82,12 +92,17 @@ for(const key of wanted){
  const names=work.authorKeys.map(k=>authors.get(k)).filter(Boolean);
  if(!names.length){errors.push({key,reason:'Author identity missing in author dump'});continue}
  if(!work.title){errors.push({key,reason:'Work title missing'});continue}
- const all=editions.get(key)||[];
- const likely=all.filter(e=>e.isbn13);
- likely.sort((a,b)=>({paperback:0,hardback:1,ebook:2,audiobook:3}[a.format]??4)-({paperback:0,hardback:1,ebook:2,audiobook:3}[b.format]??4)||a.key.localeCompare(b.key));
- const selected=likely[0];
- if(!selected){errors.push({key,reason:'No verified edition ISBN-13 was found'});continue}
- candidates.push({sourceId:'openlibrary',sourceKey:selected.key,title:work.title,author:names[0],isbn13:selected.isbn13,format:selected.format,workSourceKey:key});
+ const all=(editions.get(key)||[]).sort((a,b)=>a.sourceKey.localeCompare(b.sourceKey));
+ if(!all.length){errors.push({key,reason:'No edition records found for work; retained as unresolved'});continue}
+ // Preserve every edition and all available fields. Never discard editions
+ // merely because the work has multiple formats or publication dates.
+ const selected=all.find(e=>e.isbn13)||all[0];
+ candidates.push({sourceId:'openlibrary',sourceKey:key,workSourceKey:key,title:work.title,author:names[0],
+  authorSourceKeys:work.authorKeys,description:work.description,subjects:work.subjects,
+  originalLanguage:work.originalLanguage,firstPublicationDate:work.firstPublicationDate,
+  isbn13:selected.isbn13,format:selected.format,editions:all});
+ if(all.some(e=>!e.isbn13&&!e.isbn10))errors.push({key,reason:'Some editions lack usable ISBNs; retained for review'});
+ if(all.some(e=>!e.format||!e.publisher||!e.publicationDate||!e.language))errors.push({key,reason:'Some editions have incomplete format, publisher, release date or language; retained for enrichment'});
  if(names.length>1)errors.push({key,reason:'Multiple author contributors require manual review before applying: '+names.join(', ')});
 }
 const files=[];
@@ -100,6 +115,6 @@ const report={generatedAt:new Date().toISOString(),source:'Open Library monthly 
  editionsMatched:[...editions.values()].reduce((sum,value)=>sum+value.length,0),
  candidates:candidates.length,reviewItems:errors.length,files,errors,
  scan:{works:workScan,authors:authorScan,editions:editionScan},
- caveats:['No database writes performed','Only the first validated ISBN-13 edition per seeded work is selected','Authors with multiple creators need manual verification','Covers, synopses, rights and audio metadata are not imported','Output needs a BOOK_DB dry-run preview before any future ingestion']};
+ caveats:['No database writes performed','All edition records for each seeded work are retained, including editions with incomplete metadata','Authors with multiple creators need identity review','Cover processing is deferred','Audiobook narrator and duration may need additional licensed metadata','Output needs a BOOK_DB dry-run preview before any future ingestion']};
 writeFileSync(join(output,'report.json'),JSON.stringify(report,null,2)+'\n');
 console.log(JSON.stringify({output,candidates:candidates.length,reviewItems:errors.length,files},null,2));
