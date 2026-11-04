@@ -8,6 +8,7 @@ import {apiGet,apiWrite} from './api';
 import {PublicBookPage} from './PublicBookPage';
 import {PublicReviewPage} from './PublicReviewPage';
 import {PeopleAndSeries} from './PeopleAndSeries';
+import {ReadingRoomAuthorProfile} from './themes/ReadingRoomAuthorProfile';
 import {CommunityWorkspace} from './CommunityWorkspace';
 import {MemberWorkspace} from './MemberWorkspace';
 import {useEffect,useMemo,useState} from 'react';
@@ -243,6 +244,7 @@ export function App(){
   else if(path.startsWith('/reader/'))body=<PublicReaderPage handle={decodeURIComponent(path.slice(8))}/>;
   else if(path.startsWith('/review/'))body=<PublicReviewPage id={decodeURIComponent(path.slice(8))} verified={Boolean(member?.verified)} theme={theme}/>;
   else if(['/discussions','/recommendations','/clubs','/challenges','/lists'].includes(path)||['/discussion/','/recommendation/','/club/','/challenge/','/list/'].some(p=>path.startsWith(p)))body=<CommunityWorkspace path={path} books={api.books??[]} member={member}/>;
+  else if(theme==='reading-room'&&path.startsWith('/person/'))body=<ReadingRoomAuthorProfile id={decodeURIComponent(path.slice('/person/'.length))} memberVerified={Boolean(member?.verified)}/>;
   else if(['/authors','/narrators','/series'].includes(path)||path.startsWith('/person/')||path.startsWith('/series/'))body=<PeopleAndSeries path={path}/>;
   else if(second.includes(path)||path==='/community')body=<Discovery path={path} data={api}/>;
   else if(path==='/confirm-email'||path==='/api/auth/verify-email')body=<ConfirmEmailPage/>;
