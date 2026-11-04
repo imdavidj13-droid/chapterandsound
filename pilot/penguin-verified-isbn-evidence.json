@@ -1,0 +1,155 @@
+{
+  "mode": "source_attributed_publisher_facts",
+  "scope": "Simon Kernick pilot ISBNs only",
+  "notes": [
+    "Factual bibliographic observations from publisher product pages; no publisher descriptions, cover binaries or marketing copy retained.",
+    "ISBN-level source identity required before using these observations.",
+    "Any conflicts or absence from the local pilot remain unresolved; not import authorization."
+  ],
+  "records": [
+    {
+      "title": "Relentless",
+      "author": "Simon Kernick",
+      "isbn13": "9780552164337",
+      "format": "paperback",
+      "imprint": "Corgi",
+      "publicationDate": "2011-05-12",
+      "pageCount": 464,
+      "sourceUrl": "https://www.penguin.co.uk/books/349671/relentless-by-kernick-simon/9780552164337",
+      "source": "publisher_product_page",
+      "checkedOn": "2026-11-04"
+    },
+    {
+      "title": "The Crime Trade",
+      "author": "Simon Kernick",
+      "isbn13": "9780552164290",
+      "format": "paperback",
+      "imprint": "Corgi",
+      "publicationDate": "2011-05-12",
+      "pageCount": 448,
+      "sourceUrl": "https://www.penguin.co.uk/books/329753/the-crime-trade-by-kernick-simon/9780552164290",
+      "source": "publisher_product_page",
+      "checkedOn": "2026-11-04"
+    },
+    {
+      "title": "The Murder Exchange",
+      "author": "Simon Kernick",
+      "isbn13": "9780552164320",
+      "format": "paperback",
+      "imprint": "Corgi",
+      "publicationDate": "2011-05-12",
+      "pageCount": 432,
+      "sourceUrl": "https://www.penguin.co.uk/books/329703/the-murder-exchange-by-kernick-simon/9780552164320",
+      "source": "publisher_product_page",
+      "checkedOn": "2026-11-04"
+    },
+    {
+      "title": "Ultimatum",
+      "author": "Simon Kernick",
+      "isbn13": "9780099579069",
+      "format": "paperback",
+      "imprint": "Arrow",
+      "publicationDate": "2013-06-06",
+      "pageCount": 448,
+      "sourceUrl": "https://www.penguin.co.uk/books/415954/ultimatum-by-kernick-simon/9780099579069",
+      "source": "publisher_product_page",
+      "checkedOn": "2026-11-04"
+    },
+    {
+      "title": "Siege",
+      "author": "Simon Kernick",
+      "isbn13": "9780099567783",
+      "format": "paperback",
+      "imprint": "Arrow",
+      "publicationDate": "2012-11-22",
+      "pageCount": 512,
+      "sourceUrl": "https://www.penguin.co.uk/books/431396/siege-by-kernick-simon/9780099567783",
+      "source": "publisher_product_page",
+      "checkedOn": "2026-11-04"
+    },
+    {
+      "title": "The Final Minute",
+      "author": "Simon Kernick",
+      "isbn13": "9780099579137",
+      "format": "paperback",
+      "imprint": "Arrow",
+      "publicationDate": "2015-05-21",
+      "pageCount": 416,
+      "sourceUrl": "https://www.penguin.co.uk/books/415956/the-final-minute-by-kernick-simon/9780099579137",
+      "source": "publisher_product_page",
+      "checkedOn": "2026-11-04"
+    },
+    {
+      "title": "A Good Day to Die",
+      "author": "Simon Kernick",
+      "isbn13": "9780552164313",
+      "format": "paperback",
+      "imprint": "Corgi",
+      "publicationDate": "2011-05-12",
+      "pageCount": 448,
+      "sourceUrl": "https://www.penguin.co.uk/books/329758/a-good-day-to-die-by-kernick-simon/9780552164313",
+      "source": "publisher_product_page",
+      "checkedOn": "2026-11-04"
+    },
+    {
+      "title": "A Good Day to Die",
+      "author": "Simon Kernick",
+      "isbn13": "9781407084459",
+      "format": "ebook",
+      "imprint": "Transworld Digital",
+      "publicationDate": "2010-05-05",
+      "pageCount": 448,
+      "sourceUrl": "https://www.penguin.co.uk/books/329758/a-good-day-to-die-by-kernick-simon/9781407084459",
+      "source": "publisher_product_page",
+      "checkedOn": "2026-11-04"
+    },
+    {
+      "title": "The Payback",
+      "author": "Simon Kernick",
+      "isbn13": "9781409030300",
+      "format": "ebook",
+      "imprint": "Transworld Digital",
+      "publicationDate": "2011-02-17",
+      "pageCount": 464,
+      "sourceUrl": "https://www.penguin.co.uk/books/405967/the-payback-by-simon-kernick/9781409030300",
+      "source": "publisher_product_page",
+      "checkedOn": "2026-11-04"
+    },
+    {
+      "title": "Severed",
+      "author": "Simon Kernick",
+      "isbn13": "9781407095325",
+      "format": "ebook",
+      "imprint": "Transworld Digital",
+      "publicationDate": "2010-07-31",
+      "pageCount": 480,
+      "sourceUrl": "https://www.penguin.co.uk/books/349672/severed-by-kernick-simon/9781407095325",
+      "source": "publisher_product_page",
+      "checkedOn": "2026-11-04"
+    },
+    {
+      "title": "Stay Alive",
+      "author": "Simon Kernick",
+      "isbn13": "9781448136704",
+      "format": "ebook",
+      "imprint": "Cornerstone Digital",
+      "publicationDate": "2014-01-30",
+      "pageCount": 432,
+      "sourceUrl": "https://www.penguin.co.uk/books/415955/stay-alive-by-kernick-simon/9781448136704",
+      "source": "publisher_product_page",
+      "checkedOn": "2026-11-04"
+    },
+    {
+      "title": "The Final Minute",
+      "author": "Simon Kernick",
+      "isbn13": "9781448136711",
+      "format": "ebook",
+      "imprint": "Cornerstone Digital",
+      "publicationDate": "2015-01-15",
+      "pageCount": 416,
+      "sourceUrl": "https://www.penguin.co.uk/books/415956/the-final-minute-by-kernick-simon/9781448136711",
+      "source": "publisher_product_page",
+      "checkedOn": "2026-11-04"
+    }
+  ]
+}
