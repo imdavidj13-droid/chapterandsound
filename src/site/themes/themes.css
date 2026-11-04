@@ -407,3 +407,5 @@
 @media(max-width:900px){.room-author-main-layout{grid-template-columns:1fr}.room-author-aside{grid-template-columns:repeat(2,minmax(0,1fr))}.room-author-banner{grid-template-columns:155px minmax(0,1fr);padding:26px;gap:25px}.room-author-avatar{height:155px;width:155px;font-size:2.4rem}}
 @media(max-width:620px){.room-author-banner{grid-template-columns:1fr;justify-items:start;gap:19px;padding:22px}.room-author-avatar{height:125px;width:125px;font-size:2rem}.room-author-aside{grid-template-columns:1fr}.room-author-tabs button{padding:12px}.room-author-books{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.room-author-book-art{margin:10px 10px 0}.room-author-book-info{padding:13px 11px}.room-author-book-info h3{font-size:1.02rem}.room-author-book-summary{-webkit-line-clamp:3}.room-author-section-title{align-items:start;flex-direction:column}}
 @media(max-width:380px){.room-author-books{grid-template-columns:1fr}.room-author-book-art{max-width:210px;width:calc(100% - 20px)}}
+
+@media(min-width:1450px){.room-author-books{grid-template-columns:repeat(4,minmax(0,1fr))}}
