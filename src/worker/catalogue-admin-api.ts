@@ -107,6 +107,56 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
    return json({source:'openlibrary',lookupOnly:true,candidates,notice:'Preview-only lookup. Bulk imports must use approved dumps; ISBNs from multi-edition search results require edition verification.'});
   }catch(error){console.error('Open Library manual lookup failed',error);return fail('Open Library could not be reached. Retry the lookup later.',502)}
  }
+ if(path==='import/enrich'&&request.method==='GET'){
+  const workKey=str(url.searchParams.get('workKey'),80);
+  if(!/^\/works\/OL[0-9]+W$/.test(workKey))return fail('A valid Open Library work key is required');
+  // Explicit owner-initiated lookup, no batch loop and no persistence.
+  // Full 50+ edition works must use source dumps rather than paginating the API.
+  const userAgent='ChapterAndSoundCatalogue/0.1 ('+(env.ADMIN_EMAIL||'catalogue-admin')+')';
+  const getJson=async<T>(pathname:string):Promise<T>=>{
+   const response=await fetch('https://openlibrary.org'+pathname,{
+    headers:{Accept:'application/json','User-Agent':userAgent},
+    signal:AbortSignal.timeout(12000)
+   });
+   if(!response.ok)throw Error('Open Library returned '+response.status);
+   return response.json() as Promise<T>;
+  };
+  type OLWork={title?:string;description?:string|{value?:string};subjects?:string[];
+   first_publish_date?:string;original_language?:{key?:string};authors?:{author?:{key?:string};key?:string}[]};
+  type OLEdition={key?:string;isbn_13?:string[];isbn_10?:string[];physical_format?:string;
+   ebook_access?:string;publish_date?:string;publishers?:string[];
+   languages?:{key?:string}[];number_of_pages?:number};
+  try{
+   const work=await getJson<OLWork>(workKey+'.json');
+   const list=await getJson<{size?:number;entries?:OLEdition[]}>(workKey+'/editions.json?limit=50');
+   const entries=(list.entries||[]).slice(0,50);
+   const editions=entries.filter(e=>/^\/books\/OL\d+M$/.test(e.key||'')).map(e=>{
+    const physical=str(e.physical_format,60).toLowerCase();
+    const format=physical.includes('paperback')?'paperback':
+     physical.includes('hardcover')||physical.includes('hardback')?'hardback':
+     physical.includes('ebook')||physical.includes('electronic')?'ebook':
+     physical.includes('audio')?'audiobook':'';
+    const isbns=(e.isbn_13||[]).filter(x=>validIsbn13(x));
+    const isbn10s=(e.isbn_10||[]).filter(x=>validIsbn10(x));
+    return {sourceKey:e.key,format,isbn13:isbns.length===1?isbns[0]:'',
+     isbn10:isbn10s.length===1?isbn10s[0]:'',
+     publisher:str(e.publishers?.[0],200),
+     publicationDate:str(e.publish_date,60),
+     language:str(e.languages?.[0]?.key?.split('/').pop(),12),
+     pageCount:Number.isSafeInteger(e.number_of_pages)?e.number_of_pages:null};
+   });
+   const description=typeof work.description==='string'?work.description:work.description?.value;
+   const candidate={sourceId:'openlibrary',sourceKey:workKey,workSourceKey:workKey,
+    title:str(work.title,500),description:str(description,8000),
+    subjects:(work.subjects||[]).filter(x=>typeof x==='string').slice(0,40),
+    authorSourceKeys:(work.authors||[]).map(a=>a.author?.key||a.key).filter((x):x is string=>Boolean(x)),
+    originalLanguage:str(work.original_language?.key?.split('/').pop(),12),
+    firstPublicationDate:str(work.first_publish_date,30),
+    editionCountReported:list.size??editions.length,editions};
+   return json({candidate,readOnly:true,partial:(list.size??editions.length)>editions.length,
+    notice:'Fetched work and up to 50 edition records. Verify contributor names and ambiguous formats; larger works must use the offline dump importer.'});
+  }catch(error){console.error('Open Library work enrichment failed',error);return fail('Could not retrieve work and edition metadata from Open Library.',502)}
+ }
  if(path==='import/preview'&&request.method==='POST'){
   const size=Number(request.headers.get('Content-Length')||0);
   if(size>300000)return fail('Import preview is limited to 300 KB',413);
