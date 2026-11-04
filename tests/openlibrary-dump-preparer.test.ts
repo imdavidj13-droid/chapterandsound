@@ -75,6 +75,27 @@ test('offline Open Library dump preparer creates reviewed manifests without netw
    [work,'/works/OL999W'].sort());
   assert.equal(review.unresolvedTitles[0].options.find((x:{key:string})=>x.key===work).editionCount,2);
   assert.ok(!review.files.length,'no import-ready manifest should be produced for only ambiguous titles');
+  const resolutionPath=join(dir,'resolution.json'),resolvedOut=join(dir,'resolved-output');
+  writeFileSync(resolutionPath,JSON.stringify({authorKey:author,books:[{
+   title:'Fixture Book',canonicalWorkKey:work,aliasWorkKeys:['/works/OL999W'],
+   status:'provisional',verificationRequired:true
+  }]}));
+  mkdirSync(resolvedOut);
+  execFileSync(process.execPath,[script,
+   '--works',ambiguousWorks,'--authors',authors,'--editions',editions,
+   '--author-key',author,'--titles-file',titles,'--max','10',
+   '--resolution-file',resolutionPath,'--out',resolvedOut
+  ],{timeout:15000,stdio:'pipe'});
+  const resolved=JSON.parse(readFileSync(join(resolvedOut,'candidates-01.json'),'utf8')).candidates[0];
+  assert.deepEqual(resolved.sourceWorkKeys,[work,'/works/OL999W']);
+  assert.equal(resolved.identityStatus,'provisional_review_required');
+  assert.equal(resolved.editions.length,2);
+  const resolvedReport=JSON.parse(readFileSync(join(resolvedOut,'report.json'),'utf8'));
+  assert.equal(resolvedReport.candidates,1);
+  assert.equal(resolvedReport.needsIdentityReview,1);
+  assert.equal(resolvedReport.resolutionUsed,true);
+  assert.equal(resolvedReport.sourceWorkAliases,1);
+
 
  }finally{rmSync(dir,{recursive:true,force:true})}
 });
