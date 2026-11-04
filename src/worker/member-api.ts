@@ -139,8 +139,34 @@ export async function memberAPI(request:Request,env:MemberEnv):Promise<Response>
           x.progress_value AS progressValue,x.private_note AS privateNote,x.private_rating AS privateRating,
           w.title AS bookTitle,e.format
           FROM reading_experiences x JOIN works w ON w.id=x.work_id
-          LEFT JOIN editions e ON e.id=x.edition_id WHERE x.member_id=? ORDER BY x.updated_at DESC LIMIT 300`).bind(userId).all();
-        return reply({items:results});
+          LEFT JOIN editions e ON e.id=x.edition_id WHERE x.member_id=? ORDER BY x.updated_at DESC LIMIT 300`).bind(userId).all<{
+          id:string;workId:string;editionId:string|null;bookTitle:string;format:string|null;
+        }>();
+        // Bookshelf records are owned by DB, but published cover artwork and
+        // author names are owned by BOOK_DB. Enrich read-only by the same work ID.
+        // Never copy stale image URLs into member records.
+        if(!env.BOOK_DB||results.length===0)return reply({items:results});
+        const workIds=[...new Set(results.map(item=>item.workId))];
+        const placeholders=workIds.map(()=>'?').join(',');
+        const {results:artwork}=await env.BOOK_DB.prepare(`SELECT w.id AS workId,
+         COALESCE(
+          (SELECT '/api/catalogue-media/'||l.asset_id FROM media_links l WHERE l.entity_kind='work'
+           AND l.entity_id=w.id AND l.role='representative_cover' AND l.is_primary=1 LIMIT 1),
+          (SELECT '/api/catalogue-media/'||l.asset_id FROM editions ed
+           JOIN media_links l ON l.entity_kind='edition' AND l.entity_id=ed.id
+           WHERE ed.work_id=w.id AND l.role='front_cover' AND l.is_primary=1
+           ORDER BY ed.created_at,ed.id LIMIT 1)
+         ) AS coverUrl,
+         (SELECT p.preferred_name FROM contributions c JOIN people p ON p.id=c.person_id
+          WHERE c.work_id=w.id AND c.role_code IN ('author','coauthor')
+          ORDER BY c.credit_order,c.id LIMIT 1) AS author
+         FROM works w WHERE w.id IN (${placeholders}) AND w.status IN ('published','verified')`)
+         .bind(...workIds).all<{workId:string;coverUrl:string|null;author:string|null}>();
+        const byWork=new Map(artwork.map(row=>[row.workId,row]));
+        return reply({items:results.map(item=>({
+         ...item,coverUrl:byWork.get(item.workId)?.coverUrl??null,
+         author:byWork.get(item.workId)?.author??null
+        }))});
       }
       if(method==='POST'){
         const v=await input(request);
