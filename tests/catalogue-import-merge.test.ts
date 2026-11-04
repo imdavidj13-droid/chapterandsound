@@ -1,13 +1,13 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
-import {mergeCatalogueMetadata} from '../src/worker/catalogue-import-merge';
+import {mergeCatalogueMetadata,type SourceCandidate} from '../src/worker/catalogue-import-merge';
 const original=()=>({
  sourceId:'openlibrary',workSourceKey:'/works/OL1W',sourceKey:'/works/OL1W',
  title:'Mystery Novel',author:'Verified Writer',authorSourceKeys:['/authors/OL1A'],
  editions:[{sourceKey:'/books/OL1M',isbn13:'9780306406157',format:'paperback'}]
 });
 test('independently verified ISBN fills missing fields but preserves original work identity',()=>{
- const primary=original();
+ const primary:SourceCandidate=original();
  const supplementary={sourceId:'licensed-feed',title:'Mystery Novel',author:'Verified Writer',
   description:'A verified description',subjects:['Mystery'],
   editions:[{sourceKey:'external-abc',isbn13:'9780306406157',format:'paperback',
