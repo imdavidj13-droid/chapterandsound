@@ -59,15 +59,19 @@ export async function adminAPI(request:Request,env:AdminEnv):Promise<Response>{
       (SELECT COUNT(*) FROM missing_book_requests WHERE state='pending') AS missingRequests`;
     const legacyCounts=await db.prepare(sql).first<Record<string,number>>();
     // The member DB owns review/member metrics. BOOK_DB owns all catalogue metrics.
-    let canonical:{books:number;drafts:number;published:number;editions:number;contributors:number}|null=null;
-    if(env.BOOK_DB)try{
-     canonical=await env.BOOK_DB.prepare(`SELECT
+    type CatalogueCounts={books:number;drafts:number;published:number;editions:number;contributors:number};
+    const canonical:CatalogueCounts|null=env.BOOK_DB
+     ?await env.BOOK_DB.prepare(`SELECT
       (SELECT COUNT(*) FROM works) AS books,
       (SELECT COUNT(*) FROM works WHERE status='draft') AS drafts,
       (SELECT COUNT(*) FROM works WHERE status IN ('published','verified')) AS published,
       (SELECT COUNT(*) FROM editions) AS editions,
-      (SELECT COUNT(*) FROM people WHERE identity_status NOT IN ('merged','suppressed')) AS contributors`).first<NonNullable<typeof canonical>>();
-    }catch(error){console.error('Canonical admin overview counts unavailable',error);}
+      (SELECT COUNT(*) FROM people WHERE identity_status NOT IN ('merged','suppressed')) AS contributors`)
+       .first<CatalogueCounts>().catch(error=>{
+        console.error('Canonical admin overview counts unavailable',error);
+        return null;
+       })
+     :null;
     const counts={...(legacyCounts||{}),books:canonical?.books??null,bookDrafts:canonical?.drafts??null,
      bookPublished:canonical?.published??null,editions:canonical?.editions??null,contributors:canonical?.contributors??null};
     return respond({counts,catalogueConnected:canonical!==null,environment:{signupMode:env.SIGNUP_MODE==='public'?'public':'owner_only',mailConfigured:Boolean(env.MAIL_API_KEY),origin:env.PUBLIC_ORIGIN}});
