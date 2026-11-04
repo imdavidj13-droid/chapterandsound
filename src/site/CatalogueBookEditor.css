@@ -209,3 +209,11 @@
 .cs-catalogue-diagnostic-grid strong{font-size:22px;color:#17442d}
 @media(max-width:750px){.cs-catalogue-diagnostic-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:460px){.cs-catalogue-diagnostic-grid{grid-template-columns:1fr}.cs-catalogue-diagnostics{padding:14px}}
+
+/* Everyday creation starts with edition format; work classification is optional. */
+.cs-book-work-type-advanced{border:1px solid #d9e5db;background:#f7faf7;border-radius:10px;padding:13px 15px}
+.cs-book-work-type-advanced summary{cursor:pointer;color:#2b5740;font-weight:700;font-size:13px}
+.cs-book-work-type-advanced[open]{display:flex;flex-direction:column;gap:12px}
+.cs-book-work-type-advanced label{display:flex;flex-direction:column;gap:7px;margin-top:10px}
+.cs-book-work-type-advanced select{min-height:48px;padding:10px 12px;border:1px solid #b7cbbb;border-radius:9px;background:#fff;color:#254b35}
+.cs-book-work-type-advanced small{color:#5e7665;line-height:1.5}
