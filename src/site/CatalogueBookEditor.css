@@ -237,3 +237,22 @@
 .cs-admin-pager button{border:1px solid #b9ccbe;color:#28523b;background:white;padding:9px 15px;border-radius:8px;cursor:pointer}
 .cs-admin-pager button:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:650px){.cs-catalogue-record-card{align-items:stretch;flex-direction:column;padding:16px}.cs-catalogue-record-card button{width:100%}.cs-catalogue-list-head label{width:100%}}
+
+/* On-demand public publication integrity checks */
+.cs-publication-audit{margin:22px 0;background:#fff;border:1px solid #d3e1d7;border-radius:14px;padding:23px}
+.cs-publication-audit>header{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.cs-publication-audit h3{font-family:Georgia,serif;font-size:23px;color:#17422e;margin:0 0 8px}
+.cs-publication-audit p{color:#617465;font-size:13px;line-height:1.5;margin:0}
+.cs-publication-audit>header button{background:#20563d;border:1px solid #20563d;border-radius:9px;color:#fff;min-height:45px;padding:11px 18px;cursor:pointer;font-weight:750}
+.cs-publication-audit button:disabled{opacity:.55;cursor:not-allowed}
+.cs-publication-audit>p{margin-top:16px!important}
+.cs-publication-audit-list{display:flex;flex-direction:column;gap:8px;margin:17px 0}
+.cs-publication-audit-item{padding:13px 15px;border-left:4px solid #65816f;background:#f4f8f4;border-radius:0 9px 9px 0;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.cs-publication-audit-item.is-passed{border-color:#397c52}
+.cs-publication-audit-item.is-failed{border-color:#c23e3e;background:#fff3f0}
+.cs-publication-audit-item.is-warning{border-color:#cf963c;background:#fffaf0}
+.cs-publication-audit-item strong{color:#193f2b;font-size:13px}
+.cs-publication-audit-item p{margin:5px 0 0}
+.cs-publication-audit-item a{color:#225d40;white-space:nowrap;font-size:12px;font-weight:750}
+.cs-publication-audit small{color:#637466;line-height:1.55}
+@media(max-width:650px){.cs-publication-audit{padding:15px}.cs-publication-audit-item{align-items:flex-start;flex-direction:column}}
