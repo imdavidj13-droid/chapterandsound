@@ -45,16 +45,18 @@ test('Reading Room bookshelf uses live cover URLs instead of a hardcoded C&S pla
  assert.doesNotMatch(component,/className="room-shelf-cover" aria-hidden="true">C/);
 });
 
-test('Reading Room bookshelf keeps cover-led cards and active status filters',()=>{
+test('Reading Room uses a real cover-led magazine layout with live bookshelf records',()=>{
  const start=roomShell.indexOf('export function RoomShelf(');
  const component=roomShell.slice(start);
- assert.match(component,/room-shelf-redesign/);
- assert.match(component,/room-shelf-gallery/);
- assert.match(component,/room-shelf-book-cover/);
- assert.match(component,/room-shelf-summary/);
- assert.match(component,/room-shelf-sort/);
+ assert.match(component,/room-shelf-magazine/);
+ assert.match(component,/room-shelf-magazine-hero/);
+ assert.match(component,/room-magazine-feature/);
+ assert.match(component,/room-magazine-book-grid/);
  assert.match(component,/api\/member\/shelf/);
+ assert.match(component,/api\/member\/reviews/);
+ assert.match(component,/api\/member\/reading-year/);
  assert.match(component,/status==='all'\|\|x\.status===status/);
  assert.match(component,/book\.coverUrl\?<img/);
  assert.match(component,/book\.author/);
+ assert.match(component,/section==='reviews'/);
 });
