@@ -19,6 +19,7 @@ The current admin example is **The Business of Dying**, attributed to **Simon Ke
 | Cover | Creation attached cover to first edition, while editor initially inspected only book-level cover | Editor and public adapter use first-edition fallback; audit probes public cover with HEAD | Not yet checked |
 | Member shelves/reviews | Member DB has FK references, canonical work data is elsewhere | Existing same-ID reference bridge creates member FKs only on authenticated member actions; does not merge author identities | Not yet checked |
 | Cross-DB duplicate legacy books | Distinct IDs can represent the same title/author | Live audit warns if public search returns identical title/author under additional IDs; no destructive merge | Requires identity review |
+| Admin overview counts | Admin dashboard previously counted legacy app books and contributors | Overview now reads canonical books, drafts, published books, editions and contributors from BOOK_DB, while member/review totals remain in DB | Not yet checked |
 
 ## On-demand and automatic live audit
 When opening `/admin/catalogue/book/:id` for a published work, the **Publication checks** panel now initiates read-only checks against the deployed service and can be rerun manually. It checks:
@@ -33,6 +34,7 @@ When opening `/admin/catalogue/book/:id` for a published work, the **Publication
 
 ## Regression coverage added
 - `tests/catalogue-draft-workflow.test.ts`
+- `tests/catalogue-admin-overview.test.ts`
 - `tests/catalogue-public-publishing.test.ts`
 - Existing SQLite metadata and ISBN validation tests
 - Public-site audit logic and styling in `CataloguePublicationAudit.tsx`
