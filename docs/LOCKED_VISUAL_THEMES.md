@@ -3,7 +3,7 @@
 **Approved:** 4 November 2026  
 **Status:** Authoritative product and visual specification. **Design approval is not implementation or deployment approval.**
 
-> **SUPERCESSION NOTICE:** This document replaces the earlier 3 November 2026 text of `LOCKED_VISUAL_THEMES.md` wherever it conflicts. The two newly accepted homepage visual directions, together with the supplied original Editorial homepage screenshots, supersede earlier exploratory homepage proposals, generic recolour approaches and prior generated mockups. Do not derive a new page from stale mockup descriptions.
+> **SUPERSESSION NOTICE:** This document replaces the earlier 3 November 2026 text of `LOCKED_VISUAL_THEMES.md` wherever it conflicts. The two newly accepted homepage visual directions, together with the supplied original Editorial homepage screenshots, supersede earlier exploratory homepage proposals, generic recolour approaches and prior generated mockups. Do not derive a new page from stale mockup descriptions.
 
 **Companion specification:** [DUAL_THEME_PAGE_LAYOUTS.md](./DUAL_THEME_PAGE_LAYOUTS.md). Its page-by-page design rules are mandatory when building or refining pages.
 
