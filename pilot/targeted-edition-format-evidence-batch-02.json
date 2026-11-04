@@ -1,0 +1,56 @@
+{
+  "mode": "exact_edition_format_evidence",
+  "checkedOn": "2026-11-04",
+  "records": [
+    {
+      "title": "Relentless",
+      "isbn13": "9780552156905",
+      "editionSourceKey": "/books/OL43672156M",
+      "format": "paperback",
+      "feature": null,
+      "source": "exact_isbn_publisher_or_retailer_page",
+      "sourceUrl": "https://www.strangebooks.co.uk/book/simon-kernick/relentless/7iuWEfUx/"
+    },
+    {
+      "title": "Siege",
+      "isbn13": "9780593062906",
+      "editionSourceKey": "/books/OL29002733M",
+      "format": "hardback",
+      "feature": null,
+      "source": "exact_isbn_publisher_or_retailer_page",
+      "sourceUrl": "https://www.lovereading.co.uk/book/9780593062906/isbn/Siege-by-Simon-Kernick.html"
+    },
+    {
+      "title": "Siege",
+      "isbn13": "9780593062913",
+      "editionSourceKey": "/books/OL26815575M",
+      "format": "paperback",
+      "feature": null,
+      "source": "exact_isbn_publisher_or_retailer_page",
+      "sourceUrl": "https://www.abebooks.co.uk/9780593062913/Siege-Simon-Kernick-0593062914/plp"
+    },
+    {
+      "title": "The Payback",
+      "isbn13": "9780552158824",
+      "editionSourceKey": "/books/OL28456307M",
+      "format": "paperback",
+      "feature": null,
+      "source": "exact_isbn_publisher_or_retailer_page",
+      "sourceUrl": "https://www.foyles.co.uk/book/the-payback/simon-kernick/9780552158824"
+    },
+    {
+      "title": "Ultimatum",
+      "isbn13": "9781476706252",
+      "editionSourceKey": "/books/OL27908180M",
+      "format": "paperback",
+      "feature": null,
+      "source": "exact_isbn_publisher_or_retailer_page",
+      "sourceUrl": "https://www.simonandschuster.com/books/Ultimatum/Simon-Kernick/9781476706252"
+    }
+  ],
+  "notes": [
+    "Explicit source formats only; keyed by Open Library edition key plus ISBN.",
+    "No publisher copy, descriptions, images, or cover bytes copied.",
+    "No production records mutated."
+  ]
+}
