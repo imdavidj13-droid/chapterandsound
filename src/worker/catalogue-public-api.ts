@@ -93,7 +93,25 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
    FROM audio_recordings r JOIN contributions c ON c.recording_id=r.id JOIN works w ON w.id=r.work_id
    WHERE c.person_id=? AND c.role_code='narrator' AND w.status IN ('published','verified')
    ORDER BY w.canonical_title`).bind(id).all();
-  return json({person,works:works.map(w=>({...w,formats:w.formatCodes?w.formatCodes.split(','):[],firstPublishedYear:w.firstPublished?Number(w.firstPublished.slice(0,4)):null})),recordings});
+  // Similar authors require an evidence-backed overlap in published book subjects.
+  // No name-based, editorial or fabricated recommendation fallback.
+  const {results:similarAuthors}=await db.prepare(`SELECT p.id,p.preferred_name AS name,
+    ${image('person','p.id','portrait')} AS portraitUrl,
+    COUNT(DISTINCT common.subject_id) AS sharedSubjects
+    FROM people p
+    JOIN contributions c ON c.person_id=p.id AND c.role_code IN ('author','coauthor')
+    JOIN works other ON other.id=c.work_id AND other.status IN ('published','verified')
+    JOIN work_subjects common ON common.work_id=other.id
+    WHERE p.id<>? AND p.identity_status NOT IN ('merged','suppressed')
+     AND common.subject_id IN (
+      SELECT ws.subject_id FROM work_subjects ws
+      JOIN contributions original ON original.work_id=ws.work_id
+      JOIN works published ON published.id=ws.work_id AND published.status IN ('published','verified')
+      WHERE original.person_id=? AND original.role_code IN ('author','coauthor')
+     )
+    GROUP BY p.id,p.preferred_name
+    ORDER BY sharedSubjects DESC,p.preferred_name LIMIT 8`).bind(id,id).all();
+  return json({person,works:works.map(w=>({...w,formats:w.formatCodes?w.formatCodes.split(','):[],firstPublishedYear:w.firstPublished?Number(w.firstPublished.slice(0,4)):null})),recordings,similarAuthors});
  }
  if(path==='series'){
   const {results}=await db.prepare(`SELECT s.id,s.title,s.description,
