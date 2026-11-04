@@ -40,7 +40,21 @@ test('Reading Room bookshelf uses live cover URLs instead of a hardcoded C&S pla
  const component=roomShell.slice(start);
  assert.match(component,/coverUrl\?:string\|null/);
  assert.match(component,/book\.coverUrl\?<img/);
- assert.match(component,/alt=\{\`Cover of \$\{book\.bookTitle\}\`\}/);
+ assert.match(component,/alt=\{'Cover of '\+book\.bookTitle\}/);
  assert.match(component,/book\.author&&/);
  assert.doesNotMatch(component,/className="room-shelf-cover" aria-hidden="true">C/);
+});
+
+test('Reading Room bookshelf keeps cover-led cards and active status filters',()=>{
+ const start=roomShell.indexOf('export function RoomShelf(');
+ const component=roomShell.slice(start);
+ assert.match(component,/room-shelf-redesign/);
+ assert.match(component,/room-shelf-gallery/);
+ assert.match(component,/room-shelf-book-cover/);
+ assert.match(component,/room-shelf-summary/);
+ assert.match(component,/room-shelf-sort/);
+ assert.match(component,/api\/member\/shelf/);
+ assert.match(component,/status==='all'\|\|x\.status===status/);
+ assert.match(component,/book\.coverUrl\?<img/);
+ assert.match(component,/book\.author/);
 });
