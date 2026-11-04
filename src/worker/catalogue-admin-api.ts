@@ -162,13 +162,16 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
     return json({counts});
    }
    if(path==='works'){
+    const status=str(url.searchParams.get('status'),20);
+    if(status&&!['draft','published'].includes(status))return fail('Invalid status filter');
     const {results}=await db.prepare(`SELECT w.id,w.canonical_title AS title,w.work_type AS type,w.status,w.revision,
     w.original_language AS language,w.first_publication_date AS firstPublicationDate,
     (SELECT group_concat(p.preferred_name,', ') FROM contributions c JOIN people p ON p.id=c.person_id
       WHERE c.work_id=w.id AND c.role_code IN ('author','coauthor')) AS authors,
     (SELECT count(*) FROM editions e WHERE e.work_id=w.id) AS editions
     FROM works w WHERE (?='' OR instr(lower(w.canonical_title),lower(?))>0)
-    ORDER BY w.created_at DESC,w.id DESC LIMIT ? OFFSET ?`).bind(q,q,l,o).all();
+      AND (?='' OR w.status=?)
+    ORDER BY w.created_at DESC,w.id DESC LIMIT ? OFFSET ?`).bind(q,q,status,status,l,o).all();
     return json({items:results});
    }
    if(segments.length===3&&segments[0]==='works'&&segments[2]==='linked'){
