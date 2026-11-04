@@ -37,5 +37,13 @@ test('offline Open Library dump preparer creates reviewed manifests without netw
   assert.equal(report.candidates,1);
   assert.equal(report.reviewItems,0);
   assert.equal(report.editionsMatched,2);
+  const auto=join(dir,'automatic-pilot');
+  mkdirSync(auto);
+  execFileSync(process.execPath,[script,'--works',works,'--authors',authors,'--editions',editions,
+   '--author-name','Fixture Author','--max','10','--out',auto],{timeout:15000});
+  const automatic=JSON.parse(readFileSync(join(auto,'candidates-01.json'),'utf8'));
+  assert.equal(automatic.candidates.length,1);
+  assert.equal(automatic.candidates[0].author,'Fixture Author');
+  assert.equal(JSON.parse(readFileSync(join(auto,'report.json'),'utf8')).selection.authorName,'Fixture Author');
  }finally{rmSync(dir,{recursive:true,force:true})}
 });
