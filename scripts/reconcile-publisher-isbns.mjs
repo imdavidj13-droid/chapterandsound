@@ -12,6 +12,23 @@ const norm=x=>typeof x==='string'?x.normalize('NFKC').toLowerCase().replace(/[^\
 const valid13=x=>{if(!/^97[89]\d{10}$/.test(x))return false;
  const sum=[...x.slice(0,12)].reduce((a,c,i)=>a+Number(c)*(i%2?3:1),0);
  return (10-sum%10)%10===Number(x[12]);};
+const datePrecision=value=>{
+ const v=String(value||'').trim();
+ if(/^\\d{4}$/.test(v))return {kind:'year',year:v};
+ if(/^\\d{4}-\\d{2}$/.test(v))return {kind:'month',year:v.slice(0,4),month:v};
+ if(/^\\d{4}-\\d{2}-\\d{2}$/.test(v))return {kind:'day',year:v.slice(0,4),month:v.slice(0,7),day:v};
+ return {kind:'unstructured'};
+};
+export function classifyDisagreement(key,existing,observed){
+ if(key!=='publicationDate')return 'different_values';
+ const a=datePrecision(existing),b=datePrecision(observed);
+ if(a.kind==='unstructured'||b.kind==='unstructured')return 'date_not_directly_comparable';
+ if(a.year!==b.year)return 'different_year';
+ if(a.kind==='year'||b.kind==='year')return 'same_year_different_precision';
+ if(a.month!==b.month)return 'different_month_same_year';
+ if(a.kind==='month'||b.kind==='month')return 'same_month_different_precision';
+ return 'different_day_same_month';
+}
 export function reconcilePublisher(input,evidence){
  if(!Array.isArray(input?.candidates)||input.candidates.length!==10)throw Error('Expected ten candidates');
  if(!Array.isArray(evidence?.records))throw Error('Missing publisher facts');
@@ -44,7 +61,7 @@ export function reconcilePublisher(input,evidence){
     changed.push(key);
    }else if(String(old).trim().toLowerCase()!==String(observed).trim().toLowerCase()){
     conflicts.push({title:book.title,isbn13:fact.isbn13,editionSourceKey:ed.sourceKey,
-     field:key,retainedExisting:old,alternative:observed,sourceUrl:fact.sourceUrl});
+     field:key,retainedExisting:old,alternative:observed,classification:classifyDisagreement(key,old,observed),sourceUrl:fact.sourceUrl});
    }
   }
   // Imprint and publisher are related but NOT synonymous; don't overwrite
@@ -52,12 +69,22 @@ export function reconcilePublisher(input,evidence){
   found.push({title:book.title,isbn13:fact.isbn13,editionSourceKey:ed.sourceKey,
    fieldsFilled:changed,imprintEvidence:fact.imprint,sourceUrl:fact.sourceUrl});
  }
+ const byTitle=candidates.map(book=>({
+  title:book.title,
+  matchedISBNs:found.filter(row=>row.title===book.title).map(row=>row.isbn13),
+  filledFieldCount:found.filter(row=>row.title===book.title).reduce((n,row)=>n+row.fieldsFilled.length,0),
+  conflicts:conflicts.filter(row=>row.title===book.title),
+  unmatchedEvidence:unmatched.filter(row=>row.title===book.title),
+  remainingUnknownFormats:(book.editions||[]).filter(e=>e.format==='unknown').length
+ }));
+ const conflictClassificationCounts=Object.fromEntries([...new Set(conflicts.map(c=>c.classification))].map(k=>
+  [k,conflicts.filter(c=>c.classification===k).length]));
  const report={mode:'publisher_isbn_reconciliation_review_only',
   totals:{evidenceRecords:evidence.records.length,matchedEditions:found.length,
    newlyFilledFields:found.reduce((n,r)=>n+r.fieldsFilled.length,0),
    conflicts:conflicts.length,unmatchedEvidence:unmatched.length,
    remainingUnknownFormats:candidates.reduce((n,b)=>n+(b.editions||[]).filter(e=>e.format==='unknown').length,0)},
-  matched:found,unmatched,conflicts,
+  matched:found,unmatched,conflicts,conflictClassificationCounts,books:byTitle,
   notes:['Only explicit facts on identical ISBN and title/author are applied to local output.',
    'Conflicts are retained for investigation, not overwritten.',
    'Imprint does not automatically equal publisher.',
