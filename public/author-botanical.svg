@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="300" viewBox="0 0 1440 300" fill="none" aria-hidden="true">
+<defs>
+ <linearGradient id="bg" x1="0" y1="0" x2="1440" y2="250" gradientUnits="userSpaceOnUse"><stop stop-color="#e6eee4"/><stop offset=".27" stop-color="#f9faf5"/><stop offset=".75" stop-color="#f5f8f1"/><stop offset="1" stop-color="#d9e6d7"/></linearGradient>
+ <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#96b08a" stop-opacity=".45"/><stop offset="1" stop-color="#4e7860" stop-opacity=".23"/></linearGradient>
+ <filter id="soft"><feGaussianBlur stdDeviation="2.5"/></filter>
+</defs>
+<rect width="1440" height="300" fill="url(#bg)"/>
+<g opacity=".55" stroke="#55775e" stroke-width="2.2" stroke-linecap="round">
+ <path d="M0 268C43 203 62 105 102 18" />
+ <path d="M35 207C12 175 6 143 10 113"/>
+ <path d="M59 156C95 142 120 113 134 73"/>
+ <path d="M87 71C71 50 68 24 69 0"/>
+ <path d="M0 100C28 72 42 45 48 4"/>
+</g>
+<g fill="url(#leaf)">
+ <path d="M12 114C-1 95 0 69 11 50C25 73 27 95 12 114Z"/>
+ <path d="M40 204C7 190 4 169 4 155C26 160 41 177 40 204Z"/>
+ <path d="M55 155C71 127 93 117 120 119C108 142 83 158 55 155Z"/>
+ <path d="M99 85C88 61 93 34 112 21C119 46 116 69 99 85Z"/>
+ <path d="M85 43C67 37 55 20 53 0C76 12 86 26 85 43Z"/>
+ <path d="M133 75C124 47 131 31 152 16C159 43 151 62 133 75Z"/>
+ <path d="M46 18C17 17 5 2 0-10C22-7 39 2 46 18Z"/>
+</g>
+<g transform="translate(1440,300) rotate(180)" opacity=".67">
+ <g stroke="#66896a" stroke-width="2" stroke-linecap="round"><path d="M0 264C39 206 79 113 118 6"/><path d="M31 213C17 179 12 147 16 126"/><path d="M65 137C98 132 122 113 139 84"/><path d="M94 70C84 48 84 23 92-2"/></g>
+ <g fill="url(#leaf)">
+  <path d="M20 130C-3 109 0 83 10 66C31 88 31 108 20 130Z"/>
+  <path d="M39 216C15 199 5 176 9 154C31 171 45 189 39 216Z"/>
+  <path d="M68 140C86 113 111 108 135 109C120 130 95 143 68 140Z"/>
+  <path d="M95 71C79 49 78 26 95 6C109 29 108 49 95 71Z"/>
+  <path d="M118 23C107-4 116-20 138-28C141-3 135 13 118 23Z"/>
+ </g>
+</g>
+<g opacity=".06" filter="url(#soft)" fill="#456a4b"><ellipse cx="180" cy="285" rx="150" ry="14"/><ellipse cx="1305" cy="285" rx="165" ry="18"/></g>
+</svg>
