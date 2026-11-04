@@ -288,3 +288,11 @@
 .cs-import-status.status-existing_edition{background:#e7eef7;color:#365673}
 .cs-import-footnote{font-size:.76rem;color:#607365;line-height:1.6;margin:18px 0 0}
 @media(max-width:800px){.cs-import-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.cs-import-centre{padding:15px}.cs-import-centre>header{flex-direction:column}.cs-import-dry-run{align-self:flex-start}}
+
+.cs-import-lookup{display:flex;align-items:flex-end;gap:11px;background:#f3f7f1;border:1px solid #d9e7d8;border-radius:12px;padding:14px;margin:14px 0}
+.cs-import-lookup label{display:flex;flex:1;flex-direction:column;gap:7px;color:#315842;font-size:.8rem;font-weight:750}
+.cs-import-lookup input{width:100%;min-height:44px;border:1px solid #bbd1bd;border-radius:8px;padding:10px 12px;background:#fff;color:#183d28}
+.cs-import-lookup button{background:#23563b;color:white;border:0;border-radius:8px;min-height:44px;padding:10px 16px;cursor:pointer;font-size:.82rem;font-weight:750}
+.cs-import-lookup button:disabled{opacity:.55;cursor:not-allowed}
+.cs-import-lookup-status{font-size:.8rem;color:#2d5a40;background:#e7f0e5;padding:11px 15px;border-radius:8px;line-height:1.5}
+@media(max-width:650px){.cs-import-lookup{flex-direction:column;align-items:stretch}}
