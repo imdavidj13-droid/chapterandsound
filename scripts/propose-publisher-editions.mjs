@@ -35,7 +35,7 @@ export function proposePublisherEditions(enriched,evidence){
   if(sourceWorkKeys.has(book.workSourceKey))throw Error('Duplicate canonical work identity');
   sourceWorkKeys.add(book.workSourceKey);
   for(const ed of book.editions){
-   const values=[ed.isbn13,...(ed.isbn13Candidates||[])].filter(Boolean);
+   const values=[...new Set([ed.isbn13,...(ed.isbn13Candidates||[])].filter(Boolean))];
    for(const isbn of values){
     if(!isIsbn13(isbn))continue;
     const group=globalISBNs.get(isbn)||[];
