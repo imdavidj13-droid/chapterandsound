@@ -183,7 +183,7 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
     // the same normalised display name are not separate selectable copies.
     // This is display-only deduplication, NOT an identity merge or a database write.
     // Distinct same-name identities already in BOOK_DB remain visible for review.
-    const normaliseName=(value:string)=>value.normalize('NFKC').trim().replace(/\\s+/g,' ').toLocaleLowerCase('en-GB');
+    const normaliseName=(value:string)=>value.normalize('NFKC').trim().replace(/\s+/g,' ').toLocaleLowerCase('en-GB');
     const canonicalNames=new Set(catalogue.map(person=>normaliseName(person.name)));
     const unique=new Map<string,{id:string;name:string}>();
     for(const row of catalogue)if(row.id&&!unique.has(row.id))unique.set(row.id,row);
