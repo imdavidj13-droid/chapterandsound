@@ -3,6 +3,7 @@ import {CatalogueManualManager} from './CatalogueManualManager';
 import {CatalogueLinkedEditions} from './CatalogueLinkedEditions';
 import {CatalogueCoverEditor} from './CatalogueCoverEditor';
 import {CatalogueDiagnostics} from './CatalogueDiagnostics';
+import {CataloguePublicationAudit} from './CataloguePublicationAudit';
 import {useCallback,useEffect,useState} from 'react';
 import type {FormEvent} from 'react';
 import {apiGet,apiWrite} from './api';
@@ -237,6 +238,7 @@ export function CatalogueWorkbench({path,navigate}:{path:string;navigate:(to:str
     <a className="cs-book-edit-link" href={'/book/'+encodeURIComponent(editingId)}>Open public book page</a>
    </div></div>}
   </section>}
+  {view==='edit'&&editingId&&<CataloguePublicationAudit key={editingId+editStatus} workId={editingId} status={editStatus}/>}
   {view!=='new'&&view!=='edit'&&<div className="cs-admin-heading cs-catalogue-list-head" style={{marginTop:22}}>
    <div><h3>{view==='drafts'?'Your saved drafts':view==='published'?'Published books':'Catalogue records'}</h3><p>{view==='drafts'?'Select Continue editing to finish a draft and publish it.':'Select Edit book to view and update its details.'}</p></div>
    <label>Search books<input type="search" value={listQuery} onChange={e=>{setListQuery(e.target.value);setListPage(0)}} placeholder="Search by title"/></label>
