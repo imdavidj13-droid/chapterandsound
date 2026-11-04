@@ -17,7 +17,7 @@ const decode=x=>String(x||'').replace(/&(?:amp|nbsp|quot|apos|lt|gt|#(\d+)|#x([a
 });
 const visible=html=>decode(String(html||'').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ')
  .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ')
- .replace(/<\/?(?:p|div|span|h[1-6]|li|tr|td|dt|dd|br|strong|b)\b[^>]*>/gi,'\n')
+ .replace(/<\/?(?:p|div|h[1-6]|li|tr|dt|dd|br)\b[^>]*>/gi,'\n')
  .replace(/<[^>]+>/g,' ').replace(/[ \t]+/g,' ').replace(/\n[ \t]+/g,'\n')
  .replace(/\n{2,}/g,'\n')).trim();
 const binding=v=>{
