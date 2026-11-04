@@ -83,3 +83,22 @@ test('different edition source records with same ISBN remain ambiguous',()=>{
  assert.equal(result.report.totals.blocked,1);
  assert.equal(result.report.totals.proposedAdditions,0);
 });
+
+test('candidate-only ISBN is unresolved, not counted as an existing verified edition',()=>{
+ const input=fixture();
+ input.candidates[0]!.editions[0]!.isbn13Candidates=[isbn];
+ const result=proposePublisherEditions(input,{records:[fact]});
+ assert.equal(result.report.totals.alreadyPresent,0);
+ assert.equal(result.report.totals.candidateOnlyLinks,1);
+ assert.equal(result.report.totals.proposedAdditions,0);
+ assert.equal(result.report.candidateOnly[0].reason,'isbn_appears_only_as_candidate');
+ assert.equal(result.report.totals.resultingEditions,10);
+});
+test('multiple source candidate ISBNs never become automatic edition assignments',()=>{
+ const input=fixture();
+ input.candidates[0]!.editions[0]!.isbn13Candidates=[isbn,'9781407084459'];
+ const result=proposePublisherEditions(input,{records:[fact]});
+ assert.equal(result.report.totals.candidateOnlyLinks,1);
+ assert.equal(result.report.candidateOnly[0].sourceEditionHasMultipleISBNs,true);
+ assert.equal(result.report.totals.proposedAdditions,0);
+});
