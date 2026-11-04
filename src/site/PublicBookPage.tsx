@@ -2,7 +2,7 @@ import {RoomBookView} from './themes/RoomBookView';
 import {useEffect,useMemo,useState} from 'react';
 import {apiGet} from './api';
 
-type Book={id:string;title:string;subtitle:string|null;summary:string|null;author:string|null;year:number|null;verificationStatus:string;coverUrl?:string|null};
+type Book={id:string;title:string;subtitle:string|null;summary:string|null;author:string|null;authorId?:string|null;year:number|null;verificationStatus:string;coverUrl?:string|null};
 type Contributor={id:string;name:string;role:string};
 type Edition={id:string;format:string;coverUrl?:string|null;publisher:string|null;publishedAt:string|null;language:string|null;pageCount:number|null;durationMinutes:number|null;abridged:number|null;isbn13:string|null;asin:string|null;verificationStatus:string;contributors:Contributor[]};
 type Review={id:string;title:string|null;body:string|null;spoilers:number;storyRating:number|null;audioRating:number|null;publishedAt:string|null;editionId:string|null;format:string|null;authorName:string;authorHandle:string|null};
@@ -67,7 +67,7 @@ export function PublicBookPage({id,verified,theme='editorial'}:{id:string;verifi
    <div className="public-book-copy">
     <p className="eyebrow">Book overview · Chapter & Sound</p><h1>{book.title}</h1>
     {book.subtitle&&<p className="intro">{book.subtitle}</p>}
-    <p className="book-author-line">By <strong>{book.author||'Author not yet confirmed'}</strong>{book.year?<> · First published {book.year}</>:null}</p>
+    <p className="book-author-line">By {book.authorId?<a href={'/person/'+encodeURIComponent(book.authorId)}><strong>{book.author||'View author'}</strong></a>:<strong>{book.author||'Author not yet confirmed'}</strong>}{book.year?<> · First published {book.year}</>:null}</p>
     <p>{book.summary||'A verified synopsis has not yet been added to this record.'}</p>
     <div className="actions"><a className="button" href={verified?'/add-book':'/signin'}>{verified?'Add to my bookshelf':'Sign in to add'}</a><a href={verified?'/write-review?book='+encodeURIComponent(book.id):'/signin'} className="button secondary">{verified?'Write a review':'Sign in to review'}</a></div>
     {book.verificationStatus!=='verified'&&<p className="muted small">Book metadata awaits verification.</p>}
