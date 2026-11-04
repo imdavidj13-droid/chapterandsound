@@ -56,17 +56,18 @@ export function CatalogueWorkbench(){
   }catch(e){setReady(false);setError(e instanceof Error?e.message:'Catalogue unavailable')}
   finally{setLoading(false)}
  },[]);
- useEffect(()=>{
-  // On the first catalogue visit, preserve existing website author identities
-  // in BOOK_DB without deleting or relinking any legacy member records.
-  void apiWrite<{copied:number;conflicts:number;moreMayExist:boolean}>('/api/catalogue-admin/consolidate-people','POST',{})
-   .then(async result=>{
-    await load();
-    if(result.copied>0)setNotice(result.copied+' existing author profiles are now available in the catalogue.');
-    if(result.conflicts>0)setNotice(v=>v+' '+result.conflicts+' ambiguous profiles need separate review; none were merged.');
-   })
-   .catch(()=>{void load()});
- },[load]);
+ // Legacy contributor reconciliation must be an intentional maintenance action,
+ // never a database write caused by simply opening the catalogue screen.
+ async function reconcileLegacyContributors(){
+  if(!window.confirm('Import missing existing website contributor identities into BOOK_DB? Conflicting names will be flagged for review; no authors will be merged automatically.'))return;
+  setSaving(true);setError('');setNotice('');
+  try{
+   const result=await apiWrite<{copied:number;conflicts:number;moreMayExist:boolean}>('/api/catalogue-admin/consolidate-people','POST',{});
+   setNotice(result.copied+' existing profiles preserved in the catalogue. '+result.conflicts+' identity conflicts require review.'+(result.moreMayExist?' More source records may remain.':''));
+   await load();
+  }catch(e){setError(e instanceof Error?e.message:'Contributor reconciliation was not confirmed')}
+  finally{setSaving(false)}
+ }
  const refresh=()=>void load();
  async function openWork(workId:string){
   setOpening(true);setError('');setNotice('');setActiveForm(null);
@@ -192,7 +193,13 @@ export function CatalogueWorkbench(){
    <div><h3>Advanced catalogue tools</h3><p>Manage authors, additional editions, recording credits, genres, publishers, series and identifiers without creating a second catalogue.</p></div>
    <button type="button" aria-expanded={showAdvanced} onClick={()=>setShowAdvanced(v=>!v)}>{showAdvanced?'Hide advanced tools':'Open advanced tools'}</button>
   </section>}
-  {activeForm!=='works'&&showAdvanced&&<CatalogueManualManager/>}
+  {activeForm!=='works'&&showAdvanced&&<>
+   <section className="cs-catalogue-advanced" aria-label="Contributor reconciliation">
+    <div><h3>Legacy contributor reconciliation</h3><p>Only use this when you intentionally need to bring older author profiles into the unified catalogue. Ambiguous identities are never merged automatically.</p></div>
+    <button type="button" disabled={saving} onClick={()=>void reconcileLegacyContributors()}>Review and import legacy contributors</button>
+   </section>
+   <CatalogueManualManager/>
+  </>}
   {activeForm!=='works'&&<section id="cs-catalogue-media" className="cs-admin-form" style={{marginTop:20}}>
    <h3>Book covers and contributor portraits</h3>
    {!mediaReady?<p>Cloudflare R2 is not connected yet. Images will be available here once the CATALOGUE_MEDIA bucket is created and bound. No files are stored in the browser.</p>:
