@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
 // @ts-expect-error Plain JavaScript runtime script without TypeScript declarations.
-import {reconcilePublisher} from '../scripts/reconcile-publisher-isbns.mjs';
+import {reconcilePublisher,classifyDisagreement} from '../scripts/reconcile-publisher-isbns.mjs';
 const isbn='9780552164337';
 const fact={isbn13:isbn,title:'Relentless',author:'Simon Kernick',format:'paperback',
  imprint:'Corgi',publicationDate:'2011-05-12',pageCount:464,
@@ -36,4 +36,18 @@ test('missing ISBN cannot create new edition or silently join by title',()=>{
 });
 test('disallows duplicate evidence for same ISBN',()=>{
  assert.throws(()=>reconcilePublisher(fixture(),{records:[fact,fact]}),/Duplicate publisher ISBN/);
+});
+
+test('date precision is classified without overwriting source publication dates',()=>{
+ assert.equal(classifyDisagreement('publicationDate','2011','2011-05-12'),'same_year_different_precision');
+ assert.equal(classifyDisagreement('publicationDate','2010','2011-05-12'),'different_year');
+ assert.equal(classifyDisagreement('publicationDate','May 2011','2011-05-12'),'date_not_directly_comparable');
+});
+test('report discloses per-title conflicts and unmatched publisher evidence',()=>{
+ const input=fixture();
+ input.candidates[0]!.editions[0]!.publicationDate='2011';
+ const report=reconcilePublisher(input,{records:[fact]}).report;
+ assert.equal(report.books[0].conflicts[0].classification,'same_year_different_precision');
+ assert.equal(report.conflictClassificationCounts.same_year_different_precision,1);
+ assert.equal(report.books[0].matchedISBNs[0],isbn);
 });
