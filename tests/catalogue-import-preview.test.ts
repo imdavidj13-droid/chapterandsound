@@ -72,3 +72,30 @@ test('invalid ISBN, duplicate batch entries and malformed manifest are rejected 
   await assert.rejects(()=>previewCatalogueImport(driver,null),/1–100/);
  }finally{db.close()}
 });
+
+test('existing ISBN in any of several editions forces reconciliation, not new work creation',async()=>{
+ const {db,driver}=fixture();
+ try{
+  const preview=await previewCatalogueImport(driver,[{
+   title:'The Business Of Dying',author:'Simon Kernick',sourceId:'openlibrary',sourceKey:'/works/OL1W',
+   editions:[
+    {sourceKey:'/books/OL1M',format:'ebook',isbn13:'9781407084350'},
+    {sourceKey:'/books/OL2M',format:'paperback',isbn13:'9780306406157'}
+   ]
+  }]);
+  assert.equal(preview.rows[0]?.decision,'review_match');
+  assert.equal(preview.rows[0]?.existingWorkId,'w1');
+  assert.equal(db.prepare('SELECT count(*) AS n FROM works').get()!.n,1);
+ }finally{db.close()}
+});
+test('bad edition ISBN and repeated edition identifiers are rejected across a work batch',async()=>{
+ const {db,driver}=fixture();
+ try{
+  const preview=await previewCatalogueImport(driver,[
+   {title:'A',author:'Writer',editions:[{isbn13:'9780306406157',format:'ebook'}]},
+   {title:'B',author:'Writer',editions:[{isbn13:'9780306406157',format:'ebook'}]},
+   {title:'C',author:'Writer',editions:[{isbn13:'9780306406158',format:'ebook'}]}
+  ]);
+  assert.deepEqual(preview.rows.map(r=>r.decision),['needs_enrichment','duplicate_in_batch','invalid']);
+ }finally{db.close()}
+});
