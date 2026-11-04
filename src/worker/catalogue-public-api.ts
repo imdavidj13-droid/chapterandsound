@@ -80,14 +80,20 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
   const person=await db.prepare(`SELECT p.id,p.preferred_name AS name,p.bio AS biography,
      ${image('person','p.id','portrait')} AS portraitUrl FROM people p WHERE p.id=? AND p.identity_status NOT IN ('merged','suppressed')`).bind(id).first();
   if(!person)return json({error:'Person not found'},404);
-  const {results:works}=await db.prepare(`SELECT w.id,w.canonical_title AS title,'author' AS contribution FROM works w
-   JOIN contributions c ON c.work_id=w.id WHERE c.person_id=? AND c.role_code IN ('author','coauthor')
-   AND w.status IN ('published','verified') ORDER BY w.canonical_title`).bind(id).all();
+  const {results:works}=await db.prepare(`SELECT w.id,w.canonical_title AS title,'author' AS contribution,
+   ${workCover()} AS coverUrl,
+   ${synopsis()} AS summary,
+   (SELECT GROUP_CONCAT(DISTINCT e.format) FROM editions e WHERE e.work_id=w.id) AS formatCodes,
+   w.first_publication_date AS firstPublished
+   FROM works w WHERE w.status IN ('published','verified') AND EXISTS(
+    SELECT 1 FROM contributions c WHERE c.work_id=w.id AND c.person_id=?
+    AND c.role_code IN ('author','coauthor'))
+   ORDER BY w.first_publication_date DESC,w.canonical_title`).bind(id).all<{id:string;title:string;contribution:string;coverUrl:string|null;summary:string|null;formatCodes:string|null;firstPublished:string|null}>();
   const {results:recordings}=await db.prepare(`SELECT r.id,r.work_id AS workId,w.canonical_title AS title,'narrator' AS contribution
    FROM audio_recordings r JOIN contributions c ON c.recording_id=r.id JOIN works w ON w.id=r.work_id
    WHERE c.person_id=? AND c.role_code='narrator' AND w.status IN ('published','verified')
    ORDER BY w.canonical_title`).bind(id).all();
-  return json({person,works,recordings});
+  return json({person,works:works.map(w=>({...w,formats:w.formatCodes?w.formatCodes.split(','):[],firstPublishedYear:w.firstPublished?Number(w.firstPublished.slice(0,4)):null})),recordings});
  }
  if(path==='series'){
   const {results}=await db.prepare(`SELECT s.id,s.title,s.description,
