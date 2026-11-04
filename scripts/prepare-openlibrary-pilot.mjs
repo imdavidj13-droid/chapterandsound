@@ -29,6 +29,7 @@ if(opts['--titles-file']&&!opts['--author-key']&&!opts['--author-name'])
 const output=resolve(opts['--out']);
 const max=Number(opts['--max']||10);
 if(!Number.isInteger(max)||max<1||max>250)throw Error('--max must be between 1 and 250.');
+const normalize=value=>typeof value==='string'?value.normalize('NFKC').trim().replace(/\s+/g,' '):'';
 const normalizeTitle=value=>normalize(value).normalize('NFKC').toLowerCase().replace(/[^\\p{L}\\p{N}]+/gu,' ').replace(/\\s+/g,' ').trim();
 const requestedTitles=opts['--titles-file']
  ?readFileSync(opts['--titles-file'],'utf8').split(/\\r?\\n/).map(normalizeTitle).filter(Boolean)
@@ -42,7 +43,6 @@ if(opts['--seeds']&&(!wanted.size||wanted.size>250||[...wanted].some(x=>!/^\/wor
 }
 mkdirSync(output,{recursive:true});
 const workRecords=new Map(),authors=new Map(),editions=new Map();
-const normalize=value=>typeof value==='string'?value.normalize('NFKC').trim().replace(/\s+/g,' '):'';
 const valid13=value=>{
  const v=normalize(value).replace(/[ -]/g,'');
  if(!/^\d{13}$/.test(v)||!/^97[89]/.test(v))return false;
