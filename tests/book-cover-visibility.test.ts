@@ -5,6 +5,7 @@ import {readFileSync} from 'node:fs';
 const memberApi=readFileSync(new URL('../src/worker/member-api.ts',import.meta.url),'utf8');
 const memberUi=readFileSync(new URL('../src/site/MemberWorkspace.tsx',import.meta.url),'utf8');
 const room=readFileSync(new URL('../src/site/themes/RoomBookView.tsx',import.meta.url),'utf8');
+const roomShell=readFileSync(new URL('../src/site/themes/ThemeShell.tsx',import.meta.url),'utf8');
 const publicApi=readFileSync(new URL('../src/worker/catalogue-public-api.ts',import.meta.url),'utf8');
 
 test('Reading Room displays the canonical cover rather than a permanent placeholder',()=>{
@@ -31,4 +32,15 @@ test('public catalogue uses linked first-edition image when book has no represen
  assert.match(publicApi,/function workCover\(\)/);
  assert.match(publicApi,/l\.role='front_cover'/);
  assert.match(publicApi,/l\.is_primary=1/);
+});
+
+test('Reading Room bookshelf uses live cover URLs instead of a hardcoded C&S placeholder',()=>{
+ const start=roomShell.indexOf('export function RoomShelf(');
+ assert.ok(start>=0);
+ const component=roomShell.slice(start);
+ assert.match(component,/coverUrl\?:string\|null/);
+ assert.match(component,/book\.coverUrl\?<img/);
+ assert.match(component,/alt=\{\`Cover of \$\{book\.bookTitle\}\`\}/);
+ assert.match(component,/book\.author&&/);
+ assert.doesNotMatch(component,/className="room-shelf-cover" aria-hidden="true">C/);
 });
