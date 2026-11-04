@@ -44,10 +44,18 @@ test('edition enrichment uses explicit format, retains unknown, flags ISBN confl
    key:'/books/OL1M',title:'Sample Book',works:[{key:'/works/OL1W'}],
    isbn_13:['9780306406157'],physical_format:'E-book'
   }));
+  // Change the fixture to an unclassified edition: the cached ISBN lookup
+  // must be consulted and permitted to recover the explicit E-book format.
+  const secondPass=JSON.parse(readFileSync(input,'utf8'));
+  secondPass.candidates[0].editions[0].physicalFormat='';
+  writeFileSync(input,JSON.stringify(secondPass));
   // Standalone CLI flag must be recognized even when it has no following value.
   execFileSync(process.execPath,[script,'--input',input,'--out',dir,'--isbn-lookups'],{timeout:15000});
   const lookupReport=JSON.parse(readFileSync(join(dir,'enrichment-report.json'),'utf8'));
   assert.equal(lookupReport.totals.isbnLookupsCached,1);
+  const lookupCandidates=JSON.parse(readFileSync(join(dir,'enriched-candidates-01.json'),'utf8')).candidates;
+  assert.equal(lookupCandidates[0].editions[0].format,'ebook');
+  assert.equal(lookupCandidates[0].editions[0].fieldProvenance.format.source,'openlibrary_isbn_lookup');
   assert.ok(lookupReport.source.includes('exact ISBN lookups'));
  }finally{rmSync(dir,{recursive:true,force:true})}
 });
