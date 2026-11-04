@@ -1,0 +1,698 @@
+{
+  "version": 1,
+  "auditedAt": "2026-11-04",
+  "sources": {
+    "publisher": {
+      "label": "Official publisher product/catalogue/ONIX",
+      "access": "varies",
+      "reuse": "verify_each_publisher"
+    },
+    "openlibrary": {
+      "label": "Open Library API and bulk dumps",
+      "access": "available",
+      "reuse": "check_field_rights"
+    },
+    "hardcover": {
+      "label": "Hardcover GraphQL",
+      "access": "live_token_confirmed",
+      "reuse": "public_data_rights_only",
+      "pilot": "9 of 22 ISBNs matched; 1 provisional format"
+    },
+    "loc": {
+      "label": "Library of Congress SRU MARC",
+      "access": "live_confirmed",
+      "reuse": "confirm_field_terms",
+      "pilot": "first five ISBNs no record"
+    },
+    "audio_publisher": {
+      "label": "Publisher audio/producer catalogue",
+      "access": "investigate",
+      "reuse": "permission_required"
+    },
+    "audio_retailer": {
+      "label": "Audible Apple Books Kobo Libro.fm and others",
+      "access": "investigate",
+      "reuse": "permission_required"
+    },
+    "retailer": {
+      "label": "Retailer product listings",
+      "access": "investigate",
+      "reuse": "permission_required"
+    },
+    "digital_distributor": {
+      "label": "Ebook distributors",
+      "access": "investigate",
+      "reuse": "permission_required"
+    },
+    "licensed_cover_provider": {
+      "label": "Licensed image/media supplier",
+      "access": "investigate",
+      "reuse": "licence_required"
+    },
+    "manual": {
+      "label": "Admin uploaded assets",
+      "access": "available",
+      "reuse": "rights_checked"
+    },
+    "author_site": {
+      "label": "Official author website",
+      "access": "investigate",
+      "reuse": "permission_required_for_content"
+    },
+    "awards_body": {
+      "label": "Official award organisation",
+      "access": "investigate",
+      "reuse": "check_terms"
+    },
+    "editorial": {
+      "label": "Chapter & Sound original editorial research",
+      "access": "available",
+      "reuse": "own_copy_only"
+    },
+    "rights_holder": {
+      "label": "Publisher or rights-owner confirmation",
+      "access": "investigate",
+      "reuse": "explicit_confirmation"
+    },
+    "audio_distributor": {
+      "label": "Audiobook distributors / production feeds",
+      "access": "investigate",
+      "reuse": "licence_required"
+    },
+    "canonical_local": {
+      "label": "Chapter & Sound internal relationships",
+      "access": "available",
+      "reuse": "internal"
+    },
+    "chapterandsound_members": {
+      "label": "Original member reviews and ratings",
+      "access": "available",
+      "reuse": "member_policies"
+    }
+  },
+  "requirementDescriptions": {
+    "required": "Structural identity or record-integrity requirement",
+    "priority": "Public page completeness target; unknown remains visible",
+    "conditional": "Required for applicable content/format quality goal, not necessarily SQL NOT NULL",
+    "optional": "Helpful enrichment only",
+    "not_core": "Not necessary for core catalogue book page"
+  },
+  "fields": [
+    {
+      "entityKind": "work",
+      "fieldPath": "canonical_title",
+      "requirement": "required",
+      "appliesTo": "all",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "openlibrary",
+        "hardcover",
+        "loc"
+      ]
+    },
+    {
+      "entityKind": "work",
+      "fieldPath": "author_identity",
+      "requirement": "required",
+      "appliesTo": "all",
+      "rightsClass": "identity",
+      "sources": [
+        "publisher",
+        "openlibrary",
+        "hardcover",
+        "loc"
+      ]
+    },
+    {
+      "entityKind": "work",
+      "fieldPath": "source_identifiers",
+      "requirement": "required",
+      "appliesTo": "all",
+      "rightsClass": "identity",
+      "sources": [
+        "openlibrary",
+        "hardcover",
+        "publisher",
+        "loc"
+      ]
+    },
+    {
+      "entityKind": "work",
+      "fieldPath": "original_language",
+      "requirement": "priority",
+      "appliesTo": "all",
+      "rightsClass": "facts",
+      "sources": [
+        "openlibrary",
+        "loc",
+        "publisher",
+        "hardcover"
+      ]
+    },
+    {
+      "entityKind": "work",
+      "fieldPath": "first_publication_date",
+      "requirement": "priority",
+      "appliesTo": "all",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "loc",
+        "openlibrary"
+      ]
+    },
+    {
+      "entityKind": "work",
+      "fieldPath": "synopsis",
+      "requirement": "priority",
+      "appliesTo": "all",
+      "rightsClass": "licensed_text",
+      "sources": [
+        "publisher",
+        "openlibrary",
+        "hardcover"
+      ]
+    },
+    {
+      "entityKind": "work",
+      "fieldPath": "subjects_genres",
+      "requirement": "priority",
+      "appliesTo": "all",
+      "rightsClass": "facts",
+      "sources": [
+        "openlibrary",
+        "loc",
+        "publisher"
+      ]
+    },
+    {
+      "entityKind": "work",
+      "fieldPath": "subtitle",
+      "requirement": "optional",
+      "appliesTo": "all",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "openlibrary",
+        "hardcover"
+      ]
+    },
+    {
+      "entityKind": "work",
+      "fieldPath": "work_type",
+      "requirement": "optional",
+      "appliesTo": "all",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "openlibrary",
+        "loc"
+      ]
+    },
+    {
+      "entityKind": "work",
+      "fieldPath": "series_membership",
+      "requirement": "conditional",
+      "appliesTo": "series",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "hardcover",
+        "openlibrary"
+      ]
+    },
+    {
+      "entityKind": "work",
+      "fieldPath": "series_position",
+      "requirement": "conditional",
+      "appliesTo": "series",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "hardcover"
+      ]
+    },
+    {
+      "entityKind": "work",
+      "fieldPath": "alternate_titles",
+      "requirement": "optional",
+      "appliesTo": "all",
+      "rightsClass": "facts",
+      "sources": [
+        "openlibrary",
+        "loc",
+        "publisher"
+      ]
+    },
+    {
+      "entityKind": "work",
+      "fieldPath": "work_version",
+      "requirement": "conditional",
+      "appliesTo": "revised_or_translated",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "loc"
+      ]
+    },
+    {
+      "entityKind": "work",
+      "fieldPath": "descriptors_themes_moods",
+      "requirement": "optional",
+      "appliesTo": "all",
+      "rightsClass": "editorial",
+      "sources": [
+        "publisher",
+        "editorial"
+      ]
+    },
+    {
+      "entityKind": "work",
+      "fieldPath": "audience_or_content_advisories",
+      "requirement": "optional",
+      "appliesTo": "all",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "loc"
+      ]
+    },
+    {
+      "entityKind": "work",
+      "fieldPath": "awards",
+      "requirement": "optional",
+      "appliesTo": "all",
+      "rightsClass": "facts",
+      "sources": [
+        "awards_body",
+        "publisher"
+      ]
+    },
+    {
+      "entityKind": "edition",
+      "fieldPath": "parent_work_id",
+      "requirement": "required",
+      "appliesTo": "all",
+      "rightsClass": "identity",
+      "sources": [
+        "canonical_local"
+      ]
+    },
+    {
+      "entityKind": "edition",
+      "fieldPath": "edition_source_identifier",
+      "requirement": "required",
+      "appliesTo": "all",
+      "rightsClass": "identity",
+      "sources": [
+        "openlibrary",
+        "hardcover",
+        "publisher",
+        "loc"
+      ]
+    },
+    {
+      "entityKind": "edition",
+      "fieldPath": "format",
+      "requirement": "priority",
+      "appliesTo": "all",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "hardcover",
+        "loc",
+        "openlibrary"
+      ]
+    },
+    {
+      "entityKind": "edition",
+      "fieldPath": "isbn13_isbn10",
+      "requirement": "conditional",
+      "appliesTo": "isbn_assigned",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "loc",
+        "hardcover",
+        "openlibrary"
+      ]
+    },
+    {
+      "entityKind": "edition",
+      "fieldPath": "alternate_product_identifier",
+      "requirement": "conditional",
+      "appliesTo": "no_isbn",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "retailer",
+        "hardcover"
+      ]
+    },
+    {
+      "entityKind": "edition",
+      "fieldPath": "publisher",
+      "requirement": "priority",
+      "appliesTo": "all",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "loc",
+        "hardcover",
+        "openlibrary"
+      ]
+    },
+    {
+      "entityKind": "edition",
+      "fieldPath": "imprint",
+      "requirement": "optional",
+      "appliesTo": "all",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "loc"
+      ]
+    },
+    {
+      "entityKind": "edition",
+      "fieldPath": "release_date",
+      "requirement": "priority",
+      "appliesTo": "all",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "loc",
+        "hardcover",
+        "openlibrary"
+      ]
+    },
+    {
+      "entityKind": "edition",
+      "fieldPath": "language",
+      "requirement": "priority",
+      "appliesTo": "all",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "loc",
+        "hardcover",
+        "openlibrary"
+      ]
+    },
+    {
+      "entityKind": "edition",
+      "fieldPath": "edition_statement",
+      "requirement": "optional",
+      "appliesTo": "all",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "loc",
+        "hardcover"
+      ]
+    },
+    {
+      "entityKind": "edition",
+      "fieldPath": "page_count",
+      "requirement": "conditional",
+      "appliesTo": "print",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "loc",
+        "hardcover",
+        "openlibrary"
+      ]
+    },
+    {
+      "entityKind": "edition",
+      "fieldPath": "binding",
+      "requirement": "priority",
+      "appliesTo": "print",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "loc",
+        "hardcover",
+        "openlibrary"
+      ]
+    },
+    {
+      "entityKind": "edition",
+      "fieldPath": "cover_asset",
+      "requirement": "priority",
+      "appliesTo": "all",
+      "rightsClass": "licensed_media",
+      "sources": [
+        "publisher",
+        "licensed_cover_provider",
+        "manual"
+      ]
+    },
+    {
+      "entityKind": "edition",
+      "fieldPath": "large_print",
+      "requirement": "conditional",
+      "appliesTo": "large_print",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "loc"
+      ]
+    },
+    {
+      "entityKind": "edition",
+      "fieldPath": "dimensions_and_weight",
+      "requirement": "optional",
+      "appliesTo": "print",
+      "rightsClass": "facts",
+      "sources": [
+        "publisher",
+        "retailer"
+      ]
+    },
+    {
+      "entityKind": "edition",
+      "fieldPath": "file_format_and_size",
+      "requirement": "optional",
+      "appliesTo": "ebook",
+      "rightsClass": "technical",
+      "sources": [
+        "publisher",
+        "digital_distributor"
+      ]
+    },
+    {
+      "entityKind": "edition",
+      "fieldPath": "availability_and_price",
+      "requirement": "not_core",
+      "appliesTo": "all",
+      "rightsClass": "volatile_offer",
+      "sources": [
+        "publisher",
+        "retailer"
+      ]
+    },
+    {
+      "entityKind": "edition",
+      "fieldPath": "territory_and_rights",
+      "requirement": "optional",
+      "appliesTo": "all",
+      "rightsClass": "rights",
+      "sources": [
+        "publisher",
+        "rights_holder"
+      ]
+    },
+    {
+      "entityKind": "recording",
+      "fieldPath": "recording_identifier",
+      "requirement": "required",
+      "appliesTo": "audio",
+      "rightsClass": "identity",
+      "sources": [
+        "audio_publisher",
+        "audio_retailer",
+        "hardcover"
+      ]
+    },
+    {
+      "entityKind": "recording",
+      "fieldPath": "linked_audio_edition",
+      "requirement": "required",
+      "appliesTo": "audio",
+      "rightsClass": "identity",
+      "sources": [
+        "canonical_local"
+      ]
+    },
+    {
+      "entityKind": "recording",
+      "fieldPath": "narrators_and_cast",
+      "requirement": "conditional",
+      "appliesTo": "audio",
+      "rightsClass": "facts",
+      "sources": [
+        "audio_publisher",
+        "hardcover",
+        "audio_retailer"
+      ]
+    },
+    {
+      "entityKind": "recording",
+      "fieldPath": "duration_seconds",
+      "requirement": "conditional",
+      "appliesTo": "audio",
+      "rightsClass": "facts",
+      "sources": [
+        "audio_publisher",
+        "hardcover",
+        "audio_retailer"
+      ]
+    },
+    {
+      "entityKind": "recording",
+      "fieldPath": "abridgement",
+      "requirement": "conditional",
+      "appliesTo": "audio",
+      "rightsClass": "facts",
+      "sources": [
+        "audio_publisher",
+        "audio_retailer"
+      ]
+    },
+    {
+      "entityKind": "recording",
+      "fieldPath": "narration_language",
+      "requirement": "priority",
+      "appliesTo": "audio",
+      "rightsClass": "facts",
+      "sources": [
+        "audio_publisher",
+        "audio_retailer"
+      ]
+    },
+    {
+      "entityKind": "recording",
+      "fieldPath": "audio_publisher_label",
+      "requirement": "priority",
+      "appliesTo": "audio",
+      "rightsClass": "facts",
+      "sources": [
+        "audio_publisher",
+        "audio_retailer"
+      ]
+    },
+    {
+      "entityKind": "recording",
+      "fieldPath": "performance_type",
+      "requirement": "optional",
+      "appliesTo": "audio",
+      "rightsClass": "facts",
+      "sources": [
+        "audio_publisher",
+        "audio_retailer"
+      ]
+    },
+    {
+      "entityKind": "recording",
+      "fieldPath": "production_metadata",
+      "requirement": "not_core",
+      "appliesTo": "audio",
+      "rightsClass": "technical",
+      "sources": [
+        "audio_publisher"
+      ]
+    },
+    {
+      "entityKind": "recording",
+      "fieldPath": "tracks_codec_bitrate",
+      "requirement": "not_core",
+      "appliesTo": "audio",
+      "rightsClass": "technical",
+      "sources": [
+        "audio_distributor"
+      ]
+    },
+    {
+      "entityKind": "person",
+      "fieldPath": "author_biography",
+      "requirement": "optional",
+      "appliesTo": "all",
+      "rightsClass": "licensed_text",
+      "sources": [
+        "author_site",
+        "publisher",
+        "loc"
+      ]
+    },
+    {
+      "entityKind": "person",
+      "fieldPath": "author_portrait",
+      "requirement": "optional",
+      "appliesTo": "all",
+      "rightsClass": "licensed_media",
+      "sources": [
+        "author_site",
+        "publisher",
+        "manual"
+      ]
+    },
+    {
+      "entityKind": "system",
+      "fieldPath": "source_provenance",
+      "requirement": "required",
+      "appliesTo": "all",
+      "rightsClass": "internal",
+      "sources": [
+        "canonical_local"
+      ]
+    },
+    {
+      "entityKind": "system",
+      "fieldPath": "field_verification_status",
+      "requirement": "required",
+      "appliesTo": "all",
+      "rightsClass": "internal",
+      "sources": [
+        "canonical_local"
+      ]
+    },
+    {
+      "entityKind": "system",
+      "fieldPath": "source_licence_policy",
+      "requirement": "required",
+      "appliesTo": "all",
+      "rightsClass": "internal",
+      "sources": [
+        "canonical_local"
+      ]
+    },
+    {
+      "entityKind": "system",
+      "fieldPath": "publication_and_revision_status",
+      "requirement": "required",
+      "appliesTo": "all",
+      "rightsClass": "internal",
+      "sources": [
+        "canonical_local"
+      ]
+    },
+    {
+      "entityKind": "community",
+      "fieldPath": "reviews_ratings_shelves",
+      "requirement": "not_core",
+      "appliesTo": "all",
+      "rightsClass": "user_generated",
+      "sources": [
+        "chapterandsound_members"
+      ]
+    }
+  ],
+  "notes": [
+    "Provider presence in matrix indicates candidate field capability, not demonstrated coverage or reproduction permission.",
+    "No ISBN is required when a legitimate edition is identified by another exact edition or recording identifier.",
+    "Defaults in admin form must not count as independently verified external evidence."
+  ]
+}
