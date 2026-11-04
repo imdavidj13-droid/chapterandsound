@@ -6,7 +6,7 @@ interface Statement{bind(...args:Param[]):Statement;all<T>():Promise<{results:T[
 interface Database{prepare(sql:string):Statement}
 export type ImportCandidate=WorkForReview&{sourceId?:string;sourceKey?:string};
 type Decision='create_draft'|'needs_enrichment'|'existing_edition'|'review_match'|'invalid'|'duplicate_in_batch';
-export type PreviewRow={index:number;title:string;author:string;isbn13:string|null;isbn10:string|null;decision:Decision;reason:string;existingWorkId?:string;existingEditionId?:string;matches?:{id:string;title:string}[];quality:ImportQuality};
+export type PreviewRow={index:number;title:string;author:string;isbn13:string|null;isbn10:string|null;decision:Decision;reason:string;existingWorkId?:string;existingEditionId?:string;matches?:{id:string;title:string}[];authorMatches?:{id:string;name:string}[];quality:ImportQuality};
 const norm=(value:unknown,max=500)=>typeof value==='string'?value.normalize('NFKC').trim().replace(/\s+/g,' ').slice(0,max):'';
 const normalizedTitle=(v:string)=>v.toLocaleLowerCase('en-GB').replace(/[^\p{L}\p{N}]+/gu,' ').trim().replace(/\s+/g,' ');
 const normalizeIsbn=(v:string)=>v.replace(/[\s-]/g,'').toUpperCase();
@@ -26,7 +26,9 @@ export async function previewCatalogueImport(db:Database,candidates:unknown):Pro
   const format=norm(raw.format,30).toLowerCase();
   const publicationDate=norm(raw.publicationDate,10);
   const quality=assessImportQuality({...raw,title,author,isbn13:isbn13||undefined,isbn10:isbn10||undefined});
-  const base={index:index+1,title,author,isbn13,isbn10,quality};
+  const authorMatches=author?(await db.prepare("SELECT id,preferred_name AS name FROM people WHERE lower(trim(preferred_name))=lower(?) AND identity_status NOT IN ('merged','suppressed') LIMIT 5")
+   .bind(author).all<{id:string;name:string}>()).results:[];
+  const base={index:index+1,title,author,isbn13,isbn10,quality,authorMatches};
   const add=(decision:Decision,reason:string,other:Partial<PreviewRow>={})=>{summary[decision]++;rows.push({...base,decision,reason,...other})};
   if(!title||!author){add('invalid','A title and author are required.');continue}
   if(isbn13&&!validIsbn13(isbn13)){add('invalid','Invalid ISBN-13 check digit.');continue}
