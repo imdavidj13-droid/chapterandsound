@@ -1,6 +1,6 @@
 import {catalogueUploadImage} from './catalogue-media-api.js';
 import type {CatalogueImageBucket} from './catalogue-media-api.js';
-import {manualCatalogueAPI} from './catalogue-manual-api.js';
+import {manualCatalogueAPI,validIsbn13,validIsbn10} from './catalogue-manual-api.js';
 import {catalogueBookMetadataAPI} from './catalogue-book-metadata-api.js';
 import {authConfigured,createAuth} from './auth.js';
 import {isVerifiedSiteOwner} from './admin-role.js';
@@ -419,10 +419,10 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
     const identifiers=[['ISBN13',str(edition.isbn13,40)],['ISBN10',str(edition.isbn10,40)],['ASIN',str(edition.asin,40)]] as const;
     for(const [schemeCode,raw] of identifiers){
      if(!raw)continue;
-     const normalized=raw.replace(/[\\s-]/g,'').toUpperCase();
-     if(schemeCode==='ISBN13'&&(!/^(978|979)\\d{10}$/.test(normalized)||([...normalized].slice(0,12).reduce((sum,char,index)=>sum+Number(char)*(index%2?3:1),0)+Number(normalized[12]))%10!==0))
+     const normalized=raw.replace(/[\s-]/g,'').toUpperCase();
+     if(schemeCode==='ISBN13'&&!validIsbn13(raw))
       return fail('Enter a valid ISBN-13 with its correct checksum');
-     if(schemeCode==='ISBN10'&&(!/^\\d{9}[\\dX]$/.test(normalized)||[...normalized].reduce((sum,char,index)=>sum+(char==='X'?10:Number(char))*(10-index),0)%11!==0))
+     if(schemeCode==='ISBN10'&&!validIsbn10(raw))
       return fail('Enter a valid ISBN-10 with its correct checksum');
      if(schemeCode==='ASIN'&&!/^[A-Z0-9]{10}$/.test(normalized))return fail('ASIN must contain exactly 10 letters or numbers');
      const duplicate=await db.prepare("SELECT id FROM entity_identifiers WHERE normalized_value=? AND scheme_id IN (SELECT id FROM identifier_schemes WHERE code=?) LIMIT 1")
