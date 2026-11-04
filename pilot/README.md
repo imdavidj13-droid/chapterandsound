@@ -7,6 +7,40 @@ The verified Open Library author identity is `/authors/OL1516279A`. Source: http
 
 Selection file: `pilot/simon-kernick-10-titles.txt`.
 
+
+## Preferred next step: targeted API fetch (no full-dump scan)
+
+The first complete local dump scan on 4 November 2026 already identified the 34
+Open Library work IDs and their provisional grouping. **Do not rerun the bulk
+preparer for this pilot.** To collect complete edition records without scanning
+the ~114 million local records again, use the small cached API fetcher:
+
+```powershell
+cd "C:\Projects\chapterandsound"
+git pull origin main
+node scripts/fetch-openlibrary-pilot.mjs --resolution-file "pilot/simon-kernick-resolution.json" --out ".private-catalogue-pilot"
+```
+
+The fetcher reads the exact work IDs already in the resolution file, calls Open
+Library's work and editions JSON endpoints sequentially with a modest delay,
+and saves every successful response under
+`.private-catalogue-pilot/openlibrary-cache/`. It is **resumable**: a subsequent
+run reuses cached pages. It produces `api-report.json` and
+`api-candidates-01.json`, distinct from the older dump-scan files. These are
+**review-only** and are not automatic production import manifests.
+
+The live API may have changed since the October snapshot. The fetcher verifies
+source work keys and the selected author's identity, and flags unexpected titles
+and metadata collisions instead of silently accepting them. Edition formats
+remain `unknown` unless grounded by the source's physical format. No narrator
+or audio duration is guessed. Matching ISBNs are grouped as potential duplicate
+edition identities with source aliases retained; format/publisher/date conflicts
+are reported for review.
+
+**No Cloudflare calls, no D1 writes and no book publication.** Production drafts
+still require verified canonical identity mappings, import compatibility
+checks, completeness checks, and the normal preview/backup/rehearsal gates.
+
 ## Why this pilot is different
 
 Open Library's author profile contains multiple work records for some of the same novels. The offline preparer now accepts a **verified author ID plus title allowlist**; it reports ambiguous or missing work matches rather than picking one arbitrarily. An explicit, provisional canonical-work mapping may be used to combine matching source IDs; those records remain marked for identity review. It preserves all linked edition records, identifies ISBNs at edition level only, and reports incomplete fields.
