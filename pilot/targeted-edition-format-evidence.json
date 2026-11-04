@@ -1,0 +1,56 @@
+{
+  "mode": "exact_edition_format_evidence",
+  "checkedOn": "2026-11-04",
+  "records": [
+    {
+      "title": "Relentless",
+      "isbn13": "9781407095295",
+      "editionSourceKey": "/books/OL29046645M",
+      "format": "ebook",
+      "feature": null,
+      "source": "penguin_uk_product_page",
+      "sourceUrl": "https://www.penguin.co.uk/books/349671/relentless-by-kernick-simon/9781407095295"
+    },
+    {
+      "title": "Siege",
+      "isbn13": "9781448136681",
+      "editionSourceKey": "/books/OL29116566M",
+      "format": "ebook",
+      "feature": null,
+      "source": "penguin_uk_product_page",
+      "sourceUrl": "https://www.penguin.co.uk/books/431396/siege-by-kernick-simon/9781448136681"
+    },
+    {
+      "title": "Siege",
+      "isbn13": "9781471201646",
+      "editionSourceKey": "/books/OL29788951M",
+      "format": "paperback",
+      "feature": "large_print",
+      "source": "edition_retailer_listing",
+      "sourceUrl": "https://www.abebooks.com/9781471201646/Siege-Simon-Kernick-1471201643/plp"
+    },
+    {
+      "title": "Severed",
+      "isbn13": "9781407409658",
+      "editionSourceKey": "/books/OL30152593M",
+      "format": null,
+      "feature": "large_print",
+      "source": "open_british_national_bibliography",
+      "sourceUrl": "https://obnb.uk/p14459217-severed"
+    },
+    {
+      "title": "The Final Minute",
+      "isbn13": "9781510017825",
+      "editionSourceKey": "/books/OL46834952M",
+      "format": null,
+      "feature": "large_print",
+      "source": "openlibrary_edition_details",
+      "sourceUrl": "https://openlibrary.org/works/OL33842039W/The_Final_Minute"
+    }
+  ],
+  "notes": [
+    "Evidence keyed to both an existing Open Library edition ID and matching ISBN; do not transfer to another edition.",
+    "Large print is recorded independently from binding. No binding is inferred when source only says large print.",
+    "No full source descriptions, covers, or images retained."
+  ]
+}
