@@ -19,8 +19,12 @@ test('bookshelf edition selector queries published BOOK_DB editions, not just le
  assert.ok(route.indexOf('if(env.BOOK_DB)')<route.indexOf('FROM editions e WHERE e.work_id=?'),
   'canonical catalogue must be consulted before legacy edition fallback');
 });
-test('member add book displays canonical ebook format and edition ISBN',()=>{
+test('member add book displays canonical formats without exposing technical ISBNs to readers',()=>{
  assert.match(bookshelf,/api\/editions\?workId=/);
- assert.match(bookshelf,/ISBN '\+e\.isbn13/);
+ assert.match(bookshelf,/formatName\(e\.format\)/);
  assert.match(bookshelf,/editionId:editionId\|\|undefined/);
+ const start=bookshelf.indexOf('{step===2&&');
+ const end=bookshelf.indexOf('{step===3&&',start);
+ assert.ok(start>=0&&end>start);
+ assert.doesNotMatch(bookshelf.slice(start,end),/e\.isbn13|e\.publisher/);
 });
