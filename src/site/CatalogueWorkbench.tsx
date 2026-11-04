@@ -21,15 +21,16 @@ const performances=['unknown','single_narrator','multi_narrator','full_cast','dr
 const abridgements=['unknown','unabridged','abridged','adapted'];
 const label=(s:string)=>s.replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
 const short=(id:string)=>id.slice(0,8);
-type CatalogueView='new'|'drafts'|'published'|'all'|'edit';
+type CatalogueView='new'|'drafts'|'published'|'all'|'edit'|'import';
 function viewFromPath(path:string):CatalogueView{
  if(path==='/admin/catalogue/new')return 'new';
  if(path.startsWith('/admin/catalogue/book/'))return 'edit';
  if(path==='/admin/catalogue/published')return 'published';
+ if(path==='/admin/catalogue/import')return 'import';
  if(path==='/admin/catalogue/all')return 'all';
  return 'drafts';
 }
-const catalogueUrl=(view:'new'|'drafts'|'published'|'all')=>view==='drafts'?'/admin/catalogue/drafts':'/admin/catalogue/'+view;
+const catalogueUrl=(view:'new'|'drafts'|'published'|'all'|'import')=>view==='drafts'?'/admin/catalogue/drafts':'/admin/catalogue/'+view;
 export function CatalogueWorkbench({path,navigate}:{path:string;navigate:(to:string)=>void}){
  const view=viewFromPath(path);
  const [ready,setReady]=useState<boolean|null>(null),[error,setError]=useState(''),[notice,setNotice]=useState('');
@@ -89,7 +90,7 @@ export function CatalogueWorkbench({path,navigate}:{path:string;navigate:(to:str
   }
  },[path]);
  useEffect(()=>{
-  if(view==='new'||view==='edit')return;
+  if(view==='new'||view==='edit'||view==='import')return;
   let active=true;
   const timer=window.setTimeout(async()=>{
    setListLoading(true);setListError('');
@@ -176,17 +177,18 @@ export function CatalogueWorkbench({path,navigate}:{path:string;navigate:(to:str
 
   <div className="cs-catalogue-primary-bar">
    <div><p className="cs-admin-eyebrow">BOOK CATALOGUE</p>
-    <h2>{view==='edit'?'Edit and review book':view==='new'?'Create a new book':view==='drafts'?'Saved drafts':view==='published'?'Published books':'All books'}</h2>
+    <h2>{view==='edit'?'Edit and review book':view==='new'?'Create a new book':view==='drafts'?'Saved drafts':view==='published'?'Published books':view==='import'?'Import Centre':'All books'}</h2>
     <p>{view==='new'?'1. Enter details  →  2. Save draft  →  3. Review and publish':
       view==='edit'?'Review your saved details, add editions and covers, then publish when ready.':
       view==='drafts'?'Your unfinished books are kept here until you publish them. Open any draft to continue.':
-      view==='published'?'Books currently available in the public catalogue.':'Browse and manage all catalogue books.'}</p>
+      view==='published'?'Books currently available in the public catalogue.':view==='import'?'Search permitted sources, preview candidates and prevent duplicate catalogue records.':'Browse and manage all catalogue books.'}</p>
    </div>
    <div className="cs-catalogue-primary-actions" aria-label="Catalogue workflow">
     <button type="button" className={view==='new'?'selected':''} onClick={()=>navigate(catalogueUrl('new'))}>+ Create book</button>
     <button type="button" className={view==='drafts'?'selected':''} onClick={()=>navigate(catalogueUrl('drafts'))}>Drafts</button>
     <button type="button" className={view==='published'?'selected':''} onClick={()=>navigate(catalogueUrl('published'))}>Published</button>
     <button type="button" className={view==='all'?'selected':''} onClick={()=>navigate(catalogueUrl('all'))}>All books</button>
+    <button type="button" className={view==='import'?'selected':''} onClick={()=>navigate(catalogueUrl('import'))}>Import Centre</button>
     <button type="button" onClick={refresh} disabled={loading}>Refresh</button>
    </div>
   </div>
@@ -240,7 +242,7 @@ export function CatalogueWorkbench({path,navigate}:{path:string;navigate:(to:str
    </div></div>}
   </section>}
   {view==='edit'&&editingId&&<CataloguePublicationAudit key={editingId+editStatus} workId={editingId} status={editStatus}/>}
-  {view!=='new'&&view!=='edit'&&<div className="cs-admin-heading cs-catalogue-list-head" style={{marginTop:22}}>
+  {view!=='new'&&view!=='edit'&&view!=='import'&&<div className="cs-admin-heading cs-catalogue-list-head" style={{marginTop:22}}>
    <div><h3>{view==='drafts'?'Your saved drafts':view==='published'?'Published books':'Catalogue records'}</h3><p>{view==='drafts'?'Select Continue editing to finish a draft and publish it.':'Select Edit book to view and update its details.'}</p></div>
    <label>Search books<input type="search" value={listQuery} onChange={e=>{setListQuery(e.target.value);setListPage(0)}} placeholder="Search by title"/></label>
   </div>}
@@ -250,7 +252,7 @@ export function CatalogueWorkbench({path,navigate}:{path:string;navigate:(to:str
       setListVersion(v=>v+1);void load();
       navigate('/admin/catalogue/book/'+encodeURIComponent(bookId));
      }}/>}
-  {view!=='new'&&view!=='edit'&&<>
+  {view!=='new'&&view!=='edit'&&view!=='import'&&<>
    {listError&&<p role="alert" className="cs-admin-error">{listError}</p>}
    <div className="cs-catalogue-record-list" aria-label="Saved catalogue books">
     {listedWorks.map(book=><article className="cs-catalogue-record-card" key={book.id}>
@@ -264,7 +266,7 @@ export function CatalogueWorkbench({path,navigate}:{path:string;navigate:(to:str
    </div>
    <div className="cs-admin-pager"><button disabled={listPage===0||listLoading} onClick={()=>setListPage(p=>Math.max(0,p-1))}>Previous</button><span>Page {listPage+1}</span><button disabled={listedWorks.length<50||listLoading} onClick={()=>setListPage(p=>p+1)}>Next</button></div>
   </>}
-  {view==='all'&&<CatalogueImportCentre/>}
+  {view==='import'&&<CatalogueImportCentre/>}
   {view==='all'&&<CatalogueDiagnostics/>}
   {view==='all'&&<section className="cs-catalogue-advanced">
    <div><h3>Advanced catalogue tools</h3><p>Manage authors, additional editions, recording credits, genres, publishers, series and identifiers without creating a second catalogue.</p></div>
