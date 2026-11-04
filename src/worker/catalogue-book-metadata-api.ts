@@ -34,15 +34,17 @@ export async function catalogueBookMetadataAPI(request:Request,db:MetadataDB,act
  if(['withdrawn','suppressed'].includes(work.status))return fail('This record is protected from editing',409);
  try{
   if(request.method==='GET'){
-   const [editions,identifiers,events,recordings,credits,genres]=await Promise.all([
+   const [editions,identifiers,events,recordings,credits,genres,covers]=await Promise.all([
     db.prepare('SELECT id,format,revision FROM editions WHERE work_id=? ORDER BY created_at').bind(workId).all(),
     db.prepare("SELECT i.id,i.entity_id AS editionId,s.code,i.value FROM entity_identifiers i JOIN identifier_schemes s ON s.id=i.scheme_id JOIN editions e ON e.id=i.entity_id WHERE i.entity_kind='edition' AND e.work_id=? ORDER BY s.code").bind(workId).all(),
     db.prepare('SELECT ev.id,ev.edition_id AS editionId,ev.event_type AS type,ev.date_value AS date,ev.publisher_id AS publisherId,o.name AS publisher FROM publication_events ev JOIN editions e ON e.id=ev.edition_id LEFT JOIN organisations o ON o.id=ev.publisher_id WHERE e.work_id=? ORDER BY ev.rowid DESC').bind(workId).all(),
     db.prepare('SELECT id,recording_title AS title FROM audio_recordings WHERE work_id=?').bind(workId).all(),
     db.prepare("SELECT c.id,c.recording_id AS recordingId,c.person_id AS personId,p.preferred_name AS name,c.role_code AS role FROM contributions c JOIN people p ON p.id=c.person_id JOIN audio_recordings r ON r.id=c.recording_id WHERE r.work_id=? AND c.role_code IN ('narrator','cast') ORDER BY c.credit_order").bind(workId).all(),
-    db.prepare('SELECT ws.id,ws.subject_id AS subjectId,s.label AS name FROM work_subjects ws JOIN subjects s ON s.id=ws.subject_id WHERE ws.work_id=? ORDER BY s.label').bind(workId).all()
+    db.prepare('SELECT ws.id,ws.subject_id AS subjectId,s.label AS name FROM work_subjects ws JOIN subjects s ON s.id=ws.subject_id WHERE ws.work_id=? ORDER BY s.label').bind(workId).all(),
+    db.prepare("SELECT l.entity_kind AS kind,l.entity_id AS entityId,l.asset_id AS assetId FROM media_links l WHERE l.is_primary=1 AND ((l.entity_kind='work' AND l.entity_id=?) OR (l.entity_kind='edition' AND l.entity_id IN (SELECT id FROM editions WHERE work_id=?))) ORDER BY l.rowid DESC")
+     .bind(workId,workId).all()
    ]);
-   return json({editions:editions.results,identifiers:identifiers.results,events:events.results,recordings:recordings.results,credits:credits.results,genres:genres.results});
+   return json({editions:editions.results,identifiers:identifiers.results,events:events.results,recordings:recordings.results,credits:credits.results,genres:genres.results,covers:covers.results});
   }
   if(request.method!=='POST')return fail('Method not supported',405);
   const raw:unknown=await request.json().catch(()=>null);
