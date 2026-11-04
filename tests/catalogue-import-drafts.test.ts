@@ -54,6 +54,9 @@ test('approved draft creates work, author, edition, identifiers, publisher and a
   assert.equal(db.prepare('SELECT normalized_value FROM entity_identifiers').get()?.normalized_value,'9780306406157');
   assert.equal(db.prepare('SELECT body FROM text_content WHERE content_type=?').get('synopsis')?.body,'This is a sample synopsis.');
   assert.equal(db.prepare('SELECT count(*) AS n FROM publication_events').get()?.n,1);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM work_subjects').get()?.n,1);
+  assert.equal(db.prepare('SELECT label FROM subjects').get()?.label,'Mystery');
+  assert.equal(db.prepare('SELECT scheme_code FROM classification_schemes').get()?.scheme_code,'OPENLIBRARY');
   const audit=db.prepare("SELECT details_json FROM catalogue_audit_log WHERE action='import_draft'").get() as {details_json:string};
   assert.equal(JSON.parse(audit.details_json).workSourceKey,'/works/OL100W');
  }finally{db.close()}
