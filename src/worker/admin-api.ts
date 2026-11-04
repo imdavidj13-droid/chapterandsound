@@ -9,7 +9,7 @@ interface Statement{
 }
 interface DB{prepare(sql:string):Statement}
 export interface AdminEnv{
- DB?:DB;BETTER_AUTH_SECRET?:string;PUBLIC_ORIGIN?:string;MAIL_API_KEY?:string;
+ DB?:DB;BOOK_DB?:DB;BETTER_AUTH_SECRET?:string;PUBLIC_ORIGIN?:string;MAIL_API_KEY?:string;
  MAIL_FROM?:string;ADMIN_EMAIL?:string;SIGNUP_MODE?:string;
 }
 const respond=(value:unknown,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
@@ -57,8 +57,20 @@ export async function adminAPI(request:Request,env:AdminEnv):Promise<Response>{
       (SELECT COUNT(*) FROM clubs) AS clubs,
       (SELECT COUNT(*) FROM challenges) AS challenges,
       (SELECT COUNT(*) FROM missing_book_requests WHERE state='pending') AS missingRequests`;
-    const counts=await db.prepare(sql).first();
-    return respond({counts,environment:{signupMode:env.SIGNUP_MODE==='public'?'public':'owner_only',mailConfigured:Boolean(env.MAIL_API_KEY),origin:env.PUBLIC_ORIGIN}});
+    const legacyCounts=await db.prepare(sql).first<Record<string,number>>();
+    // The member DB owns review/member metrics. BOOK_DB owns all catalogue metrics.
+    let canonical:{books:number;drafts:number;published:number;editions:number;contributors:number}|null=null;
+    if(env.BOOK_DB)try{
+     canonical=await env.BOOK_DB.prepare(`SELECT
+      (SELECT COUNT(*) FROM works) AS books,
+      (SELECT COUNT(*) FROM works WHERE status='draft') AS drafts,
+      (SELECT COUNT(*) FROM works WHERE status IN ('published','verified')) AS published,
+      (SELECT COUNT(*) FROM editions) AS editions,
+      (SELECT COUNT(*) FROM people WHERE identity_status NOT IN ('merged','suppressed')) AS contributors`).first<NonNullable<typeof canonical>>();
+    }catch(error){console.error('Canonical admin overview counts unavailable',error);}
+    const counts={...legacyCounts,books:canonical?.books??null,bookDrafts:canonical?.drafts??null,
+     bookPublished:canonical?.published??null,editions:canonical?.editions??null,contributors:canonical?.contributors??null};
+    return respond({counts,catalogueConnected:canonical!==null,environment:{signupMode:env.SIGNUP_MODE==='public'?'public':'owner_only',mailConfigured:Boolean(env.MAIL_API_KEY),origin:env.PUBLIC_ORIGIN}});
    }
    if(section==='members'){
     const query=value(url.searchParams.get('q'),100);
