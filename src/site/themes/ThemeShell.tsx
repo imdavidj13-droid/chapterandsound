@@ -75,15 +75,58 @@ export function RoomHome({member,books,reviews,presentation}:{member:MemberIdent
  </div>;
 }
 export function RoomShelf({member}:{member:MemberIdentity}){
- const [items,setItems]=useState<{id:string;workId:string;bookTitle:string;author?:string|null;coverUrl?:string|null;status:string;format:string|null;progressValue:number|null;progressUnit:string|null}[]>([]);
- const [error,setError]=useState('');const [loading,setLoading]=useState(true);const [status,setStatus]=useState('all');const [term,setTerm]=useState('');
- useEffect(()=>{let active=true;apiGet<{items:typeof items}>('/api/member/shelf').then(r=>{if(active)setItems(r.items)}).catch(e=>{if(active)setError(e instanceof Error?e.message:'Unable to load shelf')}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[]);
- const statuses=[['all','All books'],['in_progress','In progress'],['want_to_read','Want to read'],['finished','Finished'],['paused','Paused'],['dnf','Did not finish']];
- const filtered=items.filter(x=>(status==='all'||x.status===status)&&x.bookTitle.toLowerCase().includes(term.toLowerCase()));
- return <div className="room-shelf"><div className="room-page-heading"><div><p className="eyebrow">My bookshelf</p><h1>My Bookshelf</h1><p>Stories in print, on screen and in your ears.</p></div><a href="/add-book" className="room-primary-link">+ Add a book</a></div>
- <div className="room-shelf-stats"><div><span>▤</span><strong>{items.filter(x=>x.status==='finished').length}</strong><small>Finished</small></div><div><span>◉</span><strong>{items.filter(x=>x.status==='in_progress').length}</strong><small>In progress</small></div><div><span>▧</span><strong>{items.length}</strong><small>Total records</small></div></div>
- <nav className="room-shelf-tabs" aria-label="Bookshelf status">{statuses.map(([key,label])=><button key={key} type="button" className={key===status?'selected':''} aria-pressed={key===status} onClick={()=>setStatus(key)}>{label}<span>{key==='all'?items.length:items.filter(x=>x.status===key).length}</span></button>)}</nav>
- <label className="room-shelf-search">Search your bookshelf<input type="search" placeholder="Search books on your shelf…" value={term} onChange={e=>setTerm(e.target.value)}/></label>
- {loading?<p role="status">Loading your cloud bookshelf…</p>:error?<div className="notice error" role="alert">{error}</div>:filtered.length?<div className="room-shelf-grid">{filtered.map(book=><article className="room-shelf-card" key={book.id}><div className="room-shelf-cover">{book.coverUrl?<img src={book.coverUrl} alt={`Cover of ${book.bookTitle}`} loading="lazy" onError={e=>{e.currentTarget.hidden=true;e.currentTarget.parentElement?.classList.add("room-shelf-cover-missing")}}/>:<span className="room-shelf-cover-fallback" aria-hidden="true">C&amp;S</span>}</div><div><h3><a href={'/book/'+encodeURIComponent(book.workId)}>{book.bookTitle}</a></h3>{book.author&&<p className="room-shelf-author">{book.author}</p>}<p className="room-shelf-format">{book.format||'Edition not chosen'}</p><span className="room-shelf-status">{statuses.find(([key])=>key===book.status)?.[1]||book.status}</span>{book.progressValue!=null&&<p>{book.progressValue} {book.progressUnit||'logged'}</p>}<a className="room-inline-cta" href={'/book/'+encodeURIComponent(book.workId)}>View this book →</a></div></article>)}</div>:<div className="room-empty-shelf"><h2>{items.length?'No books match these filters':'Your bookshelf starts here.'}</h2><p>{items.length?'Change your search or status to find another book.':'Add a book you are reading, listening to or saving for later.'}</p><a className="room-primary-link" href="/add-book">Add a book →</a></div>}
+ type ShelfBook={id:string;workId:string;bookTitle:string;author?:string|null;coverUrl?:string|null;status:string;format:string|null;progressValue:number|null;progressUnit:string|null;privateRating?:number|null;startedAt?:string|null;finishedAt?:string|null};
+ const [items,setItems]=useState<ShelfBook[]>([]);
+ const [error,setError]=useState(''),[loading,setLoading]=useState(true);
+ const [status,setStatus]=useState('all'),[term,setTerm]=useState(''),[sort,setSort]=useState('recent');
+ useEffect(()=>{let active=true;setLoading(true);
+  apiGet<{items:ShelfBook[]}>('/api/member/shelf')
+   .then(r=>{if(active){setItems(r.items);setError('')}})
+   .catch(e=>{if(active)setError(e instanceof Error?e.message:'Unable to load shelf')})
+   .finally(()=>{if(active)setLoading(false)});
+  return()=>{active=false};
+ },[member.id]);
+ const statuses=[['all','All books'],['in_progress','Reading now'],['want_to_read','Want to read'],['finished','Finished'],['paused','Paused'],['dnf','Did not finish']] as const;
+ const statusText=(value:string)=>({in_progress:'Currently reading',want_to_read:'Want to read',finished:'Finished',paused:'Paused',dnf:'Did not finish'} as Record<string,string>)[value]||value;
+ const formatText=(value:string|null)=>({ebook:'Ebook',audiobook:'Audiobook',paperback:'Paperback',hardback:'Hardback'} as Record<string,string>)[value||'']||value||'Edition not specified';
+ const counts={all:items.length,finished:items.filter(x=>x.status==='finished').length,reading:items.filter(x=>x.status==='in_progress').length,want:items.filter(x=>x.status==='want_to_read').length};
+ const filtered=items.filter(x=>(status==='all'||x.status===status)&&[x.bookTitle,x.author||''].some(v=>v.toLowerCase().includes(term.trim().toLowerCase())))
+  .sort((a,b)=>sort==='title'?a.bookTitle.localeCompare(b.bookTitle):sort==='author'?(a.author||'').localeCompare(b.author||''):0);
+ return <div className="room-shelf room-shelf-redesign">
+  <section className="room-shelf-intro">
+   <div><p className="eyebrow">YOUR READING ROOM / PERSONAL COLLECTION</p><h1>My Bookshelf</h1>
+    <p>Every story you've collected, all in one beautiful place.</p></div>
+   <a href="/add-book" className="room-shelf-add">+ Add a book</a>
+  </section>
+  <div className="room-shelf-summary" aria-label="Your reading at a glance">
+   <div><span className="room-shelf-summary-icon" aria-hidden="true">▤</span><strong>{counts.all}</strong><small>Books on my shelf</small></div>
+   <div><span className="room-shelf-summary-icon" aria-hidden="true">◉</span><strong>{counts.reading}</strong><small>Currently reading</small></div>
+   <div><span className="room-shelf-summary-icon" aria-hidden="true">✓</span><strong>{counts.finished}</strong><small>Finished</small></div>
+   <div><span className="room-shelf-summary-icon" aria-hidden="true">♡</span><strong>{counts.want}</strong><small>Want to read</small></div>
+  </div>
+  <section className="room-shelf-library" aria-label="Your saved books">
+   <div className="room-shelf-library-top"><div><p className="eyebrow">MY COLLECTION</p><h2>Stories on my shelf</h2></div><span>{filtered.length} {filtered.length===1?'book':'books'}</span></div>
+   <nav className="room-shelf-tabs" aria-label="Bookshelf status">{statuses.map(([key,label])=><button key={key} type="button" className={key===status?'selected':''} aria-pressed={key===status} onClick={()=>setStatus(key)}>{label}<span>{key==='all'?counts.all:items.filter(x=>x.status===key).length}</span></button>)}</nav>
+   <div className="room-shelf-toolbar">
+    <label className="room-shelf-search"><span className="room-shelf-field-label">Find a book on your shelf</span><span className="room-shelf-search-input"><span aria-hidden="true">⌕</span><input type="search" placeholder="Search by title or author…" value={term} onChange={e=>setTerm(e.target.value)}/></span></label>
+    <label className="room-shelf-sort"><span className="room-shelf-field-label">Sort by</span><select value={sort} onChange={e=>setSort(e.target.value)}><option value="recent">Recently added</option><option value="title">Book title</option><option value="author">Author</option></select></label>
+   </div>
+   {loading?<p role="status">Loading your cloud bookshelf…</p>:error?<div className="notice error" role="alert">{error}</div>:filtered.length?
+    <div className="room-shelf-gallery">{filtered.map(book=><article className="room-shelf-book" key={book.id}>
+     <a className="room-shelf-book-cover" href={'/book/'+encodeURIComponent(book.workId)} aria-label={'View '+book.bookTitle}>
+      {book.coverUrl?<img src={book.coverUrl} alt={'Cover of '+book.bookTitle} loading="lazy" onError={e=>{e.currentTarget.hidden=true;e.currentTarget.parentElement?.classList.add('room-shelf-cover-missing')}}/>:<span className="room-shelf-cover-fallback">C&amp;S</span>}
+      <span className={'room-shelf-book-badge is-'+book.status}>{statusText(book.status)}</span>
+     </a>
+     <div className="room-shelf-book-details">
+      <h3><a href={'/book/'+encodeURIComponent(book.workId)}>{book.bookTitle}</a></h3>
+      <p className="room-shelf-book-author">{book.author||'Author not yet confirmed'}</p>
+      <p className="room-shelf-book-format">{formatText(book.format)}</p>
+      {book.privateRating!=null&&<p className="room-shelf-book-rating" aria-label={'Your rating '+book.privateRating+' out of 5'}>{'★'.repeat(Math.max(0,Math.min(5,Math.round(book.privateRating))))}{'☆'.repeat(5-Math.max(0,Math.min(5,Math.round(book.privateRating))))} <span>Your rating</span></p>}
+      {book.progressValue!=null&&<p className="room-shelf-book-progress">Progress: {book.progressValue} {book.progressUnit||''}</p>}
+      <a className="room-shelf-book-link" href={'/book/'+encodeURIComponent(book.workId)}>View book <span aria-hidden="true">→</span></a>
+     </div>
+    </article>)}</div>:
+    <div className="room-empty-shelf"><h2>{items.length?'No books match your filters':'Your bookshelf starts here.'}</h2><p>{items.length?'Try another search or choose a different shelf status.':'Add a book you are reading, listening to or saving for later.'}</p><a className="room-primary-link" href="/add-book">Add a book →</a></div>}
+  </section>
  </div>;
 }
