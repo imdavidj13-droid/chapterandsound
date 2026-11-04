@@ -24,7 +24,7 @@ test('targeted Open Library fetcher caches and consolidates aliased editions wit
   '/works/OL2W.json':{key:'/works/OL2W',title:'Fixture Book',authors:[{author:{key:'/authors/OL1A'}}]},
   '/works/OL1W/editions.json?limit=100&offset=0':{size:2,entries:[
    {key:'/books/OL1M',isbn_13:['9780306406157'],physical_format:'Paperback',publishers:['Publisher'],publish_date:'2001'},
-   {key:'/books/OL2M',isbn_13:['9781407084350'],physical_format:'Ebook'}]},
+   {key:'/books/OL2M',isbn_13:['9781407084350'],physical_format:'E-book'}]},
   '/works/OL2W/editions.json?limit=100&offset=0':{size:1,entries:[
    {key:'/books/OL3M',isbn_13:['9780306406157'],physical_format:'Hardback',publishers:['Publisher']}]}
  };
@@ -55,6 +55,8 @@ test('targeted Open Library fetcher caches and consolidates aliased editions wit
   assert.equal(report.books[0].conflicts,1);
   const candidate=JSON.parse(readFileSync(join(output,'api-candidates-01.json'),'utf8')).candidates[0];
   assert.equal(candidate.editions.length,2);
+  assert.equal(candidate.editions.find((e:{isbn13:string})=>e.isbn13==='9781407084350').format,'ebook');
+  assert.equal(candidate.duplicateEditionGroups[0].alternativeMetadata.sourceKey,'/books/OL3M');
   assert.equal(candidate.identityStatus,'provisional_review_required');
   assert.deepEqual(candidate.sourceWorkKeys,['/works/OL1W','/works/OL2W']);
   assert.deepEqual(candidate.editions.find((e:{isbn13:string})=>e.isbn13==='9780306406157').aliasEditionSourceKeys,['/books/OL3M']);
