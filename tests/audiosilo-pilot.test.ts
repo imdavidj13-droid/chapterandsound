@@ -1,5 +1,6 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
+// @ts-expect-error The companion runtime module is plain JavaScript with no declaration file.
 import {assessAudioMatch,discoverAudio} from '../scripts/discover-audiosilo-pilot.mjs';
 
 const input={candidates:Array.from({length:10},(_,i)=>({
