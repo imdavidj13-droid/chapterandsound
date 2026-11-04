@@ -28,6 +28,11 @@ const binding=v=>{
  if(/^(?:audiobook|audio book|audio cd|mp3 cd|audio download)$/.test(s))return 'audiobook';
  return null;
 };
+export function isAccessVerificationPage(html){
+ const text=String(html||'');
+ return /<title[^>]*>[^<]*(?:checking your browser|just a moment|verify you are human|access denied)[^<]*<\/title>/i.test(text)||
+  /(?:captcha|cloudflare challenge|browser verification required|checking your browser)/i.test(text);
+}
 export function parseIsbnSearch(html,isbn){
  // ISBNsearch uses .bookinfo h1 for title and .bookinfo p for
  // labelled fields. Extract individual paragraphs to avoid accidentally
@@ -104,6 +109,10 @@ export async function research(input,{getPage,getRobots,max=10,delay=1500}={}){
   if(!checkRobots(robots,path)){errors.push({isbn:edition.isbn13,error:'robots_disallow'});continue}
   try{
    const html=await getPage(path);
+   if(isAccessVerificationPage(html)){
+    errors.push({isbn:edition.isbn13,error:'access_verification_page'});
+    break; // Do not continue issuing requests after an access gate.
+   }
    const parsed=parseIsbnSearch(html,edition.isbn13);
    const status=validateMatch(book,edition,parsed);
    const row={title:book.title,editionSourceKey:edition.sourceKey,isbn13:edition.isbn13,
@@ -115,7 +124,7 @@ export async function research(input,{getPage,getRobots,max=10,delay=1500}={}){
   }catch(err){
    const message=String(err);
    errors.push({isbn:edition.isbn13,error:message});
-   if(/HTTP (401|403|429)|captcha|challenge/i.test(message))break;
+   if(/HTTP (401|403|429)|captcha|challenge|verification page|access verification/i.test(message))break;
   }
   if(delay)await sleep(delay);
  }
@@ -147,14 +156,19 @@ export async function run(argv){
    'User-Agent':AGENT},signal:AbortSignal.timeout(16000)});
   if(!res.ok)throw Error('HTTP '+res.status+' from '+kind);
   const value=await res.text();
-  if(/captcha|verify you are human|cloudflare challenge/i.test(value))
-   throw Error('Access challenge; stop');
+  if(isAccessVerificationPage(value))
+   throw Error('Access verification page; stop');
   return value;
  };
  const robots=await response('/robots.txt','robots');
  const getPage=async(path)=>{
   const file=join(cache,path.split('/').pop()+'.html');
-  if(existsSync(file))return readFileSync(file,'utf8');
+  if(existsSync(file)){
+   const cached=readFileSync(file,'utf8');
+   if(isAccessVerificationPage(cached))
+    throw Error('Cached access verification page; stop. No retry or bypass.');
+   return cached;
+  }
   const html=await response(path,'ISBN page');
   writeFileSync(file+'.partial',html);renameSync(file+'.partial',file);
   return html;
