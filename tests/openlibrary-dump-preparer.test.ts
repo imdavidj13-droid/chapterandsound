@@ -56,5 +56,18 @@ test('offline Open Library dump preparer creates reviewed manifests without netw
   const idReport=JSON.parse(readFileSync(join(byId,'report.json'),'utf8'));
   assert.equal(idReport.selection.authorKey,author);
   assert.deepEqual(idReport.selection.titles,['fixture book']);
+  // Two distinct source works with the same title must not be picked arbitrarily.
+  const ambiguousWorks=join(dir,'ambiguous-works.txt.gz');
+  writeFileSync(ambiguousWorks,gzipSync(
+   row('/type/work',work,{key:work,title:'Fixture Book',authors:[{author:{key:author}}]})+
+   row('/type/work','/works/OL999W',{key:'/works/OL999W',title:'Fixture Book',authors:[{author:{key:author}}]})
+  ));
+  const failedOut=join(dir,'ambiguous-output');
+  mkdirSync(failedOut);
+  assert.throws(()=>execFileSync(process.execPath,[script,
+   '--works',ambiguousWorks,'--authors',authors,'--editions',editions,
+   '--author-key',author,'--titles-file',titles,'--max','10','--out',failedOut
+  ],{timeout:15000,stdio:'pipe'}),/Command failed/);
+
  }finally{rmSync(dir,{recursive:true,force:true})}
 });
