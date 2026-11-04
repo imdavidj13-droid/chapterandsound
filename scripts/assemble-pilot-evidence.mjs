@@ -60,7 +60,7 @@ export function run(args){
  const opts={};
  for(let i=0;i<args.length;i+=2){
   if(!['--enriched','--covers','--audio','--wikidata','--out'].includes(args[i])||!args[i+1])throw Error('Invalid argument');
-  opts[args[i]]=args[++i];
+  opts[args[i]]=args[i+1];
  }
  if(['--enriched','--covers','--audio','--wikidata','--out'].some(k=>!opts[k]))throw Error('Required: --enriched --covers --audio --wikidata --out');
  const report=assemble({enriched:load(opts['--enriched']),covers:load(opts['--covers']),
