@@ -106,6 +106,7 @@ export function ReadingRoomAuthorProfile({id,memberVerified}:{id:string;memberVe
     {hasBio?<p className="room-author-intro">{person.biography}</p>:<p className="room-author-intro">Discover the books and editions by {person.name}.</p>}
     <div className="room-author-metrics"><span>{books.length} {books.length===1?'published book':'published books'}</span>{audioBooks.length>0&&<span>{audioBooks.length} {audioBooks.length===1?'book with audio':'books with audio'}</span>}{profile.subjects?.slice(0,2).map(subject=><span key={subject}>{subject}</span>)}</div>
    </div>
+   <div className="room-author-banner-editorial" aria-label="Chapter and Sound reading room message"><span>CHAPTER & SOUND</span><strong>Good stories sound even better here.</strong></div>
   </section>
   <div className="room-author-main-layout">
    <main className="room-author-main">
