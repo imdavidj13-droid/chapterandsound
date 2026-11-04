@@ -1,6 +1,7 @@
 import {CatalogueBookEditor} from './CatalogueBookEditor';
 import {CatalogueManualManager} from './CatalogueManualManager';
 import {CatalogueLinkedEditions} from './CatalogueLinkedEditions';
+import {CatalogueCoverEditor} from './CatalogueCoverEditor';
 import {useCallback,useEffect,useState} from 'react';
 import type {FormEvent} from 'react';
 import {apiGet,apiWrite} from './api';
@@ -161,10 +162,7 @@ export function CatalogueWorkbench(){
     <footer className="cs-book-edit-footer"><button type="submit" className="primary" disabled={saving||!title.trim()}>{saving?'Saving…':'Save book changes'}</button></footer>
    </form>}
    {editView==='editions'&&<div className="cs-book-edit-body"><CatalogueLinkedEditions workId={editingId} onSaved={()=>void load()}/></div>}
-   {editView==='images'&&<div className="cs-book-edit-body"><div className="cs-book-edit-panel">
-    <h3>Cover images</h3><p>Upload a rights-cleared cover to this existing book or one of its editions using the image uploader further down this page.</p>
-    {mediaReady?<button type="button" className="primary" onClick={()=>{setMediaKind('work');setMediaId(editingId);document.getElementById('cs-catalogue-media')?.scrollIntoView({behavior:'smooth',block:'start'})}}>Upload cover for this book</button>:<p className="cs-book-storage-warning">Cloudflare R2 is not connected. Images cannot be uploaded yet.</p>}
-   </div></div>}
+   {editView==='images'&&<div className="cs-book-edit-body"><CatalogueCoverEditor workId={editingId} imageStorage={mediaReady}/></div>}
    {editView==='preview'&&<div className="cs-book-edit-body"><div className="cs-book-edit-panel">
     <p className="cs-book-eyebrow">CATALOGUE RECORD PREVIEW</p><h3>{title||'Untitled book'}</h3>
     <p><strong>Authors:</strong> {editCredits.filter(c=>['author','coauthor'].includes(c.role)).map(c=>c.name).join(', ')||'Not linked'}</p>
