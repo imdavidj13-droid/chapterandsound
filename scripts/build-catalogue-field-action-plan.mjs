@@ -149,5 +149,4 @@ export function run(argv){
   providerOpportunities:plan.providerOpportunities,status:plan.status};
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)
- console.log(JSON.stringify(run(process.argv.slice(2)),null,2))
- .catch?.(()=>{});
+ console.log(JSON.stringify(run(process.argv.slice(2)),null,2));
