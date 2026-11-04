@@ -37,6 +37,8 @@ const requestedTitles=opts['--titles-file']
 if(requestedTitles.length>250||new Set(requestedTitles).size!==requestedTitles.length)
  throw Error('Title list must contain unique titles (maximum 250).');
 const matchedTitles=new Map();
+const unresolvedTitles=[];
+const candidateAlternatives=new Set();
 const wanted=new Set(opts['--seeds']?readFileSync(opts['--seeds'],'utf8').split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#')):[]);
 if(opts['--seeds']&&(!wanted.size||wanted.size>250||[...wanted].some(x=>!/^\/works\/OL\d+W$/.test(x)))){
  throw Error('Seed file must contain 1–250 unique Open Library work keys, e.g. /works/OL123W.');
@@ -85,16 +87,20 @@ if(opts['--author-name']||opts['--author-key']){
    const match=requestedTitles.find(title=>norm===title||norm.startsWith(title+' '));
    if(!match)return;
    const found=matchedTitles.get(match)||[];
-   found.push({key,title:record.title});
+   found.push({key,title:record.title,firstPublicationDate:normalize(record.first_publish_date),
+    hasDescription:Boolean(normalize(typeof record.description==='string'?record.description:record.description?.value)),
+    subjectCount:Array.isArray(record.subjects)?record.subjects.length:0});
    matchedTitles.set(match,found);
   }else possible.push({key,title:record.title});
  });
  if(requestedTitles.length){
   for(const title of requestedTitles.slice(0,max)){
    const matches=matchedTitles.get(title)||[];
-   if(matches.length!==1)throw Error('Pilot title "'+title+'" matched '+matches.length+
-    ' work records. Resolve that ambiguous title explicitly before selecting it.');
-   wanted.add(matches[0].key);
+   if(matches.length!==1){
+    unresolvedTitles.push({title,reason:matches.length?'ambiguous_work_identity':'source_work_not_found',
+     options:matches.sort((a,b)=>a.key.localeCompare(b.key))});
+    for(const match of matches)candidateAlternatives.add(match.key);
+   }else wanted.add(matches[0].key);
   }
  }else{
   // Do not automatically select two work records carrying the same normalised title.
@@ -110,10 +116,12 @@ if(opts['--author-name']||opts['--author-key']){
    if(wanted.size>=max)break;
   }
  }
- if(!wanted.size)throw Error('No unambiguous author works match the pilot selection.');
+ if(!wanted.size&&!candidateAlternatives.size)throw Error('No source works match the pilot selection.');
 }
+// Read every competing source record and its linked editions for the review report.
+const scannedKeys=new Set([...wanted,...candidateAlternatives]);
 const workScan=await scan(opts['--works'],(key,record)=>{
- if(wanted.has(key)){
+ if(scannedKeys.has(key)){
   const authorKeys=(record.authors||[]).map(a=>a?.author?.key||a?.key).filter(x=>typeof x==='string');
   workRecords.set(key,{key,title:normalize(record.title),authorKeys,
    description:normalize(typeof record.description==='string'?record.description:record.description?.value),
@@ -128,7 +136,7 @@ const authorScan=await scan(opts['--authors'],(key,record)=>{
  if(authorIds.has(key)&&normalize(record.name))authors.set(key,normalize(record.name));
 });
 const editionScan=await scan(opts['--editions'],(key,record)=>{
- const refs=(record.works||[]).map(x=>x?.key).filter(x=>wanted.has(x));
+ const refs=(record.works||[]).map(x=>x?.key).filter(x=>scannedKeys.has(x));
  if(!refs.length)return;
  const isbns=(record.isbn_13||[]).map(normalize).filter(valid13);
  const isbn10s=(record.isbn_10||[]).map(normalize).filter(x=>/^\d{9}[\dXx]$/.test(x));
@@ -168,6 +176,18 @@ for(const key of wanted){
  if(all.some(e=>!e.format||!e.publisher||!e.publicationDate||!e.language))errors.push({key,reason:'Some editions have incomplete format, publisher, release date or language; retained for enrichment'});
  if(names.length>1)errors.push({key,reason:'Multiple author contributors require manual review before applying: '+names.join(', ')});
 }
+// Potential duplicates are never silently imported. Report all work alternatives,
+ // including edition counts and a small set of source-linked identifiers.
+for(const unresolved of unresolvedTitles){
+ for(const option of unresolved.options){
+  const linked=editions.get(option.key)||[];
+  const record=workRecords.get(option.key);
+  option.editionCount=linked.length;
+  option.verifiedIsbns=[...new Set(linked.map(e=>e.isbn13).filter(Boolean))].slice(0,8);
+  option.descriptionPreview=record?.description.slice(0,200)||'';
+  option.firstPublicationDate=record?.firstPublicationDate||option.firstPublicationDate;
+ }
+}
 const files=[];
 for(let i=0;i<candidates.length;i+=100){
  const name='candidates-'+String(Math.floor(i/100)+1).padStart(2,'0')+'.json';
@@ -176,8 +196,11 @@ for(let i=0;i<candidates.length;i+=100){
 }
 const report={generatedAt:new Date().toISOString(),source:'Open Library monthly dumps',selection:opts['--author-name']||opts['--author-key']?{authorName:opts['--author-name']||null,authorKey:opts['--author-key']||null,titles:requestedTitles,max}:null,requested:wanted.size,worksFound:workRecords.size,authorsFound:authors.size,
  editionsMatched:[...editions.values()].reduce((sum,value)=>sum+value.length,0),
- candidates:candidates.length,reviewItems:errors.length,files,errors,
+ candidates:candidates.length,reviewItems:errors.length+unresolvedTitles.length,files,errors,
+ unresolvedTitles,needsIdentityReview:unresolvedTitles.length,
  scan:{works:workScan,authors:authorScan,editions:editionScan},
  caveats:['No database writes performed','All edition records for each seeded work are retained, including editions with incomplete metadata','Authors with multiple creators need identity review','Cover processing is deferred','Audiobook narrator and duration may need additional licensed metadata','Output needs a BOOK_DB dry-run preview before any future ingestion']};
 writeFileSync(join(output,'report.json'),JSON.stringify(report,null,2)+'\n');
-console.log(JSON.stringify({output,candidates:candidates.length,reviewItems:errors.length,files},null,2));
+console.log(JSON.stringify({output,candidates:candidates.length,
+ needsIdentityReview:unresolvedTitles.length,reviewItems:errors.length+unresolvedTitles.length,
+ files,report:'report.json'},null,2));
