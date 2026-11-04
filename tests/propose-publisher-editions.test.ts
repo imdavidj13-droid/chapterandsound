@@ -13,7 +13,7 @@ const fact={title:'Book 0',author:'Simon Kernick',isbn13:isbn,
  checkedOn:'2026-11-04'};
 const fixture=()=>({candidates:Array.from({length:10},(_,i)=>({
  title:'Book '+i,author:'Simon Kernick',workSourceKey:'/works/OL'+(i+1)+'W',
- editions:[{sourceKey:'/books/OL'+(i+1)+'M',isbn13:null,isbn13Candidates:[],
+ editions:[{sourceKey:'/books/OL'+(i+1)+'M',isbn13:null as string|null,isbn13Candidates:[],
  format:'unknown',publicationDate:'',publisher:''}]
 }))});
 test('proposes an edition with source key under existing work, not a new work',()=>{
