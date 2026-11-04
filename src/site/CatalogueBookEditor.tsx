@@ -132,7 +132,7 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
   <div className="cs-book-editor-grid">
    <div className="cs-book-editor-fields">
     <section className="cs-book-editor-section">
-     <header><span className="cs-book-section-number">01</span><div><h3>Book details</h3><p>The shared information for every edition</p></div></header>
+     <header><span className="cs-book-section-number">01</span><div><h3>Book details</h3><p>Title, author and the format you're adding first</p></div></header>
      <label>Book title <span>*</span><input required maxLength={500} autoFocus value={title} onChange={e=>setTitle(e.target.value)} placeholder="Enter the book title"/></label>
      {possibleDuplicates.length>0&&<div className="cs-book-duplicate-warning" role="alert"><strong>Possible existing book</strong><p>Matches from a catalogue search for this title. Different editions should belong to the same book. Review before adding.</p>{possibleDuplicates.map(w=><div className="cs-book-duplicate-result" key={w.id}><span><strong>{w.title}</strong>{w.authors?' · '+w.authors:''}</span>{onEditExisting&&<button type="button" onClick={()=>onEditExisting(w.id)}>Open existing book</button>}</div>)}<label className="cs-book-editor-toggle"><input type="checkbox" checked={allowSameTitle} onChange={e=>setAllowSameTitle(e.target.checked)}/> I checked these records and this is genuinely a different book with the same title</label></div>}
      {duplicateCheckError&&<p className="cs-admin-error" role="alert">{duplicateCheckError}</p>}
@@ -145,9 +145,14 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
       <small>Choose the correct author, not just a matching name. All contributors belong to one catalogue.</small>
      </div>
      <div className="cs-book-editor-two">
-      <label>Book type<select value={type} onChange={e=>setType(e.target.value)}>{workTypes.map(x=><option key={x} value={x}>{name(x)}</option>)}</select></label>
+      <label>Format <span>*</span><select value={format} onChange={e=>{setFormat(e.target.value);setAddEdition(true)}}>{formats.filter(x=>['paperback','hardback','ebook','audiobook'].includes(x)).map(x=><option key={x} value={x}>{x==='ebook'?'Ebook':name(x)}</option>)}</select></label>
       <label>Original language<input maxLength={40} value={language} onChange={e=>setLanguage(e.target.value)} placeholder="en"/></label>
      </div>
+     <details className="cs-book-work-type-advanced">
+      <summary>Advanced: literary work classification</summary>
+      <label>Work type<select value={type} onChange={e=>setType(e.target.value)}>{workTypes.map(x=><option key={x} value={x}>{name(x)}</option>)}</select></label>
+      <small>Normally leave this as Book. This describes the content, not the format you buy or listen to.</small>
+     </details>
      <label>First published<input maxLength={10} placeholder="YYYY or YYYY-MM-DD" value={firstPublished} onChange={e=>setFirstPublished(e.target.value)}/></label>
      <label>Description<textarea rows={5} maxLength={12000} value={synopsis} onChange={e=>setSynopsis(e.target.value)} placeholder="Book synopsis or editorial description"/></label>
     </section>
@@ -156,7 +161,7 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
      <label className="cs-book-editor-toggle"><input type="checkbox" checked={addEdition} onChange={e=>setAddEdition(e.target.checked)}/> Include the first edition when saving this book</label>
      {addEdition&&<>
       <div className="cs-book-editor-two">
-       <label>Edition format<select value={format} onChange={e=>setFormat(e.target.value)}>{formats.map(x=><option key={x} value={x}>{name(x)}</option>)}</select></label>
+       <label>Selected format<input readOnly value={format==='ebook'?'Ebook':name(format)} aria-label="Selected edition format"/></label>
        <label>Edition language<input maxLength={40} value={editionLanguage} onChange={e=>setEditionLanguage(e.target.value)} placeholder="en"/></label>
       </div>
       <div className="cs-book-editor-two">
