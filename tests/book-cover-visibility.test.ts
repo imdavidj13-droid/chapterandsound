@@ -60,3 +60,11 @@ test('Reading Room uses a real cover-led magazine layout with live bookshelf rec
  assert.match(component,/book\.author/);
  assert.match(component,/section==='reviews'/);
 });
+
+test('shared header has a round member profile control on every public page',()=>{
+ assert.match(roomShell,/function ProfileMenu/);
+ assert.match(roomShell,/className="global-profile-avatar"/);
+ assert.match(roomShell,/<ProfileMenu member=\{member\}\/>/);
+ assert.match(roomShell,/className="global-profile-dropdown"/);
+ assert.match(roomShell,/href="\/account"/);
+});
