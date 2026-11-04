@@ -87,7 +87,7 @@ export async function run(argv){
  for(let i=0;i<argv.length;i+=2){
   const key=argv[i];if(!['--input','--out','--max','--delay-ms','--api-base-openlibrary','--api-base-google'].includes(key)||!argv[i+1])
    throw Error('Unknown option or missing value: '+key);
-  options[key]=argv[++i];
+  options[key]=argv[i+1];
  }
  if(!options['--input']||!options['--out'])throw Error('Required --input and --out');
  const max=Number(options['--max']??40),delay=Number(options['--delay-ms']??600);
