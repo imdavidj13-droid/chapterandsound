@@ -76,7 +76,32 @@ Next ingestion engine should consume approved dump snapshots or licensed feeds w
 
 Do **not** automatically download and republish images: image rights and metadata reuse permissions require independent evaluation. `coverUrl` from an external source should not be treated as permission to copy or publicly display the image.
 
-## 4. Next implementation gate (not yet complete)
+## 4. Offline pilot manifest preparation
+
+`scripts/prepare-openlibrary-pilot.mjs` streams the official monthly works, authors and editions TSV+gzip dumps **locally**, resolves only requested work keys, chooses at most one validated ISBN-13 edition per work, and emits batches of no more than 100 candidates. No API harvesting, D1 writes or publication is involved.
+
+Example `pilot-work-keys.txt`:
+
+```
+/works/OL123W
+/works/OL456W
+```
+
+Use **actual verified Open Library work identifiers** for your chosen pilot set; the lines above merely illustrate the expected format.
+
+```powershell
+node scripts/prepare-openlibrary-pilot.mjs --works "D:\\catalogue-dumps\\ol_dump_works_latest.txt.gz" --authors "D:\\catalogue-dumps\\ol_dump_authors_latest.txt.gz" --editions "D:\\catalogue-dumps\\ol_dump_editions_latest.txt.gz" --seeds "pilot-work-keys.txt" --out ".private-catalogue-pilot"
+```
+
+Generated files: `candidates-01.json`, `candidates-02.json`, etc. and `report.json`. Paste these batches into Admin → Book Catalogue → All Books → Import Centre for the dry-run check.
+
+- The script intentionally **does not** automatically use Open Library cover images or text descriptions.
+- Ambiguous/multiple authors are reported for manual review.
+- A work with no edition containing a valid ISBN-13 is skipped and reported, not made up.
+- No generated output is automatically deployed or imported.
+- Official monthly dump downloads can be large; consider sufficient disk space and run locally rather than in a Cloudflare Worker.
+
+## 5. Next implementation gate (not yet complete)
 
 A real 250-book pilot requires:
 
@@ -90,10 +115,10 @@ A real 250-book pilot requires:
 
 No production import, publication, database deletion, migration or identity merge should be inferred from a successful dry run.
 
-## 5. Verification
+## 6. Verification
 
 New test files:
 - `tests/catalogue-import-preview.test.ts` — SQLite migration-backed matching, checksum and no-write checks;
-- `tests/catalogue-import-boundaries.test.ts` — owner permission, dry-run, bounded source lookup.
+- `tests/catalogue-import-boundaries.test.ts` — owner permission, dry-run, bounded source lookup.\n- `tests/openlibrary-dump-preparer.test.ts` — compressed fixtures for offline source processing.
 
 CI/build execution and deployment still need independent verification; source commits alone are not evidence that a Worker endpoint is live.
