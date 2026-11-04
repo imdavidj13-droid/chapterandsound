@@ -46,10 +46,11 @@ export function evaluateGoogle(book,ed,payload){
    (info.authors||[]).some(a=>normalize(a)===wantedAuthor);
  })?'identity_matched':'identity_mismatch';
 }
-export async function resolvePilot(input,{openLibrary,googleBooks,limit=40}){
+export async function resolvePilot(input,{openLibrary,googleBooks,limit=40,onProgress=()=>{}}){
  const {queue,unknownWithIsbn}=queueUnknown(input,limit);
  const findings=[],stats={openLibrary:{explicit:0,no_explicit_format:0,mismatch:0,not_found:0,error:0},
-  googleBooks:{identity_matched:0,identity_mismatch:0,isbn_mismatch:0,no_result:0,error:0}};
+  googleBooks:{identity_matched:0,identity_mismatch:0,isbn_mismatch:0,no_result:0,error:0,skipped:0}};
+ let googleBlocked=false;
  for(const {book,ed} of queue){
   const entry={title:book.title,isbn13:ed.isbn13,editionSourceKey:ed.sourceKey,
    openLibrary:{status:'not_checked'},googleBooks:{status:'not_checked'}};
@@ -59,17 +60,24 @@ export async function resolvePilot(input,{openLibrary,googleBooks,limit=40}){
    const status=decision.status==='explicit_format'?'explicit':
     decision.status==='no_explicit_format'?'no_explicit_format':
     decision.status==='not_found'?'not_found':'mismatch';
-   entry.openLibrary={status,...(status==='explicit'?{format:decision.format,
+   entry.openLibrary={status,...(status==='mismatch'?{reason:decision.status}:{}),...(status==='explicit'?{format:decision.format,
     sourceUrl:'https://openlibrary.org'+ed.sourceKey+'.json'}:{})};
    stats.openLibrary[status]++;
-  }catch(e){entry.openLibrary={status:'error'};stats.openLibrary.error++}
-  try{
+  }catch(e){entry.openLibrary={status:'error',error:String(e).slice(0,140)};stats.openLibrary.error++}
+  if(googleBlocked){entry.googleBooks={status:'skipped',reason:'previous_google_access_failure'};stats.googleBooks.skipped++;}
+  else try{
    const raw=await googleBooks(ed.isbn13);
    const status=evaluateGoogle(book,ed,raw);
    entry.googleBooks={status};
    stats.googleBooks[status]++;
-  }catch(e){entry.googleBooks={status:'error'};stats.googleBooks.error++}
+  }catch(e){
+   const message=String(e).slice(0,140);
+   entry.googleBooks={status:'error',error:message};stats.googleBooks.error++;
+   if(/HTTP (?:401|403|429)|AbortError|TimeoutError/i.test(message))googleBlocked=true;
+  }
   findings.push(entry);
+  onProgress({done:findings.length,total:queue.length,isbn:ed.isbn13,
+   openLibrary:entry.openLibrary.status,googleBooks:entry.googleBooks.status});
  }
  return {mode:'multi_source_isbn_diagnostic',importEligible:false,
   totals:{works:input.candidates.length,unknownWithIsbn,attempted:queue.length,
@@ -126,7 +134,9 @@ export async function run(argv){
   return jsonFetch(gb+'/volumes?q='+encodeURIComponent('isbn:'+isbn)+'&maxResults=5');
  };
  const input=JSON.parse(readFileSync(resolve(options['--input']),'utf8'));
- const report=await resolvePilot(input,{openLibrary,googleBooks,limit:max});
+ const report=await resolvePilot(input,{openLibrary,googleBooks,limit:max,
+  onProgress:p=>console.error('[isbn-resolver] '+p.done+'/'+p.total+' '+p.isbn+
+   ' Open Library='+p.openLibrary+' Google='+p.googleBooks)});
  report.totals.requests=requests;report.totals.openLibraryCacheHits=cacheHits;
  const filename=join(output,'multi-source-isbn-report.json');
  writeFileSync(filename+'.partial',JSON.stringify(report,null,2)+'\n');renameSync(filename+'.partial',filename);
