@@ -13,16 +13,19 @@ import {createInterface} from 'node:readline';
 import {resolve,join} from 'node:path';
 
 function usage(){
- console.error('Usage: node scripts/prepare-openlibrary-pilot.mjs --works works.txt.gz --authors authors.txt.gz --editions editions.txt.gz --seeds pilot-work-keys.txt --out .private-catalogue-pilot');
+ console.error('Usage: node scripts/prepare-openlibrary-pilot.mjs --works works.txt.gz --authors authors.txt.gz --editions editions.txt.gz (--seeds pilot-work-keys.txt | --author-name "Simon Kernick" --max 10) --out .private-catalogue-pilot');
  process.exitCode=2;
 }
 const opts={};
 for(let i=2;i<process.argv.length;i+=2){opts[process.argv[i]]=process.argv[i+1]}
-const needed=['--works','--authors','--editions','--seeds','--out'];
-if(needed.some(key=>!opts[key])){usage();process.exit(2)}
+const needed=['--works','--authors','--editions','--out'];
+if(needed.some(key=>!opts[key])||(!opts['--seeds']&&!opts['--author-name'])){usage();process.exit(2)}
+if(opts['--seeds']&&opts['--author-name'])throw Error('Choose either --seeds or --author-name, not both.');
 const output=resolve(opts['--out']);
-const wanted=new Set(readFileSync(opts['--seeds'],'utf8').split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#')));
-if(!wanted.size||wanted.size>250||[...wanted].some(x=>!/^\/works\/OL\d+W$/.test(x))){
+const max=Number(opts['--max']||10);
+if(!Number.isInteger(max)||max<1||max>250)throw Error('--max must be between 1 and 250.');
+const wanted=new Set(opts['--seeds']?readFileSync(opts['--seeds'],'utf8').split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#')):[]);
+if(opts['--seeds']&&(!wanted.size||wanted.size>250||[...wanted].some(x=>!/^\/works\/OL\d+W$/.test(x)))){
  throw Error('Seed file must contain 1–250 unique Open Library work keys, e.g. /works/OL123W.');
 }
 mkdirSync(output,{recursive:true});
@@ -48,6 +51,25 @@ async function scan(path,onRecord){
   parsed++;
  }
  return {lines:seen,parsed};
+}
+if(opts['--author-name']){
+ const authorName=String(opts['--author-name']).trim().normalize('NFKC').toLocaleLowerCase('en-GB');
+ if(!authorName)throw Error('Provide an author name for automated pilot selection.');
+ const matching=[];
+ await scan(opts['--authors'],(key,record)=>{
+  if(normalize(record.name).toLocaleLowerCase('en-GB')===authorName&&/^\/authors\/OL\d+A$/.test(key))
+   matching.push(key);
+ });
+ if(matching.length!==1)throw Error('Author name matched '+matching.length+' profiles. Resolve the exact author identity before pilot selection.');
+ const possible=[];
+ await scan(opts['--works'],(key,record)=>{
+  if(!/^\/works\/OL\d+W$/.test(key))return;
+  const keys=(record.authors||[]).map(a=>a?.author?.key||a?.key);
+  if(keys.includes(matching[0]))possible.push(key);
+ });
+ possible.sort();
+ for(const key of possible.slice(0,max))wanted.add(key);
+ if(!wanted.size)throw Error('This author has no work records in the selected official dump.');
 }
 const workScan=await scan(opts['--works'],(key,record)=>{
  if(wanted.has(key)){
@@ -111,7 +133,7 @@ for(let i=0;i<candidates.length;i+=100){
  writeFileSync(join(output,name),JSON.stringify({candidates:candidates.slice(i,i+100)},null,2)+'\n');
  files.push(name);
 }
-const report={generatedAt:new Date().toISOString(),source:'Open Library monthly dumps',requested:wanted.size,worksFound:workRecords.size,authorsFound:authors.size,
+const report={generatedAt:new Date().toISOString(),source:'Open Library monthly dumps',selection:opts['--author-name']?{authorName:opts['--author-name'],max}:null,requested:wanted.size,worksFound:workRecords.size,authorsFound:authors.size,
  editionsMatched:[...editions.values()].reduce((sum,value)=>sum+value.length,0),
  candidates:candidates.length,reviewItems:errors.length,files,errors,
  scan:{works:workScan,authors:authorScan,editions:editionScan},
