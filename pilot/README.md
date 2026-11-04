@@ -9,7 +9,7 @@ Selection file: `pilot/simon-kernick-10-titles.txt`.
 
 ## Why this pilot is different
 
-Open Library's author profile contains multiple work records for some of the same novels. The offline preparer now accepts a **verified author ID plus title allowlist**; it rejects ambiguous or missing work matches rather than picking one arbitrarily. It preserves all linked edition records, identifies ISBNs at edition level only, and reports incomplete fields.
+Open Library's author profile contains multiple work records for some of the same novels. The offline preparer now accepts a **verified author ID plus title allowlist**; it reports ambiguous or missing work matches rather than picking one arbitrarily. An explicit, provisional canonical-work mapping may be used to combine matching source IDs; those records remain marked for identity review. It preserves all linked edition records, identifies ISBNs at edition level only, and reports incomplete fields.
 
 Open Library's bulk exports are published monthly. Obtain the matching three dumps (works, authors, editions) from https://openlibrary.org/developers/dumps, using the same snapshot where available. These are large files; enough storage is required. Do not use its live API to harvest the full dataset.
 
@@ -19,7 +19,23 @@ Run locally, inside the repository, after placing the three downloaded gzip file
 node scripts/prepare-openlibrary-pilot.mjs --works "D:\catalogue-dumps\works.txt.gz" --authors "D:\catalogue-dumps\authors.txt.gz" --editions "D:\catalogue-dumps\editions.txt.gz" --author-key "/authors/OL1516279A" --titles-file "pilot/simon-kernick-10-titles.txt" --max 10 --out ".private-catalogue-pilot"
 ```
 
-Output: a `candidates-01.json` and a `report.json` in `.private-catalogue-pilot`. Inspect the report. If a title matches multiple works, the preparer aborts with its title rather than hiding the duplicate.
+Output: `report.json` and candidate files only for selected, unambiguous works. By default duplicates stay unresolved, with their source IDs and ISBN samples shown in the report.
+
+### Reviewed consolidation from the 2026-10-31 report
+
+The 4 November pilot found **34 competing Open Library work IDs across the ten requested titles**, associated with **79 edition relationships** (not necessarily 79 unique editions). The provisional source-ID grouping is preserved in `pilot/simon-kernick-resolution.json`. It is **not** a declaration that every source edition or metadata field is verified.
+
+After pulling the latest repository revision, rerun the preparation with the same arguments plus:
+
+```powershell
+--resolution-file "pilot/simon-kernick-resolution.json"
+```
+
+This verifies that the *exact same set* of source work IDs still matches each title and author. Any changed/unknown source work ID blocks that title from automatic selection. The resulting candidates include one canonical work per matched title, `sourceWorkKeys` for all mapped aliases, and edition-level source identifiers. Repeated edition identifiers and identical valid ISBN-13 values are grouped while their aliases are recorded. Metadata disagreements are flagged in the review report.
+
+**These candidates remain provisional and must not be automatically published or imported without an identity and completeness review.** The preparer makes no Cloudflare or database writes. The local gzip dumps must be rescanned to extract complete edition information; the existing summary report alone did not preserve all edition fields.
+
+This is groundwork for a future public API: public clients receive one canonical work with separate verified editions and their format-specific metadata, rather than multiple source work records.
 
 ## Requirements before writing anything
 
@@ -45,4 +61,4 @@ Output: a `candidates-01.json` and a `report.json` in `.private-catalogue-pilot`
 9. Stay Alive
 10. The Final Minute
 
-The work IDs and edition counts are deliberately left unresolved until checked against one source snapshot, preventing accidental creation of duplicate works.
+The provisional canonical and alternate work IDs are recorded in the resolution file. Publication and production import remain blocked pending verification.
