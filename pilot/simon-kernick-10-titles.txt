@@ -1,0 +1,13 @@
+# Simon Kernick pilot; authoritative author: /authors/OL1516279A
+# Published titles, not assumed Open Library work IDs.
+# Existing "The Business of Dying" intentionally excluded to avoid duplicate work creation.
+Relentless
+Siege
+The Crime Trade
+A Good Day to Die
+The Payback
+The Murder Exchange
+Severed
+Ultimatum
+Stay Alive
+The Final Minute
