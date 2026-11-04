@@ -96,6 +96,34 @@ Unknown or unsupported formats remain unknown, and no ISBN prefix is used to
 guess format. The source-reference and licensing checks must be completed
 before publication or public API redistribution.
 
+## Google Books: bounded diagnostic comparison (no ingestion)
+
+Google Books provides title, author, ISBN, publisher, publication date and page-count
+fields, but its `printType=BOOK` does **not** tell us whether a matching ISBN is
+paperback or hardback, and `saleInfo.isEbook` describes Google ebookstore
+availability rather than confirming the edition's original format.
+
+Google's general API terms restrict building a permanent copy of their API
+responses or a derived metadata catalogue without permission. We therefore
+perform a bounded **comparison only**, retaining **aggregate coverage counts**,
+not Google-volume data, descriptions, images or other returned fields.
+
+Run with the existing enriched manifest (no dump scan):
+
+```powershell
+cd "C:\Projects\chapterandsound"
+git pull origin main
+node scripts/compare-google-books-pilot.mjs --input ".private-catalogue-pilot/enriched-candidates-01.json" --out ".private-catalogue-pilot" --max 30
+```
+
+This checks up to 30 unknown-format editions with a valid ISBN-13. It produces
+`google-books-comparison.json` containing aggregate/per-book match and
+additional-metadata counts, **not** a new source-backed edition file. No D1
+writes and no automatic format classifications occur. The diagnostic may
+encounter Google Books rate limits; these are counted as request failures.
+If the comparison is useful, obtain compatible rights or another suitable
+metadata source before ingesting fields for a future public API.
+
 ## Requirements before writing anything
 
 1. Confirm `npm run typecheck`, `npm test`, `npm run test:catalogue-schema`, `npm run build` pass on the exact revision containing the pilot.
