@@ -249,9 +249,9 @@ for(let i=0;i<candidates.length;i+=100){
  writeFileSync(join(output,name),JSON.stringify({candidates:candidates.slice(i,i+100)},null,2)+'\n');
  files.push(name);
 }
-const report={generatedAt:new Date().toISOString(),source:'Open Library monthly dumps',selection:opts['--author-name']||opts['--author-key']?{authorName:opts['--author-name']||null,authorKey:opts['--author-key']||null,titles:requestedTitles,max}:null,requested:wanted.size,worksFound:workRecords.size,authorsFound:authors.size,
+const report={generatedAt:new Date().toISOString(),source:'Open Library monthly dumps',selection:opts['--author-name']||opts['--author-key']?{authorName:opts['--author-name']||null,authorKey:opts['--author-key']||null,titles:requestedTitles,max}:null,requested:requestedTitles.length?Math.min(requestedTitles.length,max):wanted.size,selectedWorkKeys:wanted.size,worksFound:workRecords.size,authorsFound:authors.size,
  editionsMatched:[...editions.values()].reduce((sum,value)=>sum+value.length,0),
- candidates:candidates.length,reviewItems:errors.length+unresolvedTitles.length,files,errors,
+ candidates:candidates.length,reviewItems:errors.length+unresolvedTitles.length+candidates.filter(c=>c.identityStatus==='provisional_review_required').length,files,errors,
  unresolvedTitles,needsIdentityReview:unresolvedTitles.length+
  candidates.filter(c=>c.identityStatus==='provisional_review_required').length,
  resolutionUsed:Boolean(resolution),sourceWorkAliases:candidates.reduce((n,c)=>n+c.sourceWorkKeys.length-1,0),
@@ -261,5 +261,5 @@ const report={generatedAt:new Date().toISOString(),source:'Open Library monthly 
 writeFileSync(join(output,'report.json'),JSON.stringify(report,null,2)+'\n');
 console.log(JSON.stringify({output,candidates:candidates.length,
  needsIdentityReview:unresolvedTitles.length+candidates.filter(c=>c.identityStatus==='provisional_review_required').length,
- reviewItems:errors.length+unresolvedTitles.length,
+ reviewItems:errors.length+unresolvedTitles.length+candidates.filter(c=>c.identityStatus==='provisional_review_required').length,
  files,report:'report.json'},null,2));
