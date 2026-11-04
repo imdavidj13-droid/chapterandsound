@@ -27,6 +27,7 @@ Output: a `candidates-01.json` and a `report.json` in `.private-catalogue-pilot`
 2. Validate source-use rights and available edition metadata. Do not invent synopses, publisher details or audiobook narrators. Covers are deferred.
 3. Preview the manifest in Admin → Book Catalogue → Import Centre; ensure zero identity/ISBN collisions and no unresolved mandatory or pilot quality fields.
 4. Back up live `BOOK_DB` and verify backup readability. The existing published work, Simon Kernick contributor ID and member relationships must be preserved.
+   - Windows helper: `powershell -ExecutionPolicy Bypass -File scripts/backup-book-db.ps1`. This runs a read-only `wrangler d1 export --remote`, saves a timestamped SQL file outside the deployed app, and prints its SHA256. It does not establish restore success.
 5. Rehearse the transaction against a disposable database with identical migrations. Verify 10 drafts, expected edition counts, and no publicly visible changes.
 6. Only then explicitly approve a production draft import. The current runtime cannot directly access the user's Cloudflare account, so production execution cannot be claimed.
 
