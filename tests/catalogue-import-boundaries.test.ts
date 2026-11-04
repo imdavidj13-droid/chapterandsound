@@ -31,7 +31,9 @@ test('owner lookup is limited, explicit, and does not assign an arbitrary ISBN t
  assert.match(admin,/lookupOnly:true/);
  assert.match(ui,/Find candidates/);
  assert.match(ui,/Preview batch/);
- assert.match(ui,/No database writes were performed/);
+ assert.match(ui,/Preview remains read-only/);
+ assert.match(ui,/Save reviewed books as drafts/);
+ assert.match(ui,/Nothing was published/);
  assert.match(workbench,/<CatalogueImportCentre\/>/);
 });
 
