@@ -29,17 +29,35 @@ const binding=v=>{
  return null;
 };
 export function parseIsbnSearch(html,isbn){
- const plain=visible(html);
- const capture=(label)=>plain.match(new RegExp('(?:^|\\n)\\s*'+label+'\\s*:\\s*([^\\n]+)','im'))?.[1]?.trim()||null;
- const found13=capture('ISBN-13'),found10=capture('ISBN-10');
- const bindingRaw=capture('Binding');
- const title=plain.match(/(?:^|\n)([^\n]+)\n\s*ISBN-13\s*:/i)?.[1]?.trim()||null;
- if(!found13&&!found10)return {status:'no_structured_isbn',url:'https://isbnsearch.org/isbn/'+isbn};
+ // ISBNsearch uses .bookinfo h1 for title and .bookinfo p for
+ // labelled fields. Extract individual paragraphs to avoid accidentally
+ // pulling prices, navigation or adjacent listing information.
+ const head=String(html||'').match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
+ const title=head?visible(head[1]).trim():null;
+ const fields={};
+ for(const match of String(html||'').matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)){
+  const value=visible(match[1]).replace(/\s+/g,' ').trim();
+  const kv=value.match(/^(ISBN-13|ISBN-10|Author|Binding|Publisher|Published)\s*:\s*(.+)$/i);
+  if(kv)fields[kv[1].toLowerCase()]=kv[2].trim();
+ }
+ // Older pages can use different tags for the fields.
+ const text=visible(html);
+ for(const label of ['ISBN-13','ISBN-10','Author','Binding','Publisher','Published']){
+  if(!fields[label.toLowerCase()]){
+   const pattern=new RegExp('(?:^|\\n)\\s*'+label+'\\s*:\\s*([^\\n]+)','im');
+   const value=text.match(pattern)?.[1]?.trim();
+   if(value)fields[label.toLowerCase()]=value;
+  }
+ }
+ const found13=fields['isbn-13']||null,found10=fields['isbn-10']||null;
+ if(!found13&&!found10)return {status:'no_structured_isbn'};
  if(isbn!==found13&&isbn!==found10)return {status:'isbn_mismatch',found13,found10};
+ const bindingRaw=fields.binding||null;
  return {status:'matched_isbn',isbn13:found13,isbn10:found10,title,
-  author:capture('Author'),publisher:capture('Publisher'),
-  publicationDate:capture('Published'),bindingRaw,format:binding(bindingRaw)};
+  author:fields.author||null,publisher:fields.publisher||null,
+  publicationDate:fields.published||null,bindingRaw,format:binding(bindingRaw)};
 }
+
 const allowedPath=(robots,path)=>{
  const groups=[],lines=robots.split(/\r?\n/);let current=null,ruleStarted=false;
  for(const raw of lines){
@@ -67,7 +85,7 @@ export function validateMatch(book,edition,parsed){
  const title=norm(parsed.title),wanted=norm(book.title);
  if(!title||!(title===wanted||title.startsWith(wanted+' ')))return 'title_mismatch';
  const author=norm(parsed.author);
- if(!author||!author.includes('kernick')||!norm(book.author).split(' ').every(n=>author.includes(n)))
+ if(!author||!norm(book.author).split(' ').every(n=>author.split(' ').includes(n)))
   return 'author_mismatch';
  if(!parsed.format)return 'no_explicit_binding';
  return 'provisional_binding';
@@ -103,7 +121,9 @@ export async function research(input,{getPage,getRobots,max=10,delay=1500}={}){
  }
  return {mode:'isbnsearch_public_page_research_only',findings,errors,
   totals:{attempted:queue.length,checked:findings.length,errors:errors.length,
-   provisionalFormats:findings.filter(x=>x.status==='provisional_binding').length},
+   provisionalFormats:findings.filter(x=>x.status==='provisional_binding').length,
+   statusCounts:Object.fromEntries([...new Set(findings.map(x=>x.status))].map(status=>
+    [status,findings.filter(x=>x.status===status).length]))},
   candidateChanges:0,databaseWrites:0,
   notes:['Research observations are not production metadata imports.',
    'Permission to retain/redistribute information remains unverified.',
