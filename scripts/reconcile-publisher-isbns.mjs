@@ -14,9 +14,9 @@ const valid13=x=>{if(!/^97[89]\d{10}$/.test(x))return false;
  return (10-sum%10)%10===Number(x[12]);};
 const datePrecision=value=>{
  const v=String(value||'').trim();
- if(/^\\d{4}$/.test(v))return {kind:'year',year:v};
- if(/^\\d{4}-\\d{2}$/.test(v))return {kind:'month',year:v.slice(0,4),month:v};
- if(/^\\d{4}-\\d{2}-\\d{2}$/.test(v))return {kind:'day',year:v.slice(0,4),month:v.slice(0,7),day:v};
+ if(/^\d{4}$/.test(v))return {kind:'year',year:v};
+ if(/^\d{4}-\d{2}$/.test(v))return {kind:'month',year:v.slice(0,4),month:v};
+ if(/^\d{4}-\d{2}-\d{2}$/.test(v))return {kind:'day',year:v.slice(0,4),month:v.slice(0,7),day:v};
  return {kind:'unstructured'};
 };
 export function classifyDisagreement(key,existing,observed){
