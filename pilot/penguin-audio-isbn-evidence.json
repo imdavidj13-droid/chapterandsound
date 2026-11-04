@@ -1,0 +1,86 @@
+{
+  "mode": "source_attributed_audiobook_facts",
+  "scope": "Five publisher-confirmed Simon Kernick audio downloads",
+  "notes": [
+    "Publisher product pages explicitly list ISBN, narrator and duration in minutes.",
+    "No description, covers, artwork, audio samples, or marketing content retained.",
+    "Staging only: licensing and canonical identity checks still needed."
+  ],
+  "records": [
+    {
+      "title": "Siege",
+      "author": "Simon Kernick",
+      "isbn13": "9781448126644",
+      "format": "audiobook",
+      "audioDelivery": "download",
+      "narrators": [
+        "Paul Thornley"
+      ],
+      "durationMinutes": 634,
+      "imprint": "Transworld Digital",
+      "publicationDate": "2012-01-19",
+      "sourceUrl": "https://www.penguin.co.uk/books/405969/siege-by-simon-kernick/9781448126644",
+      "checkedOn": "2026-11-04"
+    },
+    {
+      "title": "The Payback",
+      "author": "Simon Kernick",
+      "isbn13": "9781446464694",
+      "format": "audiobook",
+      "audioDelivery": "download",
+      "narrators": [
+        "Paul Thornley"
+      ],
+      "durationMinutes": 608,
+      "imprint": "Transworld Digital",
+      "publicationDate": "2011-03-10",
+      "sourceUrl": "https://www.penguin.co.uk/books/405967/the-payback-by-simon-kernick/9781446464694",
+      "checkedOn": "2026-11-04"
+    },
+    {
+      "title": "The Final Minute",
+      "author": "Simon Kernick",
+      "isbn13": "9781473518117",
+      "format": "audiobook",
+      "audioDelivery": "download",
+      "narrators": [
+        "Paul Thornley"
+      ],
+      "durationMinutes": 622,
+      "imprint": "Cornerstone Digital",
+      "publicationDate": "2015-01-15",
+      "sourceUrl": "https://www.penguin.co.uk/books/415956/the-final-minute-by-kernick-simon/9781473518117",
+      "checkedOn": "2026-11-04"
+    },
+    {
+      "title": "Ultimatum",
+      "author": "Simon Kernick",
+      "isbn13": "9781448150687",
+      "format": "audiobook",
+      "audioDelivery": "download",
+      "narrators": [
+        "Paul Thornley"
+      ],
+      "durationMinutes": 565,
+      "imprint": "Cornerstone Digital",
+      "publicationDate": "2013-01-31",
+      "sourceUrl": "https://www.penguin.co.uk/books/415954/ultimatum-by-kernick-simon/9781448150687",
+      "checkedOn": "2026-11-04"
+    },
+    {
+      "title": "Stay Alive",
+      "author": "Simon Kernick",
+      "isbn13": "9781448185856",
+      "format": "audiobook",
+      "audioDelivery": "download",
+      "narrators": [
+        "Paul Thornley"
+      ],
+      "durationMinutes": 597,
+      "imprint": "Cornerstone Digital",
+      "publicationDate": "2014-01-30",
+      "sourceUrl": "https://www.penguin.co.uk/books/415955/stay-alive-by-kernick-simon/9781448185856",
+      "checkedOn": "2026-11-04"
+    }
+  ]
+}
