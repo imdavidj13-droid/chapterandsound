@@ -17,6 +17,7 @@ export async function previewCatalogueImport(db:Database,candidates:unknown):Pro
  const rows:PreviewRow[]=[];
  const seen=new Set<string>();
  const seenIsbns=new Set<string>();
+ const seenTitles=new Set<string>();
  for(let index=0;index<candidates.length;index++){
   const candidate=candidates[index] as ImportCandidate|null;
   const raw:ImportCandidate=(candidate&&typeof candidate==='object'&&!Array.isArray(candidate))?candidate:{};
@@ -49,10 +50,11 @@ export async function previewCatalogueImport(db:Database,candidates:unknown):Pro
   if(raw.editions&&raw.editions.length>500){add('invalid','More than 500 editions in one work. Split offline processing into validated batches.');continue}
   const values=[...new Set(isbnValues)];
   const signature=sourceId&&sourceKey?'source:'+sourceId+':'+sourceKey:'work:'+normalizedTitle(title)+'|'+normalizedTitle(author);
-  if(seen.has(signature)||values.some(v=>seenIsbns.has(v))){
-   add('duplicate_in_batch','Another candidate in this batch uses the same work or edition identifier.');continue
+  const titleSignature=normalizedTitle(title)+'|'+normalizedTitle(author);
+  if(seen.has(signature)||seenTitles.has(titleSignature)||values.some(v=>seenIsbns.has(v))){
+   add('duplicate_in_batch','Another candidate in this batch uses the same title/author, work key or edition identifier. Review before merging.');continue
   }
-  seen.add(signature);values.forEach(v=>seenIsbns.add(v));
+  seen.add(signature);seenTitles.add(titleSignature);values.forEach(v=>seenIsbns.add(v));
   if(values.length){
    const placeholders=values.map(()=>'?').join(',');
    const {results}=await db.prepare(`SELECT DISTINCT e.id AS editionId,w.id AS workId,w.canonical_title AS title
