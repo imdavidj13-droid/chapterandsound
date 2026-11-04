@@ -109,8 +109,8 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
     data.set('file',file);
     try{
      const upload=await fetch('/api/catalogue-admin/upload-image',{method:'POST',body:data,credentials:'include'});
-     const response=await upload.json() as {error?:string};
-     if(!upload.ok)throw new Error(response.error||'Image upload failed');
+     const response=await upload.json() as {error?:string;uploaded?:boolean};
+     if(!upload.ok||response.uploaded!==true)throw new Error(response.error||'The server did not confirm the cover upload.');
      message+=' Cover uploaded.';
     }catch(e){
      message+=' Cover upload failed: '+(e instanceof Error?e.message:'unknown error')+'. The book itself was saved.';
