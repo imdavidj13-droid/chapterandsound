@@ -1,0 +1,56 @@
+{
+  "mode": "exact_edition_format_evidence",
+  "checkedOn": "2026-11-04",
+  "records": [
+    {
+      "title": "Siege",
+      "isbn13": "9781409030270",
+      "editionSourceKey": "/books/OL35475434M",
+      "format": "ebook",
+      "feature": null,
+      "source": "goodreads_exact_isbn_edition",
+      "sourceUrl": "https://www.goodreads.com/work/editions/18332160-siege"
+    },
+    {
+      "title": "Stay Alive",
+      "isbn13": "9780099579120",
+      "editionSourceKey": "/books/OL26808264M",
+      "format": "paperback",
+      "feature": null,
+      "source": "abebooks_exact_isbn",
+      "sourceUrl": "https://www.abebooks.co.uk/9780099579120/Stay-Alive-Scope-2-Kernick-009957912X/plp"
+    },
+    {
+      "title": "Stay Alive",
+      "isbn13": "9780099579090",
+      "editionSourceKey": "/books/OL28519879M",
+      "format": "paperback",
+      "feature": null,
+      "source": "goodreads_exact_isbn_edition",
+      "sourceUrl": "https://www.goodreads.com/work/editions/25369303-stay-alive"
+    },
+    {
+      "title": "The Payback",
+      "isbn13": "9780552162432",
+      "editionSourceKey": "/books/OL29071011M",
+      "format": "paperback",
+      "feature": null,
+      "source": "booksrun_exact_isbn",
+      "sourceUrl": "https://booksrun.com/9780552162432-the-payback"
+    },
+    {
+      "title": "The Payback",
+      "isbn13": "9780593062883",
+      "editionSourceKey": "/books/OL26815573M",
+      "format": "hardback",
+      "feature": null,
+      "source": "abebooks_exact_isbn",
+      "sourceUrl": "https://www.abebooks.com/book-search/title/payback/author/simon-kernick/"
+    }
+  ],
+  "notes": [
+    "Explicit ISBN-specific formats from retailer and edition listing results.",
+    "Source contents may be subject to reuse conditions; use factual observations only.",
+    "Do not transfer format to other editions or imply catalogue import clearance."
+  ]
+}
