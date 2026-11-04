@@ -39,3 +39,16 @@ test('import centre is a dedicated direct URL, not hidden in advanced metadata t
  assert.match(workbench,/navigate\(catalogueUrl\('import'\)\)/);
  assert.match(workbench,/view==='import'&&<CatalogueImportCentre\/>/);
 });
+
+test('manual work enrichment fetches limited editions but never writes or treats partial sets as complete',()=>{
+ const start=admin.indexOf("if(path==='import/enrich'");
+ const end=admin.indexOf("if(path==='import/preview'",start);
+ assert.ok(start>0&&end>start);
+ const route=admin.slice(start,end);
+ assert.match(route,/workKey\+'\/editions\.json\?limit=50'/);
+ assert.match(route,/editionCountReported:list\.size\?\?editions\.length/);
+ assert.match(route,/readOnly:true/);
+ assert.doesNotMatch(route,/INSERT INTO|UPDATE |DELETE FROM |\.run\(/);
+ assert.match(ui,/Get book & editions/);
+ assert.match(ui,/import\/enrich\?workKey=/);
+});
