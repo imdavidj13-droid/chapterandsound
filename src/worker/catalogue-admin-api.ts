@@ -97,12 +97,11 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
    const candidates=(payload.docs||[]).slice(0,10).flatMap(doc=>{
     const title=str(doc.title,500),author=str(doc.author_name?.[0],300),key=str(doc.key,200);
     if(!title||!author||!/^\/works\/OL[0-9]+W$/.test(key))return [];
-    const isbns=(doc.isbn||[]).filter(x=>typeof x==='string'&&validIsbn13(x));
-    return [{sourceId:'openlibrary',sourceKey:key,title,author,
-     publicationDate:Number.isInteger(doc.first_publish_year)?String(doc.first_publish_year):'',
-     // Search results aggregate many editions. Never assign one of many ISBNs
-     // to a speculative "first edition" without checking the specific edition.
-     isbn13:isbns.length===1?isbns[0]:'',format:''}];
+    return [{sourceId:'openlibrary',sourceKey:key,workSourceKey:key,title,author,
+     firstPublicationDate:Number.isInteger(doc.first_publish_year)?String(doc.first_publish_year):'',
+     // Search ISBN values are aggregated across editions, and are not proof of
+     // an edition-level identifier. Only edition records may supply edition ISBNs.
+     isbn13:'',format:''}];
    });
    return json({source:'openlibrary',lookupOnly:true,candidates,notice:'Preview-only lookup. Bulk imports must use approved dumps; ISBNs from multi-edition search results require edition verification.'});
   }catch(error){console.error('Open Library manual lookup failed',error);return fail('Open Library could not be reached. Retry the lookup later.',502)}
