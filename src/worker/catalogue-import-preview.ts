@@ -17,7 +17,7 @@ export async function previewCatalogueImport(db:Database,candidates:unknown):Pro
  const seen=new Set<string>();
  for(let index=0;index<candidates.length;index++){
   const candidate=candidates[index] as ImportCandidate|null;
-  const raw=(candidate&&typeof candidate==='object'&&!Array.isArray(candidate))?candidate:{};
+  const raw:ImportCandidate=(candidate&&typeof candidate==='object'&&!Array.isArray(candidate))?candidate:{};
   const title=norm(raw.title,500),author=norm(raw.author,300);
   const isbn13=normalizeIsbn(norm(raw.isbn13,32))||null;
   const isbn10=normalizeIsbn(norm(raw.isbn10,32))||null;
