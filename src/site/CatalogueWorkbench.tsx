@@ -2,6 +2,7 @@ import {CatalogueBookEditor} from './CatalogueBookEditor';
 import {CatalogueManualManager} from './CatalogueManualManager';
 import {CatalogueLinkedEditions} from './CatalogueLinkedEditions';
 import {CatalogueCoverEditor} from './CatalogueCoverEditor';
+import {CatalogueDiagnostics} from './CatalogueDiagnostics';
 import {useCallback,useEffect,useState} from 'react';
 import type {FormEvent} from 'react';
 import {apiGet,apiWrite} from './api';
@@ -189,6 +190,7 @@ export function CatalogueWorkbench(){
    </tbody></table>
    {!loading&&(tab==='works'?works:tab==='people'?people:tab==='editions'?editions:recordings).length===0&&<p className="cs-admin-empty">No catalogue records yet.</p>}
   </div>}
+  {activeForm!=='works'&&<CatalogueDiagnostics/>}
   {activeForm!=='works'&&<section className="cs-catalogue-advanced">
    <div><h3>Advanced catalogue tools</h3><p>Manage authors, additional editions, recording credits, genres, publishers, series and identifiers without creating a second catalogue.</p></div>
    <button type="button" aria-expanded={showAdvanced} onClick={()=>setShowAdvanced(v=>!v)}>{showAdvanced?'Hide advanced tools':'Open advanced tools'}</button>
