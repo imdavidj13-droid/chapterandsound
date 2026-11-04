@@ -45,5 +45,16 @@ test('offline Open Library dump preparer creates reviewed manifests without netw
   assert.equal(automatic.candidates.length,1);
   assert.equal(automatic.candidates[0].author,'Fixture Author');
   assert.equal(JSON.parse(readFileSync(join(auto,'report.json'),'utf8')).selection.authorName,'Fixture Author');
+  const byId=join(dir,'author-id-pilot'),titles=join(dir,'titles.txt');
+  writeFileSync(titles,'Fixture Book\n');
+  mkdirSync(byId);
+  execFileSync(process.execPath,[script,'--works',works,'--authors',authors,'--editions',editions,
+   '--author-key',author,'--titles-file',titles,'--max','10','--out',byId],{timeout:15000});
+  const byIdResult=JSON.parse(readFileSync(join(byId,'candidates-01.json'),'utf8'));
+  assert.equal(byIdResult.candidates.length,1);
+  assert.equal(byIdResult.candidates[0].workSourceKey,work);
+  const idReport=JSON.parse(readFileSync(join(byId,'report.json'),'utf8'));
+  assert.equal(idReport.selection.authorKey,author);
+  assert.deepEqual(idReport.selection.titles,['fixture book']);
  }finally{rmSync(dir,{recursive:true,force:true})}
 });
