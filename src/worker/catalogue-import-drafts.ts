@@ -28,6 +28,10 @@ export async function importCatalogueDrafts(db:DraftImportDB,input:unknown,actor
  const preview=await previewCatalogueImport(db,items);
  const blocker=preview.rows.find(row=>row.decision!=='create_draft');
  if(blocker)throw new ImportConflict('Batch held for review: '+blocker.title+' — '+blocker.decision+'. '+blocker.reason);
+ const incomplete=preview.rows.find(row=>row.quality.optionalMissing.length>0
+  ||row.quality.editionCount!==row.quality.verifiedEditionCount);
+ if(incomplete)throw new ImportConflict('The pilot imports complete metadata only. '+incomplete.title+
+  ' still has '+incomplete.quality.optionalMissing.length+' unresolved field(s); enrich from approved sources before saving.');
  const statements:Statement[]=[];
  const personIds=new Map<string,string>();
  const authorKeysByName=new Map<string,string>();
