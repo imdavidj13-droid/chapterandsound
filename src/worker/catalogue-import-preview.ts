@@ -1,0 +1,64 @@
+import {validIsbn13,validIsbn10} from './catalogue-manual-api.js';
+
+type Param=string|number|null;
+interface Statement{bind(...args:Param[]):Statement;all<T>():Promise<{results:T[]}>}
+interface Database{prepare(sql:string):Statement}
+export type ImportCandidate={sourceId?:string;sourceKey?:string;title?:string;author?:string;isbn13?:string;isbn10?:string;format?:string;publicationDate?:string};
+type Decision='create_draft'|'existing_edition'|'review_match'|'invalid'|'duplicate_in_batch';
+export type PreviewRow={index:number;title:string;author:string;isbn13:string|null;isbn10:string|null;decision:Decision;reason:string;existingWorkId?:string;existingEditionId?:string;matches?:{id:string;title:string}[]};
+const norm=(value:unknown,max=500)=>typeof value==='string'?value.normalize('NFKC').trim().replace(/\s+/g,' ').slice(0,max):'';
+const normalizedTitle=(v:string)=>v.toLocaleLowerCase('en-GB').replace(/[^\p{L}\p{N}]+/gu,' ').trim().replace(/\s+/g,' ');
+const normalizeIsbn=(v:string)=>v.replace(/[\s-]/g,'').toUpperCase();
+const allowedFormats=new Set(['paperback','hardback','ebook','audiobook','audio_cd','unknown']);
+export async function previewCatalogueImport(db:Database,candidates:unknown):Promise<{dryRun:true;rows:PreviewRow[];summary:Record<Decision,number>}>{
+ if(!Array.isArray(candidates)||!candidates.length||candidates.length>100)throw Error('Provide 1–100 catalogue candidates per dry run.');
+ const summary:Record<Decision,number>={create_draft:0,existing_edition:0,review_match:0,invalid:0,duplicate_in_batch:0};
+ const rows:PreviewRow[]=[];
+ const seen=new Set<string>();
+ for(let index=0;index<candidates.length;index++){
+  const candidate=candidates[index] as ImportCandidate|null;
+  const raw=(candidate&&typeof candidate==='object'&&!Array.isArray(candidate))?candidate:{};
+  const title=norm(raw.title,500),author=norm(raw.author,300);
+  const isbn13=normalizeIsbn(norm(raw.isbn13,32))||null;
+  const isbn10=normalizeIsbn(norm(raw.isbn10,32))||null;
+  const format=norm(raw.format,30).toLowerCase();
+  const publicationDate=norm(raw.publicationDate,10);
+  const base={index:index+1,title,author,isbn13,isbn10};
+  const add=(decision:Decision,reason:string,other:Partial<PreviewRow>={})=>{summary[decision]++;rows.push({...base,decision,reason,...other})};
+  if(!title||!author){add('invalid','A title and author are required.');continue}
+  if(isbn13&&!validIsbn13(isbn13)){add('invalid','Invalid ISBN-13 check digit.');continue}
+  if(isbn10&&!validIsbn10(isbn10)){add('invalid','Invalid ISBN-10 check digit.');continue}
+  if(format&&!allowedFormats.has(format)){add('invalid','Unsupported edition format.');continue}
+  if(publicationDate&&!/^\d{4}(?:-(?:0[1-9]|1[0-2])(?:-(?:0[1-9]|[12]\d|3[01]))?)?$/.test(publicationDate)){
+   add('invalid','Publication date must be YYYY, YYYY-MM or YYYY-MM-DD.');continue
+  }
+  const sourceId=norm(raw.sourceId,100),sourceKey=norm(raw.sourceKey,200);
+  const signature=isbn13?'isbn13:'+isbn13:isbn10?'isbn10:'+isbn10:sourceId&&sourceKey?'source:'+sourceId+':'+sourceKey:'work:'+normalizedTitle(title)+'|'+normalizedTitle(author)+'|'+format;
+  if(seen.has(signature)){add('duplicate_in_batch','Another candidate in this batch has this identifier or title/author/format.');continue}
+  seen.add(signature);
+  if(isbn13||isbn10){
+   const values=[isbn13,isbn10].filter((value):value is string=>!!value);
+   const placeholders=values.map(()=>'?').join(',');
+   const {results}=await db.prepare(`SELECT DISTINCT e.id AS editionId,w.id AS workId,w.canonical_title AS title
+     FROM entity_identifiers ei JOIN identifier_schemes scheme ON scheme.id=ei.scheme_id
+     JOIN editions e ON ei.entity_kind='edition' AND ei.entity_id=e.id JOIN works w ON w.id=e.work_id
+     WHERE ei.normalized_value IN (${placeholders}) AND scheme.code IN ('ISBN13','ISBN10') LIMIT 5`)
+     .bind(...values).all<{editionId:string;workId:string;title:string}>();
+   if(results.length){add('existing_edition','An edition with this ISBN already exists; no second record should be created.',{existingEditionId:results[0]!.editionId,existingWorkId:results[0]!.workId});continue}
+  }
+  if(sourceId&&sourceKey){
+   const {results}=await db.prepare(`SELECT sr.id FROM source_records sr JOIN metadata_sources ms ON ms.id=sr.source_id
+    WHERE ms.name=? AND sr.external_key=? LIMIT 2`).bind(sourceId,sourceKey).all<{id:string}>();
+   if(results.length){add('review_match','This source identifier has been recorded before. Review its existing identity instead of reimporting.');continue}
+  }
+  // A fuzzy title/author match is advisory only, never sufficient for an auto-merge.
+  const {results}=await db.prepare(`SELECT DISTINCT w.id,w.canonical_title AS title
+    FROM works w JOIN contributions c ON c.work_id=w.id AND c.role_code IN ('author','coauthor')
+    JOIN people p ON p.id=c.person_id
+    WHERE lower(w.canonical_title)=lower(?) AND lower(p.preferred_name)=lower(?)
+    LIMIT 8`).bind(title,author).all<{id:string;title:string}>();
+  if(results.length){add('review_match','A work with this title and author exists. Verify edition and identity before linking.',{matches:results});continue}
+  add('create_draft','No matching ISBN or exact title/author was found. Eligible for reviewed draft creation, not automatic publication.');
+ }
+ return {dryRun:true,rows,summary};
+}
