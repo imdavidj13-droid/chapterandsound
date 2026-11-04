@@ -28,7 +28,7 @@ function fixture(){
    };
    return statement;
   },
-  async batch(steps:ReturnType<typeof connection.prepare>[]){
+  async batch(steps:{run():Promise<{meta:{changes:number}}>}[]){
    db.exec('BEGIN');
    try{
     const result=[];
