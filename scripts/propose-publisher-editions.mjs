@@ -26,7 +26,7 @@ export function proposePublisherEditions(enriched,evidence){
   throw Error('Expected ten canonical work candidates');
  if(!Array.isArray(evidence?.records))throw Error('Missing publisher evidence');
  const books=structuredClone(enriched.candidates);
- const proposed=[],blocked=[],existing=[],seenFacts=new Set();
+ const proposed=[],blocked=[],existing=[],candidateOnly=[],seenFacts=new Set();
  const sourceWorkKeys=new Set();
  const globalISBNs=new Map();
  for(const book of books){
@@ -39,7 +39,8 @@ export function proposePublisherEditions(enriched,evidence){
    for(const isbn of values){
     if(!isIsbn13(isbn))continue;
     const group=globalISBNs.get(isbn)||[];
-    group.push({workSourceKey:book.workSourceKey,sourceKey:ed.sourceKey});
+    group.push({workSourceKey:book.workSourceKey,sourceKey:ed.sourceKey,primary:ed.isbn13===isbn,
+     sourceEditionHasMultipleISBNs:values.length>1});
     globalISBNs.set(isbn,group);
    }
   }
@@ -65,7 +66,10 @@ export function proposePublisherEditions(enriched,evidence){
   const previous=globalISBNs.get(isbn)||[];
   if(previous.length){
    if(previous.length===1&&previous[0].workSourceKey===book.workSourceKey){
-    existing.push({isbn13:isbn,title:book.title,editionSourceKey:previous[0].sourceKey});
+    const row={isbn13:isbn,title:book.title,editionSourceKey:previous[0].sourceKey};
+    if(previous[0].primary)existing.push(row);
+    else candidateOnly.push({...row,reason:'isbn_appears_only_as_candidate',
+     sourceEditionHasMultipleISBNs:previous[0].sourceEditionHasMultipleISBNs});
    }else blocked.push({isbn13:isbn,title:book.title,reason:'isbn_ambiguous_or_shared_across_works',
     existingSourceKeys:previous.map(x=>x.sourceKey)});
    continue;
@@ -96,14 +100,16 @@ export function proposePublisherEditions(enriched,evidence){
   candidates:{candidates:books,mode:'publisher_additions_review_only',importEligible:false},
   report:{mode:'publisher_missing_editions_draft_only',
    totals:{works:books.length,publisherFacts:evidence.records.length,
-    alreadyPresent:existing.length,proposedAdditions:proposed.length,
+    alreadyPresent:existing.length,candidateOnlyLinks:candidateOnly.length,
+    proposedAdditions:proposed.length,
     blocked:blocked.length,
     resultingEditions:books.reduce((n,b)=>n+b.editions.length,0),
     unknownFormats:books.reduce((n,b)=>n+b.editions.filter(e=>e.format==='unknown').length,0)},
-   proposed,existing,blocked,
+   proposed,existing,candidateOnly,blocked,
    notes:['Only source-specific edition candidates are created under existing canonical works.',
     'No Open Library source identifiers are invented or reused.',
-    'ISBN collisions are blocked; imprint does not become publisher.',
+    'ISBN collisions are blocked; candidate-only ISBNs are unresolved rather than verified editions.',
+    'Imprint does not become publisher.',
     'These are incomplete, unpublished review candidates and not production-import manifests.',
     'Descriptions or images are not fetched or retained. No database writes.']}
  };
