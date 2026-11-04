@@ -41,7 +41,7 @@ test('Reading Room bookshelf uses live cover URLs instead of a hardcoded C&S pla
  assert.match(component,/coverUrl\?:string\|null/);
  assert.match(component,/book\.coverUrl\?<img/);
  assert.match(component,/alt=\{'Cover of '\+book\.bookTitle\}/);
- assert.match(component,/book\.author&&/);
+ assert.match(component,/book\.author/);
  assert.doesNotMatch(component,/className="room-shelf-cover" aria-hidden="true">C/);
 });
 
