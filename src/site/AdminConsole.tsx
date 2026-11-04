@@ -5,7 +5,7 @@ import {AdminModeration} from './AdminModeration';
 
 type Tab='overview'|'catalogue'|'members'|'books'|'editions'|'people'|'reviews'|'reports'|'community'|'requests'|'notices'|'settings'|'audit';
 type Row=Record<string,unknown>;
-type Overview={counts:Record<string,number>;environment:{signupMode:string;mailConfigured:boolean;origin?:string}};
+type Overview={counts:Record<string,number|null>;catalogueConnected?:boolean;environment:{signupMode:string;mailConfigured:boolean;origin?:string}};
 const tabs:{id:Tab;name:string;symbol:string}[]=[
  {id:'overview',name:'Overview',symbol:'▦'}, {id:'catalogue',name:'Book Catalogue',symbol:'▤'}, {id:'members',name:'Members',symbol:'♙'},
  {id:'reviews',name:'Reviews',symbol:'✎'},
@@ -13,7 +13,7 @@ const tabs:{id:Tab;name:string;symbol:string}[]=[
  {id:'requests',name:'Book requests',symbol:'◇'}, {id:'notices',name:'Announcements',symbol:'✧'},
  {id:'settings',name:'Site settings',symbol:'⚙'}, {id:'audit',name:'Audit log',symbol:'↺'}
 ];
-const names:Record<string,string>={members:'Members',verifiedMembers:'Verified accounts',books:'Books',editions:'Editions',contributors:'Contributors',publishedReviews:'Published reviews',openReports:'Open reports',discussions:'Discussions',clubs:'Book clubs',challenges:'Challenges',missingRequests:'Missing book requests'};
+const names:Record<string,string>={members:'Members',verifiedMembers:'Verified accounts',books:'Catalogue books',bookDrafts:'Book drafts',bookPublished:'Published books',editions:'Catalogue editions',contributors:'Catalogue contributors',publishedReviews:'Published reviews',openReports:'Open reports',discussions:'Discussions',clubs:'Book clubs',challenges:'Challenges',missingRequests:'Missing book requests'};
 const fields:Partial<Record<Tab,string[]>>={
  members:['handle','displayName','verified','role','shelfCount','publicReviews','joinedAt'],
  books:['title','authors','editionCount','firstPublished','verificationStatus','updatedAt'],
@@ -121,7 +121,7 @@ export function AdminConsole({path,navigate}:{path:string;navigate:(to:string)=>
     <label>{tab==='people'?'Name':'Title'}<input value={title} maxLength={250} onChange={e=>setTitle(e.target.value)}/></label>
     {tab!=='books'&&<label>{tab==='people'?'Biography':'Notice text'}<textarea value={body} rows={4} maxLength={5000} onChange={e=>setBody(e.target.value)}/></label>}
    </>}<label>Internal audit reason<input value={reason} maxLength={500} onChange={e=>setReason(e.target.value)} placeholder="Why is this being added?"/></label><div className="cs-admin-actions"><button type="button" onClick={()=>setCreateOpen(false)}>Cancel</button><button className="primary" type="button" disabled={busy||(tab==='editions'?(!workId||(isbn13.length!==0&&isbn13.length!==13)):title.trim().length<2)} onClick={onCreate}>Save record</button></div></section>}
-    {tab==='overview'?loading?<p role="status">Loading live site metrics…</p>:overview&&<><section className="cs-admin-metrics" aria-label="Live site metrics">{Object.entries(names).map(([key,label])=><div key={key} className="cs-admin-metric"><span>{label}</span><strong>{Number(overview.counts[key]??0).toLocaleString('en-GB')}</strong></div>)}</section><section className="cs-admin-quick"><div><h2>Website readiness</h2><dl><dt>Registration</dt><dd>{overview.environment.signupMode==='public'?'Public':'Owner-only'}</dd><dt>Email service</dt><dd>{overview.environment.mailConfigured?'Configured':'Not configured'}</dd><dt>Origin</dt><dd>{overview.environment.origin||'Unknown'}</dd></dl></div><div><h2>Quick access</h2>{(['members','catalogue','reviews','reports','settings','audit'] as Tab[]).map(t=><button key={t} onClick={()=>changeTab(t)}>{tabs.find(x=>x.id===t)?.name} →</button>)}</div></section></>:null}
+    {tab==='overview'?loading?<p role="status">Loading live site metrics…</p>:overview&&<><section className="cs-admin-metrics" aria-label="Live site metrics">{Object.entries(names).map(([key,label])=><div key={key} className="cs-admin-metric"><span>{label}</span><strong>{overview.counts[key]==null?'—':Number(overview.counts[key]).toLocaleString('en-GB')}</strong></div>)}</section><section className="cs-admin-quick"><div><h2>Website readiness</h2><dl><dt>Registration</dt><dd>{overview.environment.signupMode==='public'?'Public':'Owner-only'}</dd><dt>Email service</dt><dd>{overview.environment.mailConfigured?'Configured':'Not configured'}</dd><dt>Origin</dt><dd>{overview.environment.origin||'Unknown'}</dd><dt>Canonical catalogue</dt><dd>{overview.catalogueConnected?'Connected':'Unavailable — catalogue metrics not verified'}</dd></dl></div><div><h2>Quick access</h2>{(['members','catalogue','reviews','reports','settings','audit'] as Tab[]).map(t=><button key={t} onClick={()=>changeTab(t)}>{tabs.find(x=>x.id===t)?.name} →</button>)}</div></section></>:null}
     {['books','editions','people'].includes(tab)&&<section className="cs-admin-form" role="note">
       <h2>Existing website records (legacy database)</h2>
       <p>These records are stored in the original website database, not the new Chapter & Sound catalogue. New books, authors, editions and audiobooks should be added under <strong>Book Catalogue</strong>. This older information remains accessible so existing records are not lost. It has not yet been migrated or synchronised.</p>
