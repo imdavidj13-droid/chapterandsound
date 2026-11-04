@@ -61,6 +61,7 @@ export function CatalogueImportCentre(){
  const draftRows=result?.rows.filter(row=>row.decision==='create_draft')||[];
  const maySave=Boolean(result&&result.rows.length===draftRows.length&&draftRows.length>0&&draftRows.length<=10
   &&draftRows.reduce((n,row)=>n+row.quality.editionCount,0)<=50
+  &&draftRows.every(row=>row.quality.optionalMissing.length===0&&row.quality.editionCount===row.quality.verifiedEditionCount)
   &&draftRows.every(row=>!(row.authorMatches?.length)||(row.authorMatches.length===1&&selectedAuthors[row.author]===row.authorMatches[0]?.id))
   &&draftRows.every(row=>!row.quality.formatCoverage.some(format=>format.includes('audio'))));
  async function saveDrafts(){
@@ -81,7 +82,7 @@ export function CatalogueImportCentre(){
   <header><div><p className="cs-admin-eyebrow">IMPORT CENTRE · PHASE ONE</p>
     <h3>Review a catalogue batch</h3>
     <p>Check books, authors and edition data for completeness before importing. Missing fields are flagged so you can enrich them in batches, not edit every book later.</p></div>
-   <span className="cs-import-dry-run">Read-only dry run</span></header>
+   <span className="cs-import-dry-run">Preview first · reviewed draft import</span></header>
   <div className="cs-import-lookup"><label>Look up a title or author in Open Library
    <input type="search" placeholder="e.g. Simon Kernick" value={lookup} onChange={e=>setLookup(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();if(lookup.trim().length>=3&&!lookupLoading)void discover()}}}/>
   </label><button type="button" disabled={lookup.trim().length<3||lookupLoading} onClick={()=>void discover()}>{lookupLoading?'Searching…':'Find candidates'}</button></div>
@@ -115,7 +116,7 @@ export function CatalogueImportCentre(){
    </table></div>
    <section className="cs-import-draft-gate" aria-label="Save reviewed books as drafts">
     <h4>Save complete source records as drafts</h4>
-    <p>Only a fully reviewed batch of up to ten books and fifty editions can be saved. No books are published. Existing authors require explicit identity confirmation.</p>
+    <p>Only a fully enriched batch of up to ten books and fifty verified editions can be saved. Missing fields must be resolved before this pilot, so you do not have to edit imports afterwards. Nothing is published automatically.</p>
     {draftRows.length>0&&draftRows.map(row=>row.authorMatches?.length?<div className="cs-import-author-match" key={row.index}>
       <strong>{row.author}</strong>
       {row.authorMatches.length===1?<button type="button" className={selectedAuthors[row.author]===row.authorMatches[0]?.id?'selected':''}
@@ -125,6 +126,7 @@ export function CatalogueImportCentre(){
      </div>:null)}
     {result.rows.length>10&&<p className="cs-import-warning">Select a batch of no more than 10 books before saving.</p>}
     {result.rows.some(row=>row.decision!=='create_draft')&&<p className="cs-import-warning">This batch includes incomplete, duplicate or ambiguous records. Resolve these before saving drafts.</p>}
+    {result.rows.some(row=>row.quality.optionalMissing.length>0||row.quality.editionCount!==row.quality.verifiedEditionCount)&&<p className="cs-import-warning">At least one book still has missing metadata. Complete-source pilot imports remain disabled until all listed fields are resolved.</p>}
     <label className="cs-import-confirm">
      <input type="checkbox" checked={draftConfirmed} disabled={!maySave||draftSaving} onChange={e=>setDraftConfirmed(e.target.checked)}/>
      I have verified the source records, canonical author identities and permitted use of this metadata. Save as private drafts only.
