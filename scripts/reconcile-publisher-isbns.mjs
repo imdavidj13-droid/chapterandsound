@@ -53,7 +53,7 @@ export function reconcilePublisher(input,evidence){
    fieldsFilled:changed,imprintEvidence:fact.imprint,sourceUrl:fact.sourceUrl});
  }
  const report={mode:'publisher_isbn_reconciliation_review_only',
-  totals:{evidenceRecords:evidence.records.length,matchedEdtions:found.length,
+  totals:{evidenceRecords:evidence.records.length,matchedEditions:found.length,
    newlyFilledFields:found.reduce((n,r)=>n+r.fieldsFilled.length,0),
    conflicts:conflicts.length,unmatchedEvidence:unmatched.length,
    remainingUnknownFormats:candidates.reduce((n,b)=>n+(b.editions||[]).filter(e=>e.format==='unknown').length,0)},
