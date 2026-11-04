@@ -1,5 +1,6 @@
 import {CatalogueBookEditor} from './CatalogueBookEditor';
 import {CatalogueManualManager} from './CatalogueManualManager';
+import {CatalogueLinkedEditions} from './CatalogueLinkedEditions';
 import {useCallback,useEffect,useState} from 'react';
 import type {FormEvent} from 'react';
 import {apiGet,apiWrite} from './api';
@@ -30,6 +31,7 @@ export function CatalogueWorkbench(){
  const [activeForm,setActiveForm]=useState<RecordType|null>('works');
  const [editingId,setEditingId]=useState(''),[editRevision,setEditRevision]=useState(0);
  const [editSynopsis,setEditSynopsis]=useState(''),[editCredits,setEditCredits]=useState<WorkDetails['credits']>([]);
+ const [editStatus,setEditStatus]=useState('draft');
  const [opening,setOpening]=useState(false);
  const [showAdvanced,setShowAdvanced]=useState(false);
  const [editView,setEditView]=useState<'details'|'editions'|'images'|'preview'>('details');
@@ -69,7 +71,7 @@ export function CatalogueWorkbench(){
   setOpening(true);setError('');setNotice('');setActiveForm(null);
   try{
    const detail=await apiGet<WorkDetails>('/api/catalogue-admin/works/'+encodeURIComponent(workId));
-   setEditingId(workId);setEditView('details');setEditRevision(detail.work.revision);
+   setEditingId(workId);setEditView('details');setEditRevision(detail.work.revision);setEditStatus(detail.work.status);
    setTitle(detail.work.title);setType(detail.work.type);setLanguage(detail.work.language||'');
    setPublicationDate(detail.work.firstPublicationDate||'');setEditSynopsis(detail.work.synopsis||'');
    setEditCredits(detail.credits);
@@ -89,6 +91,17 @@ export function CatalogueWorkbench(){
   finally{setSaving(false)}
  }
 
+ async function changePublication(target:'draft'|'published'){
+  if(!editingId||saving)return;
+  if(target==='published'&&!window.confirm('Publish this book to the public catalogue? Make sure all details and its first edition are correct.'))return;
+  if(target==='draft'&&!window.confirm('Return this book to draft and remove it from public catalogue results?'))return;
+  setSaving(true);setError('');setNotice('');
+  try{
+   const result=await apiWrite<{saved:boolean;status:string;revision:number}>('/api/catalogue-admin/works/'+encodeURIComponent(editingId)+'/publication','PATCH',{status:target,expectedRevision:editRevision});
+   setEditRevision(result.revision);setEditStatus(result.status);setNotice(target==='published'?'Book published to the public catalogue.':'Book returned to draft.');await load();
+  }catch(e){setError(e instanceof Error?e.message:'Could not change publication status')}
+  finally{setSaving(false)}
+ }
  async function uploadMedia(e:FormEvent){
   e.preventDefault();
   if(!mediaReady||!mediaFile||!mediaId||!rightsConfirmed)return;
@@ -116,8 +129,12 @@ export function CatalogueWorkbench(){
   {editingId&&tab==='works'&&<section className="cs-book-edit-workspace" aria-label="Edit catalogue book">
    <header className="cs-book-edit-heading">
     <div><p className="cs-book-eyebrow">CHAPTER & SOUND / BOOK EDITOR</p><h2>Edit book: {works.find(w=>w.id===editingId)?.title||title}</h2>
-     <p>Record {short(editingId)} · Revision {editRevision} · Saved changes update the existing catalogue book.</p></div>
-    <button type="button" disabled={saving} onClick={()=>setEditingId('')}>Close editor</button>
+     <p>Record {short(editingId)} · Revision {editRevision} · {label(editStatus)} · Saved changes update this book.</p></div>
+    <div className="cs-book-edit-publish-actions">
+     {editStatus==='draft'&&<button type="button" className="cs-book-publish" disabled={saving} onClick={()=>void changePublication('published')}>Publish book</button>}
+     {editStatus==='published'&&<button type="button" disabled={saving} onClick={()=>void changePublication('draft')}>Return to draft</button>}
+     <button type="button" disabled={saving} onClick={()=>setEditingId('')}>Close editor</button>
+    </div>
    </header>
    <nav className="cs-book-edit-tabs" aria-label="Book editing sections">
     {(['details','editions','images','preview'] as const).map(view=><button type="button" key={view} aria-current={editView===view?'page':undefined} className={editView===view?'active':''} onClick={()=>setEditView(view)}>{view==='details'?'Book details':view==='editions'?'Editions & audio':view==='images'?'Cover & images':'Preview'}</button>)}
@@ -143,12 +160,7 @@ export function CatalogueWorkbench(){
     </div>
     <footer className="cs-book-edit-footer"><button type="submit" className="primary" disabled={saving||!title.trim()}>{saving?'Saving…':'Save book changes'}</button></footer>
    </form>}
-   {editView==='editions'&&<div className="cs-book-edit-body"><div className="cs-book-edit-panel">
-    <h3>Linked editions & recordings</h3><p>The following records use this book's existing catalogue ID. Manage their ISBN, publisher, narrator and runtime in Detailed Catalogue Management below.</p>
-    {editions.filter(e=>e.workId===editingId).length?<div className="cs-book-edit-records">{editions.filter(e=>e.workId===editingId).map(e=><div key={e.id}><strong>{label(e.format)}</strong><span>{e.title} · {e.pageCount?e.pageCount+' pages · ':''}ID {short(e.id)}</span></div>)}</div>:<p>No editions in the first 100 returned records.</p>}
-    {recordings.filter(r=>r.workId===editingId).length?<div className="cs-book-edit-records">{recordings.filter(r=>r.workId===editingId).map(r=><div key={r.id}><strong>Recording</strong><span>{label(r.performanceType)} · {r.durationSeconds?Math.round(r.durationSeconds/60)+' minutes':'Duration not specified'} · ID {short(r.id)}</span></div>)}</div>:null}
-    <p className="cs-book-edit-hint">These lists show the first 100 records; use Detailed Catalogue Management for the complete paginated listing.</p>
-   </div></div>}
+   {editView==='editions'&&<div className="cs-book-edit-body"><CatalogueLinkedEditions workId={editingId} onSaved={()=>void load()}/></div>}
    {editView==='images'&&<div className="cs-book-edit-body"><div className="cs-book-edit-panel">
     <h3>Cover images</h3><p>Upload a rights-cleared cover to this existing book or one of its editions using the image uploader further down this page.</p>
     {mediaReady?<button type="button" className="primary" onClick={()=>{setMediaKind('work');setMediaId(editingId);document.getElementById('cs-catalogue-media')?.scrollIntoView({behavior:'smooth',block:'start'})}}>Upload cover for this book</button>:<p className="cs-book-storage-warning">Cloudflare R2 is not connected. Images cannot be uploaded yet.</p>}
@@ -166,7 +178,7 @@ export function CatalogueWorkbench(){
   {activeForm!=='works'&&<div className="cs-admin-heading cs-catalogue-list-head" style={{marginTop:22}}><div><h3>Books in the catalogue</h3><p>Choose a book to edit its details and linked editions.</p></div><span>{works.length} loaded books</span></div>}
   {activeForm==='works'&&<CatalogueBookEditor authors={people} imageStorage={mediaReady}
      onCancel={()=>setActiveForm(null)} onEditExisting={(bookId)=>{setActiveForm(null);void openWork(bookId)}} onSaved={(bookId,message)=>{
-      setActiveForm(null);setNotice(message+' Book ID: '+bookId);void load();
+      setActiveForm(null);setNotice(message+' Book ID: '+bookId);void load();void openWork(bookId);
      }}/>}
   {activeForm!=='works'&&<div className="cs-admin-data cs-admin-table-scroll">
    <table><thead><tr><th>Name or title</th><th>Status / detail</th><th>Record ID</th></tr></thead><tbody>
