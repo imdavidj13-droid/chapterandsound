@@ -3,6 +3,7 @@ import type {CatalogueImageBucket} from './catalogue-media-api.js';
 import {manualCatalogueAPI,validIsbn13,validIsbn10} from './catalogue-manual-api.js';
 import {catalogueBookMetadataAPI} from './catalogue-book-metadata-api.js';
 import {previewCatalogueImport} from './catalogue-import-preview.js';
+import {importCatalogueDrafts,ImportConflict} from './catalogue-import-drafts.js';
 import {authConfigured,createAuth} from './auth.js';
 import {isVerifiedSiteOwner} from './admin-role.js';
 
@@ -165,6 +166,28 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
   const record=fields(payload);
   try{return json(await previewCatalogueImport(db,record?.candidates))}
   catch(error){return fail(error instanceof Error?error.message:'Invalid import candidates')}
+ }
+ if(path==='import/drafts'&&request.method==='POST'){
+  // Draft writes are always a separate, explicit action after dry-run review.
+  // This route is already covered by the verified owner, persisted role,
+  // same-origin and dedicated BOOK_DB checks above.
+  const size=Number(request.headers.get('Content-Length')||0);
+  if(size>300000)return fail('Draft import is limited to 300 KB',413);
+  let data:Record<string,unknown>|null=null;
+  try{
+   const raw=await request.text();
+   if(raw.length>300000)return fail('Draft import is limited to 300 KB',413);
+   data=fields(JSON.parse(raw));
+  }catch{return fail('Provide valid reviewed draft JSON')}
+  if(data?.confirmed!==true)return fail('Explicit draft import confirmation is required',409);
+  try{
+   const result=await importCatalogueDrafts(db,data.candidates,session.user.id);
+   return json(result,201);
+  }catch(error){
+   if(error instanceof ImportConflict)return fail(error.message,409);
+   console.error('Draft batch transaction failed',error);
+   return fail('Draft import failed. The batch was not confirmed saved; inspect the catalogue before retrying.',500);
+  }
  }
  if(path==='health'&&request.method==='GET')return json({ready:true,catalogue:'BOOK_DB',schema:'installed',imageStorage:!!env.CATALOGUE_MEDIA});
  if(request.method==='DELETE'&&segments.length===2&&segments[0]==='people'){
