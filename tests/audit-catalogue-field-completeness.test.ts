@@ -23,7 +23,7 @@ const data=()=>({mode:'test',candidates:[{title:'Relentless',author:'Simon Kerni
  editions:[
   {sourceKey:'/books/OL1M',format:'paperback',pageCount:330,isbn13:'9780593054703',coverIds:[12]},
   {sourceKey:'/books/OL2M',format:'audiobook',durationSeconds:22000,narratorNames:['Reader A']},
-  {sourceKey:'/books/OL3M',format:'unknown',isbn13:null}
+  {sourceKey:'/books/OL3M',format:'unknown',isbn13:null,potentialDuplicateSourceKeys:[] as string[]}
  ]}]});
 const find=(r: ReturnType<typeof auditCatalogueManifest>,path:string)=>
  r.fields.find((f:{fieldPath:string})=>f.fieldPath===path)!;
