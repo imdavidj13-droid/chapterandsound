@@ -2,6 +2,17 @@
 
 A community website for readers and audiobook listeners — paperback, hardback, ebook and audio. **Website-first priority**: implement public and member experiences before completing catalogue-provider integration.
 
+## Authoritative dual-theme layouts (locked 4 November 2026)
+
+**Before changing any public or member-facing page, read BOTH:**
+
+- [Locked visual themes and approved homepage states](docs/LOCKED_VISUAL_THEMES.md)
+- [Page-by-page Editorial vs Reading Room layout matrix](docs/DUAL_THEME_PAGE_LAYOUTS.md)
+
+`editorial` and `reading-room` are **substantially different page layouts**, navigation systems and content arrangements—not palette swaps. The Editorial new/returning homepage references and the accepted Reading Room new/returning concepts replace older exploratory layouts. Do **not** reuse rejected or generic generated mockups as design instructions. The same routes and real database-backed records must function in both experiences.
+
+The locked design contract describes the **target**; it does not certify the current UI as visually complete.
+
 ## Repository status
 
 This repository includes a responsive Editorial React website, initial route structure, Cloudflare Worker read API and draft D1 schema for member activity, reviews, discussions, clubs, recommendations and challenges. The current UI shows honest empty states. **The project is not finished or deployed.** In particular, sign-up, sign-in, review publishing and private reading updates are blocked until verified server authentication and cloud persistence are wired. No demo content is passed off as real.
