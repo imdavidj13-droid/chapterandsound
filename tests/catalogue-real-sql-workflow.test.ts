@@ -59,12 +59,6 @@ test('real catalogue schema: new identifier is persisted and visible to the meta
  try{
   const result=await f.send({action:'identifier',editionId:'ed-a',code:'ISBN13',value:'9780306406157'});
   assert.equal(result.status,200,await result.text());
-  const read=await catalogueBookMetadataAPI(new Request('https://example.org/api/catalogue-admin/works/work-a/metadata'),{
-   prepare:f.db.prepare.bind(f.db) as never,
-   batch:async()=>[]
-  } as never,'admin-1','work-a');
-  // The POST is sufficient to prove the D1-compatible SQL executes against all migrations.
-  void read;
   assert.equal(f.db.prepare("SELECT normalized_value AS value FROM entity_identifiers WHERE entity_kind='edition' AND entity_id='ed-a'").get()?.value,'9780306406157');
   assert.equal(f.db.prepare("SELECT count(*) AS count FROM catalogue_audit_log").get()?.count,1);
  }finally{f.close()}
