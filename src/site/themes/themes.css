@@ -552,3 +552,91 @@
 @media(max-width:1150px){.room-shelf-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.room-shelf-gallery{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}}
 @media(max-width:700px){.room-shelf-redesign .room-shelf-intro{align-items:flex-start;flex-direction:column;padding:6px 0 20px}.room-shelf-summary{gap:9px;margin-bottom:25px}.room-shelf-summary>div{padding:13px}.room-shelf-summary strong{font-size:1.65rem}.room-shelf-toolbar{align-items:stretch;flex-direction:column}.room-shelf-redesign .room-shelf-search,.room-shelf-sort,.room-shelf-sort select{width:100%;max-width:none}.room-shelf-gallery{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.room-shelf-book-cover{margin:10px 10px 0}.room-shelf-book-details{padding:12px 10px}.room-shelf-book-details h3{font-size:1rem}}
 @media(max-width:375px){.room-shelf-gallery{grid-template-columns:1fr 1fr;gap:8px}.room-shelf-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.room-shelf-summary>div{grid-template-columns:22px auto;gap:5px;padding:10px}.room-shelf-summary-icon{font-size:1.1rem}.room-shelf-summary small{font-size:.56rem}}
+
+/* Shared profile avatar in both global headers. */
+.global-profile-menu{position:relative;z-index:40;flex:0 0 auto}
+.global-profile-menu>summary{list-style:none;display:flex;align-items:center;gap:10px;cursor:pointer;white-space:nowrap;border-radius:30px;padding:4px 5px;color:#234331;font-size:.8rem}
+.global-profile-menu>summary::-webkit-details-marker{display:none}
+.global-profile-avatar{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:#d0dec9;color:#204b34;border:2px solid #fff;box-shadow:0 0 0 1px #c2d4bd;font:normal 1rem Georgia,serif}
+.global-profile-label{font-weight:650;max-width:125px;overflow:hidden;text-overflow:ellipsis}
+.global-profile-chevron{font-size:1.1rem}
+.global-profile-dropdown{position:absolute;right:0;top:calc(100% + 9px);display:flex;flex-direction:column;min-width:195px;background:#fffefa;border:1px solid #d4dfd1;border-radius:12px;box-shadow:0 15px 35px #142c1b22;padding:10px;gap:3px}
+.global-profile-dropdown strong{padding:8px 10px 10px;color:#173e2b;font:normal 1.02rem Georgia,serif;border-bottom:1px solid #e2e8de;margin-bottom:4px}
+.global-profile-dropdown a{display:block;padding:10px;border-radius:6px;text-decoration:none;color:#294c34;font-size:.8rem}
+.global-profile-dropdown a:hover{background:#eaf2e7}
+.editorial-header-inner>.global-profile-menu{margin-left:3px}
+@media(max-width:720px){.global-profile-label,.global-profile-chevron{display:none}.global-profile-menu>summary{padding:2px}.global-profile-avatar{width:36px;height:36px}.editorial-header-inner>.global-profile-menu{order:1;margin-left:auto}}
+
+/* Magazine-style bookshelf. The hero uses a freely usable Unsplash interior photo;
+   the gradient keeps text readable and the layout works without the image. */
+.room-shelf-magazine{min-width:0;padding-bottom:45px}
+.room-shelf-editorial-page{padding:0 18px 24px!important;max-width:none!important}
+.room-shelf-magazine-hero{min-height:286px;position:relative;display:flex;align-items:center;justify-content:space-between;overflow:hidden;padding:30px clamp(25px,3vw,50px);isolation:isolate;background:#f3f4ed}
+.room-shelf-magazine-hero::before{content:"";position:absolute;inset:0;z-index:-2;background-image:url('https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=1600&auto=format&fit=crop&q=80');background-position:right 45%;background-size:cover;background-repeat:no-repeat;opacity:.88}
+.room-shelf-magazine-hero::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#f9faf5 0%,#f9faf5f7 34%,#f9faf5de 48%,#f9faf550 68%,#e9efe300 100%)}
+.room-shelf-magazine-hero-copy{max-width:685px}
+.room-shelf-magazine-hero .eyebrow{color:#506f59;font-size:.67rem;letter-spacing:.15em;margin:0 0 12px}
+.room-shelf-magazine-hero h1{font:normal clamp(2.8rem,4.2vw,4.3rem)/1.04 Georgia,serif;letter-spacing:-.05em;color:#142f22;margin:0 0 15px}
+.room-shelf-magazine-hero-copy>p:not(.eyebrow){font:normal clamp(.94rem,1.3vw,1.21rem)/1.4 Georgia,serif;color:#4d6155;max-width:580px;margin:0}
+.room-shelf-format-row{display:flex;flex-wrap:wrap;gap:22px;margin-top:24px;color:#2b4936;font:normal .92rem Georgia,serif}
+.room-shelf-magazine-quote{align-self:flex-start;margin:8px 0 0 auto;max-width:155px;text-align:right;font:italic 1.2rem/1.25 Georgia,serif;color:#2b4530;transform:rotate(-5deg)}
+.room-shelf-magazine-panels{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(250px,.9fr);align-items:stretch;gap:12px;margin-top:-14px;position:relative;z-index:2}
+.room-magazine-panel{background:#fffefaed;border:1px solid #e0e5dd;border-radius:13px;box-shadow:0 5px 25px #142c1a0d;padding:20px;min-width:0}
+.room-magazine-panel>header{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:17px}
+.room-magazine-panel h2{font:normal clamp(1.24rem,1.65vw,1.65rem)/1.1 Georgia,serif;color:#142f20;margin:0}
+.room-magazine-panel>header>a,.room-magazine-lower>header>a{color:#687666;font-size:.71rem;text-decoration:none;white-space:nowrap}
+.room-magazine-feature-body{display:grid;grid-template-columns:minmax(90px,39%) minmax(0,1fr);gap:16px;align-items:start}
+.room-editorial-cover{position:relative;display:block;overflow:hidden;background:#284a34;aspect-ratio:2/3;border-radius:5px;box-shadow:0 7px 13px #142e1c21;color:#f4eee3;text-align:center}
+.room-editorial-cover img{display:block;width:100%;height:100%;object-fit:cover}
+.room-editorial-cover-fallback{display:grid;place-items:center;height:100%;font:normal 1.25rem Georgia,serif;padding:10px}
+.room-editorial-cover.cover-missing::after{content:"Cover unavailable";display:grid;place-items:center;position:absolute;inset:0;background:#284a34;color:#f4eee3;font:normal .88rem Georgia,serif}
+.room-magazine-feature-copy{display:flex;flex-direction:column;min-height:100%;min-width:0}
+.room-magazine-feature-copy h3{font:normal clamp(1.12rem,1.6vw,1.55rem)/1.18 Georgia,serif;margin:0 0 5px;color:#173a27}
+.room-magazine-feature-copy h3 a{text-decoration:none;color:inherit}
+.room-magazine-feature-copy .room-magazine-author{font:normal .84rem Georgia,serif;color:#576b5d;margin:0 0 13px}
+.room-magazine-excerpt{font:normal .81rem/1.55 Georgia,serif;color:#596659;margin:0 0 15px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:6;overflow:hidden}
+.room-magazine-rating{color:#7a6340;font-size:.86rem;margin:0 0 14px}
+.room-magazine-rating span{color:#6f776c;font-size:.72rem;margin-left:8px}
+.room-magazine-progress{font-size:.81rem;color:#58715c}
+.room-magazine-cta{display:block;text-align:center;border-radius:22px;background:#e7ece1;padding:11px 13px;color:#264b35;font:normal .83rem Georgia,serif;text-decoration:none;margin-top:auto}
+.room-magazine-cta:hover{background:#d9e6d4}
+.room-magazine-side-panels{display:grid;grid-template-rows:1fr 1fr;gap:12px;min-width:0}
+.room-magazine-year-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.room-magazine-year-grid>div{display:flex;flex-direction:column;justify-content:center;padding:12px;border-radius:9px;background:#f3f5ef;min-height:75px}
+.room-magazine-year-grid strong{font:normal 1.95rem Georgia,serif;color:#203b2c}
+.room-magazine-year-grid span{font-size:.69rem;color:#5c705f}
+.room-magazine-about{display:flex;flex-direction:column}
+.room-magazine-about>h2{margin-bottom:17px}
+.room-magazine-about-content{display:flex;align-items:center;gap:14px}
+.room-magazine-about-content p{font:normal .8rem/1.5 Georgia,serif;color:#566759;margin:0}
+.room-magazine-profile-initial{flex:0 0 67px;display:grid;place-items:center;background:#d5e1d1;color:#30543a;width:67px;height:67px;border-radius:50%;font:normal 2rem Georgia,serif}
+.room-magazine-about .room-magazine-cta{margin-top:15px}
+.room-magazine-empty{display:flex;flex-direction:column;gap:10px;padding:12px 0;min-height:185px}
+.room-magazine-empty h3{font:normal 1.17rem Georgia,serif;margin:0;color:#2d4d36}
+.room-magazine-empty p{font:.82rem/1.5 Georgia,serif;color:#647466;margin:0}
+.room-magazine-empty a{color:#27513a;font-size:.82rem;margin-top:auto}
+.room-magazine-lower{margin:14px 0 0;padding:19px 20px 21px;background:#fffefaed;border-radius:13px;border:1px solid #e0e5dd;box-shadow:0 5px 22px #142c1a08}
+.room-magazine-lower>header{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid #e0e6dd;margin-bottom:16px}
+.room-magazine-tabs{display:flex;gap:16px}
+.room-magazine-tabs button{border:0;border-bottom:3px solid transparent;background:transparent;color:#647665;font:normal 1.26rem Georgia,serif;padding:10px 4px 13px;cursor:pointer}
+.room-magazine-tabs button.active{color:#213c2a;border-bottom-color:#365f44}
+.room-magazine-tabs button span{font:.71rem sans-serif;color:#7b907b}
+.room-magazine-status-tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+.room-magazine-status-tabs button{background:transparent;border:1px solid transparent;border-radius:7px;padding:7px 9px;font-size:.73rem;color:#50715a;cursor:pointer}
+.room-magazine-status-tabs button.selected{color:#f8f9f3;background:#315c40}
+.room-magazine-status-tabs span{opacity:.8}
+.room-magazine-filter{display:flex;justify-content:space-between;gap:10px;margin-bottom:17px}
+.room-magazine-filter input,.room-magazine-filter select{background:#f9fbf7;border:1px solid #d5e2d1;border-radius:7px;padding:8px 12px;min-height:40px;color:#234330;font:inherit;font-size:.77rem}
+.room-magazine-filter input{width:min(100%,390px)}
+.room-magazine-book-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:15px}
+.room-magazine-book{min-width:0;padding-right:12px;border-right:1px solid #edf0e9}
+.room-magazine-book:last-child{border-right:0}
+.room-editorial-cover.small{width:100%;max-width:135px;aspect-ratio:2/3;box-shadow:0 4px 8px #182e1e22;margin:0 auto 10px}
+.room-magazine-book h3{font:normal .88rem/1.24 Georgia,serif;color:#233e2c;margin:0 0 5px}
+.room-magazine-book h3 a{text-decoration:none;color:inherit}
+.room-magazine-book p{font:.76rem Georgia,serif;color:#677769;margin:0 0 8px}
+.room-magazine-book-status{display:block;font-size:.67rem;color:#4f7159}
+.room-magazine-book small{display:block;color:#876e46;margin-top:7px}
+@media(max-width:1250px){.room-shelf-magazine-panels{grid-template-columns:repeat(2,minmax(0,1fr))}.room-magazine-side-panels{grid-column:1/-1;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:auto}.room-magazine-book-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:800px){.room-shelf-magazine-panels{grid-template-columns:1fr}.room-magazine-side-panels{grid-template-columns:1fr 1fr}.room-magazine-book-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.room-shelf-magazine-quote{display:none}}
+@media(max-width:610px){.room-shelf-editorial-page{padding:0 10px 15px!important}.room-shelf-magazine-hero{min-height:250px;padding:23px 17px}.room-shelf-magazine-hero::after{background:linear-gradient(90deg,#f9faf5f9 0%,#f9faf5e8 68%,#f9faf584 100%)}.room-shelf-magazine-hero h1{font-size:2.75rem}.room-shelf-magazine-panels{margin-top:-7px}.room-magazine-panel{padding:16px}.room-magazine-feature-body{grid-template-columns:110px minmax(0,1fr)}.room-magazine-side-panels{grid-template-columns:1fr}.room-magazine-book-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.room-magazine-lower{padding:13px}.room-magazine-tabs button{font-size:1.04rem}.room-magazine-filter{flex-direction:column}.room-magazine-filter input,.room-magazine-filter select{width:100%}}
