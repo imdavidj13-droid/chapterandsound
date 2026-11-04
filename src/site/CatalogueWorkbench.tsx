@@ -73,8 +73,8 @@ export function CatalogueWorkbench(){
   finally{setSaving(false)}
  }
  const refresh=()=>void load();
- async function openWork(workId:string){
-  setOpening(true);setError('');setNotice('');setActiveForm(null);
+ async function openWork(workId:string,preserveNotice=false){
+  setOpening(true);setError('');if(!preserveNotice)setNotice('');setActiveForm(null);
   try{
    const detail=await apiGet<WorkDetails>('/api/catalogue-admin/works/'+encodeURIComponent(workId));
    setEditingId(workId);setEditView('details');setEditRevision(detail.work.revision);setEditStatus(detail.work.status);
@@ -181,7 +181,7 @@ export function CatalogueWorkbench(){
   {activeForm!=='works'&&<div className="cs-admin-heading cs-catalogue-list-head" style={{marginTop:22}}><div><h3>Books in the catalogue</h3><p>Choose a book to edit its details and linked editions.</p></div><span>{works.length} loaded books</span></div>}
   {activeForm==='works'&&<CatalogueBookEditor authors={people} imageStorage={mediaReady}
      onCancel={()=>setActiveForm(null)} onEditExisting={(bookId)=>{setActiveForm(null);void openWork(bookId)}} onSaved={(bookId,message)=>{
-      setActiveForm(null);setNotice(message+' Book ID: '+bookId);void load();void openWork(bookId);
+      setActiveForm(null);setNotice(message+' Book ID: '+bookId);void load();void openWork(bookId,true);
      }}/>}
   {activeForm!=='works'&&<div className="cs-admin-data cs-admin-table-scroll">
    <table><thead><tr><th>Name or title</th><th>Status / detail</th><th>Record ID</th></tr></thead><tbody>
