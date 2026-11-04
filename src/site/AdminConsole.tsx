@@ -31,7 +31,7 @@ const format=(v:unknown)=>v===null||v===undefined||v===''?'—':String(v);
 const nice=(s:string)=>s.replace(/([a-z])([A-Z])/g,'$1 $2').replaceAll('_',' ');
 const adminPath=(tab:Tab)=>tab==='overview'?'/admin':'/admin/'+tab;
 const adminTab=(path:string):Tab=>{
- const selected=path==='/admin'?'overview':path.slice('/admin/'.length);
+ const selected=path==='/admin'?'overview':path.slice('/admin/'.length).split('/')[0];
  return tabs.find(t=>t.id===selected)?.id||'overview';
 };
 export function AdminConsole({path,navigate}:{path:string;navigate:(to:string)=>void}){
@@ -127,7 +127,7 @@ export function AdminConsole({path,navigate}:{path:string;navigate:(to:string)=>
       <p>These records are stored in the original website database, not the new Chapter & Sound catalogue. New books, authors, editions and audiobooks should be added under <strong>Book Catalogue</strong>. This older information remains accessible so existing records are not lost. It has not yet been migrated or synchronised.</p>
       <button className="primary" type="button" onClick={()=>changeTab('catalogue')}>Open Book Catalogue</button>
     </section>}
-    {tab==='catalogue'&&<CatalogueWorkbench/>}
+    {tab==='catalogue'&&<CatalogueWorkbench path={path} navigate={navigate}/>}
     {tab==='reports'&&<AdminModeration/>}
     {tab!=='overview'&&tab!=='reports'&&tab!=='catalogue'&&<>
      <div className="cs-admin-table-tools">{['members','books','editions','people'].includes(tab)&&<label>Search records<input type="search" value={query} onChange={e=>{setQuery(e.target.value);setOffset(0)}} placeholder="Search live records"/></label>}<span>{loading?'Loading…':items.length+' records in this page'}</span></div>
