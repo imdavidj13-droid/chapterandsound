@@ -179,9 +179,18 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
      db.prepare("SELECT id,preferred_name AS name FROM people WHERE identity_status NOT IN ('merged','suppressed') AND (?='' OR instr(lower(preferred_name),lower(?))>0) ORDER BY preferred_name LIMIT ?").bind(q,q,l).all<{id:string;name:string}>(),
      env.DB.prepare("SELECT id,display_name AS name FROM people WHERE (?='' OR instr(lower(display_name),lower(?))>0) ORDER BY display_name LIMIT ?").bind(q,q,l).all<{id:string;name:string}>()
     ]);
-    // Do not merge distinct people simply because their display names match.
+    // Show the canonical catalogue identity first. Older website profiles with
+    // the same normalised display name are not separate selectable copies.
+    // This is display-only deduplication, NOT an identity merge or a database write.
+    // Distinct same-name identities already in BOOK_DB remain visible for review.
+    const normaliseName=(value:string)=>value.normalize('NFKC').trim().replace(/\\s+/g,' ').toLocaleLowerCase('en-GB');
+    const canonicalNames=new Set(catalogue.map(person=>normaliseName(person.name)));
     const unique=new Map<string,{id:string;name:string}>();
-    for(const row of [...catalogue,...existing])if(row.id&&!unique.has(row.id))unique.set(row.id,row);
+    for(const row of catalogue)if(row.id&&!unique.has(row.id))unique.set(row.id,row);
+    for(const row of existing){
+     if(!row.id||unique.has(row.id)||canonicalNames.has(normaliseName(row.name)))continue;
+     unique.set(row.id,row);
+    }
     const items=[...unique.values()].filter(v=>!name||v.name.toLocaleLowerCase('en-GB').includes(name))
      .sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id)).slice(0,l);
     return json({items});
