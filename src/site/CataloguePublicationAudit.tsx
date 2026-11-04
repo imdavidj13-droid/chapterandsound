@@ -6,6 +6,8 @@ type BookResponse={book:PublicBook;editions:PublicEdition[]};
 type PersonResponse={person:{id:string;name:string};works:{id:string;title:string}[]};
 type SearchBook={id:string;title:string;author?:string|null};
 type SearchPerson={id:string;name:string};
+type AdminBook={work:{id:string;title:string;status:string;synopsis:string};credits:{personId:string;name:string;role:string}[]};
+type SavedMetadata={editions:{id:string;format:string}[];identifiers:{editionId:string;code:string;value:string}[];events:{editionId:string;type:string;publisher:string|null;date:string|null}[];covers:{entityId:string;assetId:string}[]};
 type Check={name:string;status:'passed'|'failed'|'warning';detail:string;href?:string};
 
 async function getJson<T>(url:string):Promise<T>{
@@ -24,7 +26,24 @@ export function CataloguePublicationAudit({workId,status}:{workId:string;status:
   const results:Check[]=[];
   const add=(name:Check['name'],status:Check['status'],detail:string,href?:string)=>results.push({name,status,detail,href});
   let book:BookResponse|null=null;
+  let saved:AdminBook|null=null;
+  let metadata:SavedMetadata|null=null;
   try{
+   try{
+    const [admin,meta]=await Promise.all([
+     getJson<AdminBook>('/api/catalogue-admin/works/'+encodeURIComponent(workId)),
+     getJson<SavedMetadata>('/api/catalogue-admin/works/'+encodeURIComponent(workId)+'/metadata')
+    ]);
+    saved=admin;metadata=meta;
+    add('Production BOOK_DB record',admin.work.id===workId?'passed':'failed',
+     'Status: '+admin.work.status+' · Title: '+admin.work.title+'.');
+    add('Saved author relationship',admin.credits.some(c=>c.role==='author'||c.role==='coauthor')?'passed':'failed',
+     admin.credits.filter(c=>c.role==='author'||c.role==='coauthor').map(c=>c.name).join(', ')||'No author credit saved.');
+    add('Saved edition records',meta.editions.length>0?'passed':'failed',
+     meta.editions.length+' edition(s) · '+meta.identifiers.filter(i=>i.code==='ISBN13').length+' ISBN-13 values · '+meta.events.length+' publication events.');
+    add('Saved cover relationship',meta.covers.length>0?'passed':'warning',
+     meta.covers.length+' primary cover link(s) found in BOOK_DB.');
+   }catch(e){add('Production BOOK_DB record','failed',e instanceof Error?e.message:'Admin database read unavailable');}
    if(status!=='published'&&status!=='verified'){
     add('Public visibility','warning','This book is not published. Public endpoints should not expose it.');
    }
@@ -41,6 +60,27 @@ export function CataloguePublicationAudit({workId,status}:{workId:string;status:
     else add('Edition relationships','failed','No editions returned by the public book API.');
     if(book.book.summary) add('Public description','passed','The saved synopsis is available publicly.');
     else add('Public description','warning','The public book has no description.');
+    if(saved){
+     add('Saved vs public title',saved.work.title===book.book.title?'passed':'failed',
+      saved.work.title===book.book.title?'Public title matches the saved database value.':'Public title differs from BOOK_DB.');
+     add('Saved vs public synopsis',saved.work.synopsis===(book.book.summary||'')?'passed':'failed',
+      saved.work.synopsis===(book.book.summary||'')?'Saved and public descriptions agree.':'Saved description differs from the public book response.');
+     const savedAuthor=saved.credits.find(c=>c.role==='author'||c.role==='coauthor');
+     add('Saved vs public author',savedAuthor?.personId===book.book.authorId?'passed':'failed',
+      savedAuthor?.personId===book.book.authorId?'The same canonical author ID is used.':'The saved author and public book author IDs differ.');
+    }
+    if(metadata){
+     const savedEditionIds=new Set(metadata.editions.map(e=>e.id));
+     const publicEditionIds=new Set(book.editions.map(e=>e.id));
+     add('Saved vs public editions',[...savedEditionIds].every(id=>publicEditionIds.has(id))?'passed':'failed',
+      [...savedEditionIds].every(id=>publicEditionIds.has(id))?'All saved editions appear in the public response.':'At least one saved edition is missing publicly.');
+     const isbnMismatch=metadata.identifiers.filter(i=>i.code==='ISBN13').some(i=>{
+      const edition=book!.editions.find(e=>e.id===i.editionId);
+      return !edition||edition.isbn13?.replace(/[ -]/g,'')!==i.value.replace(/[ -]/g,'');
+     });
+     add('Saved vs public ISBNs',isbnMismatch?'failed':'passed',
+      isbnMismatch?'An edition ISBN differs from the saved identifier.':'All stored ISBN-13 values agree with the public editions.');
+    }
     const searchUrl='/api/books?'+new URLSearchParams({q:book.book.title,limit:'60'});
     try{
      const list=await getJson<{items:SearchBook[]}>(searchUrl);
