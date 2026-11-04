@@ -217,3 +217,23 @@
 .cs-book-work-type-advanced label{display:flex;flex-direction:column;gap:7px;margin-top:10px}
 .cs-book-work-type-advanced select{min-height:48px;padding:10px 12px;border:1px solid #b7cbbb;border-radius:9px;background:#fff;color:#254b35}
 .cs-book-work-type-advanced small{color:#5e7665;line-height:1.5}
+
+/* Durable book workflow: drafts, published records and edit-by-URL. */
+.cs-catalogue-workflow-step{border-left:4px solid #286646;padding:14px 18px;margin:0 0 18px;background:#eaf3eb;border-radius:0 10px 10px 0;font-size:13px;line-height:1.6;color:#2e5a3c}
+.cs-catalogue-list-head label{display:flex;flex-direction:column;gap:7px;min-width:min(100%,260px);font-size:12px;font-weight:700;color:#365c42}
+.cs-catalogue-list-head input{border:1px solid #b9cfbe;border-radius:9px;padding:12px 14px;min-height:46px;width:100%;color:#193c2b;background:#fff}
+.cs-catalogue-record-list{display:flex;flex-direction:column;gap:12px;margin:15px 0}
+.cs-catalogue-record-card{background:white;border:1px solid #d5e3d8;border-radius:13px;display:flex;justify-content:space-between;gap:20px;align-items:center;padding:20px 23px}
+.cs-catalogue-record-card h3{font-family:Georgia,serif;font-size:21px;color:#173e2b;margin:8px 0}
+.cs-catalogue-record-card p{color:#607365;font-size:13px;margin:0;line-height:1.6}
+.cs-catalogue-record-card button,.cs-catalogue-list-empty button{background:#20543a;border:1px solid #20543a;color:white;border-radius:9px;padding:12px 18px;min-height:44px;cursor:pointer;white-space:nowrap;font-weight:700}
+.cs-catalogue-record-state{font-size:11px;font-weight:750;display:inline-flex;background:#e5f0e7;border:1px solid #d0e1d3;color:#22503a;border-radius:15px;padding:5px 11px}
+.cs-catalogue-record-state.is-draft{background:#fff1d9;color:#795017;border-color:#e5d1a4}
+.cs-catalogue-list-empty{text-align:center;background:white;border:1px dashed #cadbcc;border-radius:13px;padding:40px 20px}
+.cs-catalogue-list-empty h3{font-family:Georgia,serif;color:#1a4430;font-size:22px}
+.cs-catalogue-list-empty p{margin:10px auto 18px;color:#627a67;line-height:1.6;max-width:460px}
+.cs-catalogue-list-status{text-align:center;color:#627565;font-size:13px}
+.cs-admin-pager{display:flex;align-items:center;justify-content:center;gap:16px;padding:14px}
+.cs-admin-pager button{border:1px solid #b9ccbe;color:#28523b;background:white;padding:9px 15px;border-radius:8px;cursor:pointer}
+.cs-admin-pager button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:650px){.cs-catalogue-record-card{align-items:stretch;flex-direction:column;padding:16px}.cs-catalogue-record-card button{width:100%}.cs-catalogue-list-head label{width:100%}}
