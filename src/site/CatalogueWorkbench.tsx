@@ -19,7 +19,17 @@ const performances=['unknown','single_narrator','multi_narrator','full_cast','dr
 const abridgements=['unknown','unabridged','abridged','adapted'];
 const label=(s:string)=>s.replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
 const short=(id:string)=>id.slice(0,8);
-export function CatalogueWorkbench(){
+type CatalogueView='new'|'drafts'|'published'|'all'|'edit';
+function viewFromPath(path:string):CatalogueView{
+ if(path==='/admin/catalogue/new')return 'new';
+ if(path.startsWith('/admin/catalogue/book/'))return 'edit';
+ if(path==='/admin/catalogue/published')return 'published';
+ if(path==='/admin/catalogue/all')return 'all';
+ return 'drafts';
+}
+const catalogueUrl=(view:'new'|'drafts'|'published'|'all')=>view==='drafts'?'/admin/catalogue/drafts':'/admin/catalogue/'+view;
+export function CatalogueWorkbench({path,navigate}:{path:string;navigate:(to:string)=>void}){
+ const view=viewFromPath(path);
  const [ready,setReady]=useState<boolean|null>(null),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [tab,setTab]=useState<RecordType>('works'),[loading,setLoading]=useState(false),[saving,setSaving]=useState(false);
  const [works,setWorks]=useState<Work[]>([]),[people,setPeople]=useState<Person[]>([]);
@@ -30,12 +40,16 @@ export function CatalogueWorkbench(){
  const [authorName,setAuthorName]=useState('');
  const [format,setFormat]=useState('paperback'),[pageCount,setPageCount]=useState('');
  const [performance,setPerformance]=useState('unknown'),[abridgement,setAbridgement]=useState('unknown'),[durationHours,setDurationHours]=useState(''),[durationMinutes,setDurationMinutes]=useState('');
- const [activeForm,setActiveForm]=useState<RecordType|null>('works');
+ const [activeForm,setActiveForm]=useState<RecordType|null>(null);
  const [editingId,setEditingId]=useState(''),[editRevision,setEditRevision]=useState(0);
  const [editSynopsis,setEditSynopsis]=useState(''),[editCredits,setEditCredits]=useState<WorkDetails['credits']>([]);
  const [editStatus,setEditStatus]=useState('draft');
  const [opening,setOpening]=useState(false);
  const [showAdvanced,setShowAdvanced]=useState(false);
+ const [listedWorks,setListedWorks]=useState<Work[]>([]);
+ const [listQuery,setListQuery]=useState(''),[listPage,setListPage]=useState(0);
+ const [listLoading,setListLoading]=useState(false),[listError,setListError]=useState('');
+ const [listVersion,setListVersion]=useState(0);
  const [editView,setEditView]=useState<'details'|'editions'|'images'|'preview'>('details');
  const [mediaReady,setMediaReady]=useState(false),[mediaKind,setMediaKind]=useState<'work'|'edition'|'person'>('edition');
  const [mediaId,setMediaId]=useState(''),[mediaFile,setMediaFile]=useState<File|null>(null);
@@ -54,12 +68,40 @@ export function CatalogueWorkbench(){
     apiGet<{items:Recording[]}>('/api/catalogue-admin/recordings?limit=100')
    ]);
    setWorks(w.items);setPeople(p.items);setEditions(e.items);setRecordings(r.items);
+   setListVersion(n=>n+1);
   }catch(e){setReady(false);setError(e instanceof Error?e.message:'Catalogue unavailable')}
   finally{setLoading(false)}
  },[]);
  // Initial page loading must be read-only. Removing the automatic contributor
  // reconciliation must never remove the catalogue's initial GET requests.
  useEffect(()=>{void load()},[load]);
+ // A bookmarked draft/editor opens the same canonical record after refresh.
+ useEffect(()=>{
+  if(view==='edit'){
+   const id=path.slice('/admin/catalogue/book/'.length);
+   if(id)void openWork(id,true,true);
+   else navigate(catalogueUrl('drafts'));
+  }else{
+   setEditingId('');
+   setActiveForm(view==='new'?'works':null);
+  }
+ },[path]);
+ useEffect(()=>{
+  if(view==='new'||view==='edit')return;
+  let active=true;
+  const timer=window.setTimeout(async()=>{
+   setListLoading(true);setListError('');
+   try{
+    const params=new URLSearchParams({limit:'50',offset:String(listPage*50)});
+    if(view!=='all')params.set('status',view==='published'?'published':'draft');
+    if(listQuery.trim())params.set('q',listQuery.trim());
+    const response=await apiGet<{items:Work[]}>('/api/catalogue-admin/works?'+params);
+    if(active)setListedWorks(response.items||[]);
+   }catch(e){if(active){setListedWorks([]);setListError(e instanceof Error?e.message:'Unable to load your books')}}
+   finally{if(active)setListLoading(false)}
+  },180);
+  return()=>{active=false;window.clearTimeout(timer)};
+ },[view,listQuery,listPage,listVersion]);
  // Legacy contributor reconciliation must be an intentional maintenance action,
  // never a database write caused by simply opening the catalogue screen.
  async function reconcileLegacyContributors(){
@@ -73,7 +115,8 @@ export function CatalogueWorkbench(){
   finally{setSaving(false)}
  }
  const refresh=()=>void load();
- async function openWork(workId:string,preserveNotice=false){
+ async function openWork(workId:string,preserveNotice=false,fromRoute=false){
+  if(!fromRoute){navigate('/admin/catalogue/book/'+encodeURIComponent(workId));return}
   setOpening(true);setError('');if(!preserveNotice)setNotice('');setActiveForm(null);
   try{
    const detail=await apiGet<WorkDetails>('/api/catalogue-admin/works/'+encodeURIComponent(workId));
@@ -129,17 +172,33 @@ export function CatalogueWorkbench(){
  if(ready===false)return <section className="cs-admin-form"><h2>Catalogue database setup</h2><p>The catalogue editor will become available once the separate BOOK_DB migrations are installed.</p><p role="alert" className="cs-admin-error">{error}</p><p>No member database records have been changed.</p><button type="button" onClick={refresh}>Check again</button></section>;
  return <div className="cs-catalogue">
 
-  <div className="cs-catalogue-primary-bar"><div><p className="cs-admin-eyebrow">BOOK CATALOGUE</p><h2>{editingId?'Edit existing book':activeForm==='works'?'Create a new book':'Your books'}</h2><p>One catalogue. Every edition, narrator and format belongs to its book.</p></div><div className="cs-catalogue-primary-actions"><button type="button" className={activeForm==='works'?'selected':''} onClick={()=>{setEditingId('');setActiveForm('works')}}>+ New book</button><button type="button" className={!editingId&&activeForm!=='works'?'selected':''} onClick={()=>{setActiveForm(null);setEditingId('')}}>Browse books</button><button type="button" onClick={refresh} disabled={loading}>Refresh</button></div></div>
+  <div className="cs-catalogue-primary-bar">
+   <div><p className="cs-admin-eyebrow">BOOK CATALOGUE</p>
+    <h2>{view==='edit'?'Edit and review book':view==='new'?'Create a new book':view==='drafts'?'Saved drafts':view==='published'?'Published books':'All books'}</h2>
+    <p>{view==='new'?'1. Enter details  →  2. Save draft  →  3. Review and publish':
+      view==='edit'?'Review your saved details, add editions and covers, then publish when ready.':
+      view==='drafts'?'Your unfinished books are kept here until you publish them. Open any draft to continue.':
+      view==='published'?'Books currently available in the public catalogue.':'Browse and manage all catalogue books.'}</p>
+   </div>
+   <div className="cs-catalogue-primary-actions" aria-label="Catalogue workflow">
+    <button type="button" className={view==='new'?'selected':''} onClick={()=>navigate(catalogueUrl('new'))}>+ Create book</button>
+    <button type="button" className={view==='drafts'?'selected':''} onClick={()=>navigate(catalogueUrl('drafts'))}>Drafts</button>
+    <button type="button" className={view==='published'?'selected':''} onClick={()=>navigate(catalogueUrl('published'))}>Published</button>
+    <button type="button" className={view==='all'?'selected':''} onClick={()=>navigate(catalogueUrl('all'))}>All books</button>
+    <button type="button" onClick={refresh} disabled={loading}>Refresh</button>
+   </div>
+  </div>
+  {view==='edit'&&<p className="cs-catalogue-workflow-step" role="status">Draft workflow: <strong>Book saved</strong> → Edit details, editions and cover → Review → Publish. You can return here later from Drafts.</p>}
   {error&&<p role="alert" className="cs-admin-error">{error}</p>}
   {notice&&<p role="status" className="cs-admin-success">{notice}</p>}
-  {editingId&&tab==='works'&&<section className="cs-book-edit-workspace" aria-label="Edit catalogue book">
+  {view==='edit'&&editingId&&tab==='works'&&<section className="cs-book-edit-workspace" aria-label="Edit catalogue book">
    <header className="cs-book-edit-heading">
     <div><p className="cs-book-eyebrow">CHAPTER & SOUND / BOOK EDITOR</p><h2>Edit book: {works.find(w=>w.id===editingId)?.title||title}</h2>
      <p>Record {short(editingId)} · Revision {editRevision} · {label(editStatus)} · Saved changes update this book.</p></div>
     <div className="cs-book-edit-publish-actions">
      {editStatus==='draft'&&<button type="button" className="cs-book-publish" disabled={saving} onClick={()=>void changePublication('published')}>Publish book</button>}
      {editStatus==='published'&&<button type="button" disabled={saving} onClick={()=>void changePublication('draft')}>Return to draft</button>}
-     <button type="button" disabled={saving} onClick={()=>setEditingId('')}>Close editor</button>
+     <button type="button" disabled={saving} onClick={()=>navigate(catalogueUrl(editStatus==='published'?'published':'drafts'))}>Back to {editStatus==='published'?'published books':'drafts'}</button>
     </div>
    </header>
    <nav className="cs-book-edit-tabs" aria-label="Book editing sections">
@@ -178,34 +237,43 @@ export function CatalogueWorkbench(){
     <a className="cs-book-edit-link" href={'/book/'+encodeURIComponent(editingId)}>Open public book page</a>
    </div></div>}
   </section>}
-  {activeForm!=='works'&&<div className="cs-admin-heading cs-catalogue-list-head" style={{marginTop:22}}><div><h3>Books in the catalogue</h3><p>Choose a book to edit its details and linked editions.</p></div><span>{works.length} loaded books</span></div>}
-  {activeForm==='works'&&<CatalogueBookEditor authors={people} imageStorage={mediaReady}
-     onCancel={()=>setActiveForm(null)} onEditExisting={(bookId)=>{setActiveForm(null);void openWork(bookId)}} onSaved={(bookId,message)=>{
-      setActiveForm(null);setNotice(message+' Book ID: '+bookId);void load();void openWork(bookId,true);
-     }}/>}
-  {activeForm!=='works'&&<div className="cs-admin-data cs-admin-table-scroll">
-   <table><thead><tr><th>Name or title</th><th>Status / detail</th><th>Record ID</th></tr></thead><tbody>
-    {(tab==='works'?works.map(x=>({id:x.id,name:x.title,status:(x.status==='draft'?'Existing unfinished record':x.status==='published'?'Saved':x.status)+' · '+(x.authors||'Author not yet added')})):
-     tab==='people'?people.map(x=>({id:x.id,name:x.name,status:x.status})):
-     tab==='editions'?editions.map(x=>({id:x.id,name:x.title,status:x.format+' · '+(x.status==='published'?'Saved':x.status)})):
-     recordings.map(x=>({id:x.id,name:x.title,status:x.performanceType+' · '+(x.durationSeconds==null?'Runtime unknown':Math.round(x.durationSeconds/60)+' minutes')}))
-    ).map(x=><tr key={x.id}><td>{x.name}</td><td>{x.status}</td><td><code title={x.id}>{short(x.id)}</code>{tab==='works'&&<button type="button" disabled={opening||saving} onClick={()=>void openWork(x.id)} style={{marginLeft:8}}>Edit</button>}</td></tr>)}
-   </tbody></table>
-   {!loading&&(tab==='works'?works:tab==='people'?people:tab==='editions'?editions:recordings).length===0&&<p className="cs-admin-empty">No catalogue records yet.</p>}
+  {view!=='new'&&view!=='edit'&&<div className="cs-admin-heading cs-catalogue-list-head" style={{marginTop:22}}>
+   <div><h3>{view==='drafts'?'Your saved drafts':view==='published'?'Published books':'Catalogue records'}</h3><p>{view==='drafts'?'Select Continue editing to finish a draft and publish it.':'Select Edit book to view and update its details.'}</p></div>
+   <label>Search books<input type="search" value={listQuery} onChange={e=>{setListQuery(e.target.value);setListPage(0)}} placeholder="Search by title"/></label>
   </div>}
-  {activeForm!=='works'&&<CatalogueDiagnostics/>}
-  {activeForm!=='works'&&<section className="cs-catalogue-advanced">
+  {view==='new'&&activeForm==='works'&&<CatalogueBookEditor authors={people} imageStorage={mediaReady}
+     onCancel={()=>navigate(catalogueUrl('drafts'))} onEditExisting={(bookId)=>navigate('/admin/catalogue/book/'+encodeURIComponent(bookId))} onSaved={(bookId,message)=>{
+      setNotice(message+' You can return to this record at any time from Drafts.');
+      setListVersion(v=>v+1);void load();
+      navigate('/admin/catalogue/book/'+encodeURIComponent(bookId));
+     }}/>}
+  {view!=='new'&&view!=='edit'&&<>
+   {listError&&<p role="alert" className="cs-admin-error">{listError}</p>}
+   <div className="cs-catalogue-record-list" aria-label="Saved catalogue books">
+    {listedWorks.map(book=><article className="cs-catalogue-record-card" key={book.id}>
+     <div><span className={'cs-catalogue-record-state '+(book.status==='draft'?'is-draft':'')}>{book.status==='draft'?'Draft':label(book.status)}</span>
+      <h3>{book.title}</h3>
+      <p>{book.authors||'Author not linked'} · {book.editions} {book.editions===1?'edition':'editions'} · {book.firstPublicationDate||'Publication date not set'}</p></div>
+     <button type="button" disabled={opening} onClick={()=>void openWork(book.id)}>{book.status==='draft'?'Continue editing':'Edit book'}</button>
+    </article>)}
+    {listLoading&&<p role="status" className="cs-catalogue-list-status">Loading saved books…</p>}
+    {!listLoading&&!listError&&listedWorks.length===0&&<div className="cs-catalogue-list-empty"><h3>{view==='drafts'?'No drafts yet':'No matching books'}</h3><p>{view==='drafts'?'When you save a new book as a draft, it will appear here.':'Try another title or search all books.'}</p><button type="button" onClick={()=>navigate(catalogueUrl('new'))}>Create a book</button></div>}
+   </div>
+   <div className="cs-admin-pager"><button disabled={listPage===0||listLoading} onClick={()=>setListPage(p=>Math.max(0,p-1))}>Previous</button><span>Page {listPage+1}</span><button disabled={listedWorks.length<50||listLoading} onClick={()=>setListPage(p=>p+1)}>Next</button></div>
+  </>}
+  {view==='all'&&<CatalogueDiagnostics/>}
+  {view==='all'&&<section className="cs-catalogue-advanced">
    <div><h3>Advanced catalogue tools</h3><p>Manage authors, additional editions, recording credits, genres, publishers, series and identifiers without creating a second catalogue.</p></div>
    <button type="button" aria-expanded={showAdvanced} onClick={()=>setShowAdvanced(v=>!v)}>{showAdvanced?'Hide advanced tools':'Open advanced tools'}</button>
   </section>}
-  {activeForm!=='works'&&showAdvanced&&<>
+  {view==='all'&&showAdvanced&&<>
    <section className="cs-catalogue-advanced" aria-label="Contributor reconciliation">
     <div><h3>Legacy contributor reconciliation</h3><p>Only use this when you intentionally need to bring older author profiles into the unified catalogue. Ambiguous identities are never merged automatically.</p></div>
     <button type="button" disabled={saving} onClick={()=>void reconcileLegacyContributors()}>Review and import legacy contributors</button>
    </section>
    <CatalogueManualManager/>
   </>}
-  {activeForm!=='works'&&<section id="cs-catalogue-media" className="cs-admin-form" style={{marginTop:20}}>
+  {view==='all'&&<section id="cs-catalogue-media" className="cs-admin-form" style={{marginTop:20}}>
    <h3>Book covers and contributor portraits</h3>
    {!mediaReady?<p>Cloudflare R2 is not connected yet. Images will be available here once the CATALOGUE_MEDIA bucket is created and bound. No files are stored in the browser.</p>:
    <form onSubmit={uploadMedia} className="cs-admin-form">
