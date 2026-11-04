@@ -52,7 +52,7 @@ Accessible in **Administration → Book Catalogue → Import Centre**.
 }
 ```
 
-The example is synthetic. Never assume the example identifiers refer to the same real edition.
+The example is synthetic. Never assume the example identifiers refer to the same real edition. A complete pilot candidate now includes an explicit `editions` array, source keys for the author and each edition, description, subjects, original language and first-publication metadata.
 
 ### Preview decisions
 
@@ -60,7 +60,7 @@ The example is synthetic. Never assume the example identifiers refer to the same
 - `review_match` — an exact title/author pair or source key exists. **Human identity review required**.
 - `invalid` — required fields, ISBN checksum, format, or date validation failed.
 - `duplicate_in_batch` — candidate identifier was already seen in the submitted batch.
-- `create_draft` — no matching ISBN or exact title/author found. **Eligible for human review only, not automatically imported**.
+- `needs_enrichment` — no matching ISBN or title/author, but required work or edition metadata is missing. **Hold for enrichment; do not import as complete**.\n- `create_draft` — the candidate passes the metadata completeness gate and matching checks. **Still requires source-rights and identity approval; not imported automatically**.
 
 Preview is intentionally non-mutating. The UI does not offer an Apply or Publish action.
 
@@ -78,7 +78,7 @@ Do **not** automatically download and republish images: image rights and metadat
 
 ## 4. Offline pilot manifest preparation
 
-`scripts/prepare-openlibrary-pilot.mjs` streams the official monthly works, authors and editions TSV+gzip dumps **locally**, resolves only requested work keys, chooses at most one validated ISBN-13 edition per work, and emits batches of no more than 100 candidates. No API harvesting, D1 writes or publication is involved.
+`scripts/prepare-openlibrary-pilot.mjs` streams the official monthly works, authors and editions TSV+gzip dumps **locally**, resolves only requested work keys, retains **all edition-level records** for each selected work (even those with incomplete ISBNs), and emits batches of no more than 100 candidate works. No API harvesting, D1 writes or publication is involved.
 
 Example `pilot-work-keys.txt`:
 
@@ -97,7 +97,7 @@ Generated files: `candidates-01.json`, `candidates-02.json`, etc. and `report.js
 
 - The script intentionally **does not** automatically use Open Library cover images or text descriptions.
 - Ambiguous/multiple authors are reported for manual review.
-- A work with no edition containing a valid ISBN-13 is skipped and reported, not made up.
+- A work with no edition records is skipped and reported. Editions missing ISBNs remain visible and are flagged for enrichment; identifiers are never invented.
 - No generated output is automatically deployed or imported.
 - Official monthly dump downloads can be large; consider sufficient disk space and run locally rather than in a Cloudflare Worker.
 
@@ -122,3 +122,14 @@ New test files:
 - `tests/catalogue-import-boundaries.test.ts` — owner permission, dry-run, bounded source lookup.\n- `tests/openlibrary-dump-preparer.test.ts` — compressed fixtures for offline source processing.
 
 CI/build execution and deployment still need independent verification; source commits alone are not evidence that a Worker endpoint is live.
+
+
+## Metadata completeness gate added
+
+The preview now shows **Needs metadata**, an edition count, a completeness score and the exact fields missing from each work/edition. Work-level Open Library search results cannot pass as complete editions.
+
+Required checks cover: canonical title, source-backed author identity, description, subjects, language, first-publication information, and every edition's source ID, format, ISBN, publisher, release date and language. Verified audiobook editions additionally require source-backed narrator identities and duration.
+
+**Important:** A strict completeness gate is not a guarantee that every published book has every piece of metadata available anywhere. Some publishers and sources omit fields. Those records must be enriched using a compatible, rights-permitted source or held for review. No data is fabricated. Cover ingestion is deliberately deferred until the metadata pipeline is reliable.
+
+Regressions: `tests/catalogue-import-quality.test.ts` and the updated import preview and dump fixture tests.
