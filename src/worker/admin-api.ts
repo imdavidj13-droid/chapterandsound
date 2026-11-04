@@ -68,7 +68,7 @@ export async function adminAPI(request:Request,env:AdminEnv):Promise<Response>{
       (SELECT COUNT(*) FROM editions) AS editions,
       (SELECT COUNT(*) FROM people WHERE identity_status NOT IN ('merged','suppressed')) AS contributors`).first<NonNullable<typeof canonical>>();
     }catch(error){console.error('Canonical admin overview counts unavailable',error);}
-    const counts={...legacyCounts,books:canonical?.books??null,bookDrafts:canonical?.drafts??null,
+    const counts={...(legacyCounts||{}),books:canonical?.books??null,bookDrafts:canonical?.drafts??null,
      bookPublished:canonical?.published??null,editions:canonical?.editions??null,contributors:canonical?.contributors??null};
     return respond({counts,catalogueConnected:canonical!==null,environment:{signupMode:env.SIGNUP_MODE==='public'?'public':'owner_only',mailConfigured:Boolean(env.MAIL_API_KEY),origin:env.PUBLIC_ORIGIN}});
    }
