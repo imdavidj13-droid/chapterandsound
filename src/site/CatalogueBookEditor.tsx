@@ -23,8 +23,7 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
  const [performance,setPerformance]=useState('single_narrator'),[abridgement,setAbridgement]=useState('unabridged');
  const [duration,setDuration]=useState(''),[narrator,setNarrator]=useState('');
  const [file,setFile]=useState<File|null>(null),[preview,setPreview]=useState('');
- const [rightsHolder,setRightsHolder]=useState(''),[licenceName,setLicenceName]=useState(''),[sourceUrl,setSourceUrl]=useState('');
- const [permission,setPermission]=useState(false),[saving,setSaving]=useState(false),[error,setError]=useState('');
+ const [saving,setSaving]=useState(false),[error,setError]=useState('');
  const isAudio=format==='audiobook'||format==='audio_cd';
  const [suggestions,setSuggestions]=useState<Person[]>([]);
  const [selectedAuthorId,setSelectedAuthorId]=useState('');
@@ -83,7 +82,7 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
   const next=URL.createObjectURL(file);setPreview(next);
   return()=>URL.revokeObjectURL(next);
  },[file]);
- const canUpload=!!file&&imageStorage&&!!rightsHolder.trim()&&!!licenceName.trim()&&!!sourceUrl.trim()&&permission;
+ const canUpload=!!file&&imageStorage;
  const totalFields=useMemo(()=>[title,author,synopsis,format,releaseDate,isbn13].filter(Boolean).length,[title,author,synopsis,format,releaseDate,isbn13]);
  async function submit(e:FormEvent){
   e.preventDefault();
@@ -94,7 +93,6 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
   if(!narratorReady){setError('Choose the existing narrator or confirm creation of a new contributor.');return}
   setSaving(true);setError('');
   try{
-   if(file&&imageStorage&&!canUpload)throw new Error('Complete the image rights fields or remove the cover file before saving.');
    const edition=addEdition?{
     format,language:editionLanguage,pageCount:pages||null,publisherName:publisher,
     releaseDate,isbn13,isbn10,asin,
@@ -108,8 +106,7 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
    if(file&&canUpload){
     const data=new FormData();
     data.set('entityKind',result.editionId?'edition':'work');data.set('entityId',result.editionId||result.id);
-    data.set('rightsHolder',rightsHolder);data.set('licenceName',licenceName);data.set('sourceUrl',sourceUrl);
-    data.set('rightsConfirmed','yes');data.set('file',file);
+    data.set('file',file);
     try{
      const upload=await fetch('/api/catalogue-admin/upload-image',{method:'POST',body:data,credentials:'include'});
      const response=await upload.json() as {error?:string};
@@ -200,12 +197,7 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
      <div className="cs-book-cover-preview">{preview?<img src={preview} alt="Selected cover preview"/>:<div className="cs-book-cover-placeholder"><span aria-hidden="true">▤</span><strong>{title||'Book cover'}</strong><small>Cover preview</small></div>}</div>
      <label>Choose image<input type="file" accept="image/png,image/jpeg,image/webp,image/avif" onChange={e=>setFile(e.target.files?.[0]||null)}/></label>
      {!imageStorage&&<small className="cs-book-storage-warning">R2 storage is not yet connected. The preview will not be uploaded.</small>}
-     {file&&imageStorage&&<>
-      <label>Rights holder<input maxLength={500} required value={rightsHolder} onChange={e=>setRightsHolder(e.target.value)}/></label>
-      <label>Licence / permission<input maxLength={250} required value={licenceName} onChange={e=>setLicenceName(e.target.value)}/></label>
-      <label>Source URL<input type="url" required value={sourceUrl} onChange={e=>setSourceUrl(e.target.value)} placeholder="https://..."/></label>
-      <label className="cs-book-editor-toggle"><input type="checkbox" checked={permission} onChange={e=>setPermission(e.target.checked)}/> I have permission to display this image</label>
-     </>}
+     {file&&imageStorage&&<small>Cover will upload when you save the draft. Only use images you are entitled to display.</small>}
     </section>
     <div className="cs-book-editor-summary"><strong>Save as draft</strong><p>New books are kept out of public search until you review and publish them from their existing-book editor.</p></div>
     <div className="cs-book-editor-summary"><strong>Quick checks</strong><ul><li>{title.trim()?'✓':'○'} Book title entered</li><li>{authorReady?'✓':'○'} Author identity confirmed</li><li>{isbn13Valid&&isbn10Valid?'✓':'○'} ISBNs valid (if supplied)</li><li>{duplicateCheckComplete&&!duplicateBlocked?'✓':'○'} Existing-title check complete</li><li>{isAudio?(narratorReady?'✓ Narrator resolved':'○ Narrator requires review'):'Print / digital edition'}</li></ul><small>{totalFields} details populated</small></div>
@@ -213,6 +205,6 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
   </div>
   {error&&<p className="cs-admin-error" role="alert">{error}</p>}
   <div className="cs-book-editor-footer"><button type="button" disabled={saving} onClick={onCancel}>Cancel</button>
-   <button className="cs-book-save" disabled={saving||!title.trim()||!authorReady||!narratorReady||!duplicateCheckComplete||!!duplicateCheckError||duplicateBlocked||!isbn13Valid||!isbn10Valid||(!!file&&imageStorage&&!canUpload)} type="submit">{saving?'Saving book…':!duplicateCheckComplete?'Checking catalogue…':'Save draft'}</button></div>
+   <button className="cs-book-save" disabled={saving||!title.trim()||!authorReady||!narratorReady||!duplicateCheckComplete||!!duplicateCheckError||duplicateBlocked||!isbn13Valid||!isbn10Valid} type="submit">{saving?'Saving book…':!duplicateCheckComplete?'Checking catalogue…':'Save draft'}</button></div>
  </form>;
 }
