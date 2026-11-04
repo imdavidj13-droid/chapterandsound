@@ -12,7 +12,13 @@ import {readFileSync,writeFileSync,renameSync,mkdirSync,existsSync} from 'node:f
 import {resolve,join} from 'node:path';
 
 const options={};
-for(let i=2;i<process.argv.length;i+=2)options[process.argv[i]]=process.argv[i+1];
+for(let i=2;i<process.argv.length;i++){
+ const argument=process.argv[i];
+ if(argument==='--isbn-lookups'){options[argument]=true;continue}
+ if(!['--input','--out'].includes(argument)||!process.argv[i+1]||process.argv[i+1].startsWith('--'))
+  throw Error('Invalid option or missing value: '+argument);
+ options[argument]=process.argv[++i];
+}
 if(!options['--input']||!options['--out'])
  throw Error('Usage: node scripts/enrich-openlibrary-pilot.mjs --input .private-catalogue-pilot/api-candidates-01.json --out .private-catalogue-pilot [--isbn-lookups]');
 const directory=resolve(options['--out']);
