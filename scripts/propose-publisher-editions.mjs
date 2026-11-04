@@ -64,15 +64,24 @@ export function proposePublisherEditions(enriched,evidence){
   }
   const book=matches[0];
   const previous=globalISBNs.get(isbn)||[];
+  const potentialDuplicateKeys=[];
   if(previous.length){
    if(previous.length===1&&previous[0].workSourceKey===book.workSourceKey){
     const row={isbn13:isbn,title:book.title,editionSourceKey:previous[0].sourceKey};
-    if(previous[0].primary)existing.push(row);
-    else candidateOnly.push({...row,reason:'isbn_appears_only_as_candidate',
+    if(previous[0].primary){
+     existing.push(row);
+     continue;
+    }
+    // A candidate-only OL link does not prove that the edition has this ISBN.
+    // Record a separate publisher product while preserving its possible alias.
+    candidateOnly.push({...row,reason:'isbn_appears_only_as_candidate',
      sourceEditionHasMultipleISBNs:previous[0].sourceEditionHasMultipleISBNs});
-   }else blocked.push({isbn13:isbn,title:book.title,reason:'isbn_ambiguous_or_shared_across_works',
-    existingSourceKeys:previous.map(x=>x.sourceKey)});
-   continue;
+    potentialDuplicateKeys.push(previous[0].sourceKey);
+   }else{
+    blocked.push({isbn13:isbn,title:book.title,reason:'isbn_ambiguous_or_shared_across_works',
+     existingSourceKeys:previous.map(x=>x.sourceKey)});
+    continue;
+   }
   }
   const sourceKey='penguin-uk:isbn13:'+isbn;
   const edition={
@@ -85,16 +94,19 @@ export function proposePublisherEditions(enriched,evidence){
    fieldProvenance:Object.fromEntries(['isbn13','format','imprint','publicationDate','pageCount'].map(field=>
     [field,factProvenance(fact,field)])),
    identityStatus:'publisher_isbn_provisional',
+   potentialDuplicateSourceKeys:potentialDuplicateKeys,
    importEligible:false,publicationEligible:false,
    validationIssues:['publisher_imprint_not_equivalent_to_publisher',
     'publisher_edition_identity_pending_canonical_cross_check',
-    'rights_and_cover_review_required']
+    'rights_and_cover_review_required',
+    ...(potentialDuplicateKeys.length?['possible_duplicate_openlibrary_edition']:[])]
   };
   book.editions.push(edition);
-  globalISBNs.set(isbn,[{workSourceKey:book.workSourceKey,sourceKey}]);
+  globalISBNs.set(isbn,[...previous,{workSourceKey:book.workSourceKey,sourceKey,primary:true}]);
   proposed.push({title:book.title,workSourceKey:book.workSourceKey,
    isbn13:isbn,format:fact.format,editionSourceKey:sourceKey,
-   sourceUrl:fact.sourceUrl,unresolved:edition.validationIssues});
+   sourceUrl:fact.sourceUrl,potentialDuplicateSourceKeys:potentialDuplicateKeys,
+   unresolved:edition.validationIssues});
  }
  return {
   candidates:{candidates:books,mode:'publisher_additions_review_only',importEligible:false},
@@ -102,13 +114,14 @@ export function proposePublisherEditions(enriched,evidence){
    totals:{works:books.length,publisherFacts:evidence.records.length,
     alreadyPresent:existing.length,candidateOnlyLinks:candidateOnly.length,
     proposedAdditions:proposed.length,
+    proposedWithPotentialDuplicates:proposed.filter(p=>p.potentialDuplicateSourceKeys.length).length,
     blocked:blocked.length,
     resultingEditions:books.reduce((n,b)=>n+b.editions.length,0),
     unknownFormats:books.reduce((n,b)=>n+b.editions.filter(e=>e.format==='unknown').length,0)},
    proposed,existing,candidateOnly,blocked,
    notes:['Only source-specific edition candidates are created under existing canonical works.',
     'No Open Library source identifiers are invented or reused.',
-    'ISBN collisions are blocked; candidate-only ISBNs are unresolved rather than verified editions.',
+    'ISBN collisions are blocked; candidate-only links cause separately sourced publisher proposals with explicit possible-duplicate relationships.',
     'Imprint does not become publisher.',
     'These are incomplete, unpublished review candidates and not production-import manifests.',
     'Descriptions or images are not fetched or retained. No database writes.']}
