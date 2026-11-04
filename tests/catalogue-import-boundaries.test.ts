@@ -33,3 +33,9 @@ test('owner lookup is limited, explicit, and does not assign an arbitrary ISBN t
  assert.match(ui,/No database writes were performed/);
  assert.match(workbench,/<CatalogueImportCentre\/>/);
 });
+
+test('import centre is a dedicated direct URL, not hidden in advanced metadata tools',()=>{
+ assert.match(workbench,/path==='\/admin\/catalogue\/import'/);
+ assert.match(workbench,/navigate\(catalogueUrl\('import'\)\)/);
+ assert.match(workbench,/view==='import'&&<CatalogueImportCentre\/>/);
+});
