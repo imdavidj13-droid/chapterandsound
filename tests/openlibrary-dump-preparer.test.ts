@@ -64,10 +64,17 @@ test('offline Open Library dump preparer creates reviewed manifests without netw
   ));
   const failedOut=join(dir,'ambiguous-output');
   mkdirSync(failedOut);
-  assert.throws(()=>execFileSync(process.execPath,[script,
+  execFileSync(process.execPath,[script,
    '--works',ambiguousWorks,'--authors',authors,'--editions',editions,
    '--author-key',author,'--titles-file',titles,'--max','10','--out',failedOut
-  ],{timeout:15000,stdio:'pipe'}),/Command failed/);
+  ],{timeout:15000,stdio:'pipe'});
+  const review=JSON.parse(readFileSync(join(failedOut,'report.json'),'utf8'));
+  assert.equal(review.candidates,0,'ambiguous title must not be imported');
+  assert.equal(review.needsIdentityReview,1);
+  assert.deepEqual(review.unresolvedTitles[0].options.map((x:{key:string})=>x.key),
+   [work,'/works/OL999W'].sort());
+  assert.equal(review.unresolvedTitles[0].options.find((x:{key:string})=>x.key===work).editionCount,2);
+  assert.ok(!review.files.length,'no import-ready manifest should be produced for only ambiguous titles');
 
  }finally{rmSync(dir,{recursive:true,force:true})}
 });
