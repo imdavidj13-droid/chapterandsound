@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
-import {mkdtempSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
+import {mkdtempSync,writeFileSync,readFileSync,rmSync,mkdirSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {execFileSync} from 'node:child_process';
@@ -38,5 +38,16 @@ test('edition enrichment uses explicit format, retains unknown, flags ISBN confl
   assert.equal(report.databaseWrites,0);
   assert.ok(report.books[0].issues.some((x:{code:string})=>x.code==='multiple_isbns_on_one_source_edition'));
   assert.ok(report.books[0].issues.some((x:{code:string})=>x.code==='same_isbn_conflicting_metadata'));
+  const cache=join(dir,'isbn-lookup-cache');
+  mkdirSync(cache,{recursive:true});
+  writeFileSync(join(cache,'9780306406157.json'),JSON.stringify({
+   key:'/books/OL1M',title:'Sample Book',works:[{key:'/works/OL1W'}],
+   isbn_13:['9780306406157'],physical_format:'E-book'
+  }));
+  // Standalone CLI flag must be recognized even when it has no following value.
+  execFileSync(process.execPath,[script,'--input',input,'--out',dir,'--isbn-lookups'],{timeout:15000});
+  const lookupReport=JSON.parse(readFileSync(join(dir,'enrichment-report.json'),'utf8'));
+  assert.equal(lookupReport.totals.isbnLookupsCached,1);
+  assert.ok(lookupReport.source.includes('exact ISBN lookups'));
  }finally{rmSync(dir,{recursive:true,force:true})}
 });
