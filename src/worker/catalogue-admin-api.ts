@@ -103,6 +103,18 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
     ORDER BY w.created_at DESC,w.id DESC LIMIT ? OFFSET ?`).bind(q,q,l,o).all();
     return json({items:results});
    }
+   if(segments.length===3&&segments[0]==='works'&&segments[2]==='linked'){
+    const workId=segments[1]||'';
+    if(!safeId(workId))return fail('Invalid book ID');
+    if(!await recordExists(db,'works',workId))return fail('Book not found',404);
+    const [{results:editions},{results:recordings}]=await Promise.all([
+     db.prepare("SELECT id,work_id AS workId,format,title_override AS title,edition_statement AS statement,language,page_count AS pages,revision,publication_status AS publicationStatus FROM editions WHERE work_id=? ORDER BY created_at,id")
+      .bind(workId).all(),
+     db.prepare("SELECT id,work_id AS workId,recording_title AS title,language,abridgement,performance_type AS performance,duration_seconds AS seconds,recorded_date AS recordedDate,revision FROM audio_recordings WHERE work_id=? ORDER BY created_at,id")
+      .bind(workId).all()
+    ]);
+    return json({editions,recordings});
+   }
    if(segments.length===2&&segments[0]==='works'){
     const workId=segments[1]??'';
     if(!safeId(workId))return fail('Invalid catalogue ID');
@@ -165,6 +177,36 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
   const body=fields(await request.json().catch(()=>null));
   if(!body)return fail('Provide a JSON object');
   const actor=session.user.id;
+  if(request.method==='PATCH'&&segments.length===3&&segments[0]==='works'&&segments[2]==='publication'){
+   const workId=segments[1]||'',expected=body.expectedRevision;
+   if(!safeId(workId))return fail('Invalid book identifier');
+   if(!Number.isInteger(expected)||Number(expected)<1)return fail('A valid expectedRevision is required');
+   const target=str(body.status,30);
+   if(!['draft','published'].includes(target))return fail('Status must be draft or published');
+   const old=await db.prepare('SELECT id,canonical_title AS title,status,revision FROM works WHERE id=?')
+    .bind(workId).first<{id:string;title:string;status:string;revision:number}>();
+   if(!old)return fail('Book not found',404);
+   if(old.revision!==expected)return fail('This book changed elsewhere. Reload before changing its status.',409);
+   if(!['draft','published'].includes(old.status))return fail('This book has a protected status requiring separate review',409);
+   if(old.status===target)return json({saved:true,id:workId,status:target,revision:old.revision});
+   if(target==='published'){
+    const contributor=await db.prepare("SELECT id FROM contributions WHERE work_id=? AND role_code IN ('author','coauthor') LIMIT 1").bind(workId).first();
+    const edition=await db.prepare('SELECT id FROM editions WHERE work_id=? LIMIT 1').bind(workId).first();
+    if(!contributor||!edition)return fail('Before publishing, link an author and at least one edition.',409);
+   }
+   const nextRev=old.revision+1,after={...old,status:target,revision:nextRev};
+   const batch=await db.batch([
+    db.prepare("UPDATE works SET status=?,revision=revision+1,updated_at=CURRENT_TIMESTAMP WHERE id=? AND revision=? AND status=?")
+     .bind(target,workId,expected,old.status),
+    db.prepare("UPDATE text_content SET visibility=? WHERE entity_kind='work' AND entity_id=? AND content_type='synopsis' AND source_claim_id IS NULL")
+     .bind(target==='published'?'public':'private',workId),
+    db.prepare("INSERT INTO record_revisions(id,entity_kind,entity_id,revision,before_json,after_json,actor_external_id,reason) VALUES(?,'work',?,?,?,?,?,?)")
+     .bind(uuid(),workId,nextRev,JSON.stringify(old),JSON.stringify(after),actor,'Publication status change'),
+    audit(db,actor,'publication_status','work',workId,{before:old.status,after:target})
+   ]) as {meta?:{changes?:number}}[];
+   if(batch[0]?.meta?.changes===0)return fail('This book changed elsewhere. Reload and try again.',409);
+   return json({saved:true,id:workId,status:target,revision:nextRev});
+  }
   if(request.method==='PATCH'&&segments.length===2&&segments[0]==='works'){
    const workId=segments[1]??'',expected=body.expectedRevision;
    if(!safeId(workId))return fail('Invalid catalogue ID');
@@ -195,11 +237,11 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
      .bind(title,type,language,date,workId,expected)
    ];
    if(priorSyn){
-    if(synopsis)statements.push(db.prepare("UPDATE text_content SET body=?,visibility='public' WHERE id=?").bind(synopsis,priorSyn.id));
+    if(synopsis)statements.push(db.prepare('UPDATE text_content SET body=?,visibility=? WHERE id=?').bind(synopsis,old.status==='published'?'public':'private',priorSyn.id));
     else statements.push(db.prepare('DELETE FROM text_content WHERE id=?').bind(priorSyn.id));
    }else if(synopsis){
     statements.push(db.prepare(`INSERT INTO text_content(id,entity_kind,entity_id,content_type,body,visibility)
-       VALUES(?,'work',?,'synopsis',?,'public')`).bind(uuid(),workId,synopsis));
+       VALUES(?,'work',?,'synopsis',?)`).bind(uuid(),workId,synopsis,old.status==='published'?'public':'private'));
    }
    statements.push(db.prepare(`INSERT INTO record_revisions(id,entity_kind,entity_id,revision,before_json,after_json,actor_external_id,reason)
     VALUES(?,'work',?,?,?,?,?,?)`).bind(uuid(),workId,nextRev,JSON.stringify(before),JSON.stringify(after),actor,'Metadata edit'));
@@ -302,11 +344,11 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
       .bind(title,selectedAuthorId).first<{id:string}>();
     if(dup)return json({error:'This author already has a catalogue book with the same title. Open the existing book instead.',existingId:dup.id},409);
    }
-   const id=uuid(),details={id,title,type,language,firstPublicationDate:date,synopsis,authorId:selectedAuthorId||null,authorName:authorName||null,status:'published'};
+   const id=uuid(),details={id,title,type,language,firstPublicationDate:date,synopsis,authorId:selectedAuthorId||null,authorName:authorName||null,status:'draft'};
    // Batch creates the optional author, work, credit, synopsis and audit together.
-   statements.push(db.prepare("INSERT INTO works(id,canonical_title,work_type,original_language,first_publication_date,status) VALUES(?,?,?,?,?,'published')").bind(id,title,type,language,date));
+   statements.push(db.prepare("INSERT INTO works(id,canonical_title,work_type,original_language,first_publication_date,status) VALUES(?,?,?,?,?,'draft')").bind(id,title,type,language,date));
    if(selectedAuthorId)statements.push(db.prepare("INSERT INTO contributions(id,person_id,work_id,role_code) VALUES(?,?,?,'author')").bind(uuid(),selectedAuthorId,id));
-   if(synopsis)statements.push(db.prepare("INSERT INTO text_content(id,entity_kind,entity_id,content_type,body,visibility) VALUES(?,'work',?,'synopsis',?,'public')").bind(uuid(),id,synopsis));
+   if(synopsis)statements.push(db.prepare("INSERT INTO text_content(id,entity_kind,entity_id,content_type,body,visibility) VALUES(?,'work',?,'synopsis',?,'private')").bind(uuid(),id,synopsis));
    // The first edition and its audiobook recording are created with the
    // book in one atomic D1 batch. This is the standard manual-entry workflow.
    const edition=fields(body.edition);
@@ -400,7 +442,7 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
    }
    statements.push(revision(db,actor,'work',id,details),audit(db,actor,'create','work',id,details));
    await db.batch(statements);
-   return json({id,saved:true,editionId:newEditionId,recordingId,status:'published'},201);
+   return json({id,saved:true,editionId:newEditionId,recordingId,status:'draft'},201);
   }
   if(path==='people'){
    const name=str(body.name,500);if(!name)return fail('Contributor name is required');

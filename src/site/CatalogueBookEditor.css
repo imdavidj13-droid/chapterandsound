@@ -141,3 +141,25 @@
 .cs-catalogue>.cs-book-editor{margin-top:0}
 @media(max-width:850px){.cs-catalogue-primary-bar{flex-direction:column;align-items:stretch;padding:19px}.cs-catalogue-primary-actions{justify-content:flex-start}}
 @media(max-width:480px){.cs-catalogue-primary-actions button{flex:1}}
+
+/* Draft-first publication and inline edition editing. */
+.cs-book-edit-publish-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cs-book-edit-heading .cs-book-publish{background:#f6faf6!important;color:#164831!important;border-color:#f6faf6!important;font-weight:800}
+.cs-linked-editor{background:#fff;border:1px solid #d5e1d6;border-radius:14px;padding:22px;color:#24412f}
+.cs-linked-toolbar{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:18px;flex-wrap:wrap}
+.cs-linked-toolbar h3{margin:0 0 7px;font-size:21px;color:#193f2d}
+.cs-linked-toolbar h4{margin:0;font-size:19px;color:#193f2d}
+.cs-linked-toolbar p{margin:0;color:#657767;font-size:13px;line-height:1.5}
+.cs-linked-toolbar button,.cs-linked-entry button{background:#24553e;color:#fff;border:1px solid #24553e;border-radius:9px;padding:10px 14px;cursor:pointer;font-weight:700}
+.cs-linked-editor h4{font-size:17px;margin:22px 0 10px}
+.cs-linked-entries{display:flex;flex-direction:column;gap:9px}
+.cs-linked-entry{border:1px solid #d6e3d8;background:#f7faf7;border-radius:11px;display:flex;justify-content:space-between;align-items:center;gap:15px;padding:15px}
+.cs-linked-entry>div{display:flex;flex-direction:column;gap:6px;min-width:0}
+.cs-linked-entry strong{color:#173c2a}
+.cs-linked-entry span{color:#5f7063;font-size:13px;overflow-wrap:anywhere}
+.cs-linked-entry button{white-space:nowrap}
+.cs-linked-form{display:flex;flex-direction:column;gap:18px;margin-top:23px;padding:23px;background:#f1f6f1;border:1px solid #c7dacb;border-radius:13px}
+.cs-linked-form label{display:flex;flex-direction:column;gap:7px;font-size:13px;font-weight:750}
+.cs-linked-form input,.cs-linked-form select{padding:11px 13px;background:#fff;color:#153c29;border:1px solid #b9c9bb;border-radius:10px;font:inherit;min-height:48px;width:100%}
+.cs-linked-form>.primary{align-self:flex-end}
+@media(max-width:650px){.cs-linked-editor{padding:14px}.cs-linked-entry{flex-direction:column;align-items:stretch}.cs-linked-entry button{align-self:flex-start}.cs-linked-form{padding:15px}.cs-book-edit-publish-actions{width:100%}}
