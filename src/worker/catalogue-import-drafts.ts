@@ -32,6 +32,8 @@ export async function importCatalogueDrafts(db:DraftImportDB,input:unknown,actor
  const personIds=new Map<string,string>();
  const authorKeysByName=new Map<string,string>();
  const publishers=new Map<string,string>();
+ const subjectIds=new Map<string,string>();
+ let classificationSchemeId:string|null=null;
  const schemes=new Map<string,string>();
  const imported:{id:string;title:string;editionIds:string[]}[]=[];
  const recordKeys=new Set<string>();
@@ -74,6 +76,36 @@ export async function importCatalogueDrafts(db:DraftImportDB,input:unknown,actor
   const desc=clean(candidate.description,8000);
   if(desc)statements.push(db.prepare("INSERT INTO text_content(id,entity_kind,entity_id,content_type,body,visibility) VALUES(?,'work',?,'synopsis',?,'private')")
    .bind(id(),workId,desc));
+  const subjects=[...new Set((candidate.subjects||[]).map(value=>clean(value,300)).filter(Boolean))];
+  if(subjects.length>40)throw new ImportConflict('This work has more than 40 subject tags; split and review the subject taxonomy: '+title);
+  if(subjects.length){
+   if(!classificationSchemeId){
+    const found=await db.prepare("SELECT id FROM classification_schemes WHERE scheme_code='OPENLIBRARY' LIMIT 1").first<{id:string}>();
+    classificationSchemeId=found?.id||id();
+    if(!found)statements.push(db.prepare("INSERT INTO classification_schemes(id,scheme_code,version) VALUES(?,'OPENLIBRARY','1')").bind(classificationSchemeId));
+   }
+   for(const [index,subject] of subjects.entries()){
+    const tag=subject.toLocaleLowerCase('en-GB');
+    let subjectId=subjectIds.get(tag);
+    if(!subjectId){
+     const existing=await db.prepare('SELECT id FROM subjects WHERE scheme_id=? AND lower(label)=lower(?) LIMIT 2')
+      .bind(classificationSchemeId,subject).all<{id:string}>();
+     if(existing.results.length>1)throw new ImportConflict('Duplicate subject entries need review: '+subject);
+     subjectId=existing.results[0]?.id||id();
+     if(!existing.results.length){
+      // Stable code with a hash suffix avoids collisions from long labels.
+      let hash=2166136261;
+      for(const character of tag){hash=Math.imul(hash^character.charCodeAt(0),16777619)}
+      const code='OL_'+(hash>>>0).toString(16).padStart(8,'0');
+      statements.push(db.prepare('INSERT INTO subjects(id,scheme_id,code,label) VALUES(?,?,?,?)')
+       .bind(subjectId,classificationSchemeId,code,subject));
+     }
+     subjectIds.set(tag,subjectId);
+    }
+    statements.push(db.prepare('INSERT INTO work_subjects(id,work_id,subject_id,primary_flag) VALUES(?,?,?,?)')
+     .bind(id(),workId,subjectId,index===0?1:0));
+   }
+  }
   for(const edition of candidate.editions||[]){
    const editionKey=clean(edition.sourceKey,200),format=clean(edition.format,30).toLowerCase();
    if(!/^\/books\/OL\d+M$/.test(editionKey)||recordKeys.has(editionKey))
@@ -127,7 +159,7 @@ export async function importCatalogueDrafts(db:DraftImportDB,input:unknown,actor
    .bind(id(),actor,workId,JSON.stringify(provenance)));
   imported.push({id:workId,title,editionIds});
  }
- if(statements.length>300)throw new ImportConflict('Too many statements in one atomic draft batch.');
+ if(statements.length>400)throw new ImportConflict('Too many statements in one atomic draft batch. Submit fewer works.');
  // Cloudflare D1 batch runs atomically; constraint errors abort the complete batch.
  await db.batch(statements);
  return {saved:true,status:'draft',published:false,imported,editionCount,source:'openlibrary'};
