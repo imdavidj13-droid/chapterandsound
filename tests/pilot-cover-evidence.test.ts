@@ -1,5 +1,6 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
+// @ts-expect-error The companion runtime module is plain JavaScript with no declaration file.
 import {checkCovers,makeCoverTargets} from '../scripts/check-pilot-cover-evidence.mjs';
 const fixture=()=>({candidates:Array.from({length:10},(_,i)=>({
  title:'Title '+i,workSourceKey:'/works/OL'+(i+1)+'W',editions:[
@@ -19,7 +20,7 @@ test('checks only one cover, retains source image URL but no image bytes',async(
   return {ok:true,status:200,headers:{get:()=> 'image/jpeg'}};
  }});
  assert.equal(seen.length,1);
- assert.ok(seen[0].endsWith('/b/id/12345-L.jpg?default=false'));
+ assert.ok(seen[0]!.endsWith('/b/id/12345-L.jpg?default=false'));
  assert.equal(report.totals.available,1);
  assert.equal(report.totals.unresolved,9);
  assert.equal(report.results[0].displayUrl,'https://covers.openlibrary.org/b/id/12345-L.jpg');
