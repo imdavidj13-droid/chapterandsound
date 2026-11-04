@@ -79,7 +79,7 @@ export async function previewCatalogueImport(db:Database,candidates:unknown):Pro
     LIMIT 8`).bind(title,author).all<{id:string;title:string}>();
   if(results.length){add('review_match','A work with this title and author exists. Verify edition and identity before linking.',{matches:results});continue}
   if(!quality.ready){add('needs_enrichment','No duplicate detected, but work/edition metadata is incomplete. Enrich it before draft import.');continue}
-  add('create_draft','Full work and edition metadata supplied; eligible for final identity and rights review before draft import.');
+  add('create_draft',quality.optionalMissing.length?'Core identity and edition structure are present; optional metadata gaps remain for source enrichment. Draft review only.':'Core metadata is present; still requires source-rights and identity review before any draft import.');
  }
  return {dryRun:true,rows,summary};
 }
