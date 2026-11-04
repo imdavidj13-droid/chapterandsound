@@ -81,6 +81,46 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
  if(!db)return fail('The BOOK_DB catalogue binding is not configured yet',503);
  if(!await catalogueReady(db))return fail('The catalogue database has not had its dedicated migrations applied yet',503);
  if(path==='health'&&request.method==='GET')return json({ready:true,catalogue:'BOOK_DB',schema:'installed',imageStorage:!!env.CATALOGUE_MEDIA});
+ if(path==='diagnostics'&&request.method==='GET'){
+  // Authenticated, read-only checks. No test records or bucket writes.
+  try{
+   const [counts,unlinked,duplicateIdentifiers,orphanEditions,missingCovers,foreignKeys]=await Promise.all([
+    db.prepare(`SELECT
+     (SELECT count(*) FROM works) AS works,
+     (SELECT count(*) FROM works WHERE status='draft') AS drafts,
+     (SELECT count(*) FROM works WHERE status='published') AS published,
+     (SELECT count(*) FROM works WHERE status='verified') AS verified,
+     (SELECT count(*) FROM editions) AS editions,
+     (SELECT count(*) FROM audio_recordings) AS recordings,
+     (SELECT count(*) FROM people) AS people,
+     (SELECT count(*) FROM media_links) AS mediaLinks`).first(),
+    db.prepare(`SELECT count(*) AS count FROM works w WHERE w.status IN ('draft','published')
+     AND NOT EXISTS(SELECT 1 FROM contributions c WHERE c.work_id=w.id AND c.role_code IN ('author','coauthor'))`).first<{count:number}>(),
+    db.prepare(`SELECT count(*) AS count FROM (
+     SELECT scheme_id,normalized_value FROM entity_identifiers
+     GROUP BY scheme_id,normalized_value HAVING count(*)>1
+    )`).first<{count:number}>(),
+    db.prepare(`SELECT count(*) AS count FROM editions e
+     WHERE NOT EXISTS(SELECT 1 FROM works w WHERE w.id=e.work_id)`).first<{count:number}>(),
+    db.prepare(`SELECT count(*) AS count FROM works w
+     WHERE w.status='published' AND NOT EXISTS (
+       SELECT 1 FROM media_links l WHERE l.entity_kind='work' AND l.entity_id=w.id AND l.is_primary=1
+     ) AND NOT EXISTS (
+       SELECT 1 FROM editions e JOIN media_links l ON l.entity_kind='edition' AND l.entity_id=e.id AND l.is_primary=1
+       WHERE e.work_id=w.id
+     )`).first<{count:number}>(),
+    db.prepare('PRAGMA foreign_key_check').all<{table:string;rowid:number;parent:string;fkid:number}>()
+   ]);
+   return json({checkedAt:new Date().toISOString(),database:'BOOK_DB',readOnly:true,counts,
+    checks:{booksWithoutAuthors:unlinked?.count??null,duplicateIdentifierGroups:duplicateIdentifiers?.count??null,
+     orphanEditions:orphanEditions?.count??null,publishedWithoutCovers:missingCovers?.count??null,
+     foreignKeyErrors:foreignKeys.results.length},
+    storage:{r2BindingPresent:!!env.CATALOGUE_MEDIA,r2ObjectOperationsTested:false},
+    warnings:['This checks live database reads but does not test authenticated writes, public rendering or R2 object storage.',
+     'Missing cover images are a completeness warning, not a database integrity error.']});
+  }catch(e){console.error('Catalogue diagnostics failed',e);return fail('Catalogue diagnostic queries failed',503)}
+ }
+
  if(path==='upload-image'&&request.method==='POST')return catalogueUploadImage(request,db,env.CATALOGUE_MEDIA,session.user.id);
  if(segments[0]==='manual')return manualCatalogueAPI(request,db,session.user.id,path);
  if(segments.length===3&&segments[0]==='works'&&segments[2]==='metadata')
