@@ -73,7 +73,7 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
  const role=await env.DB.prepare("SELECT role FROM site_roles WHERE member_id=? AND role='admin'").bind(session.user.id).first<{role:string}>();
  if(!role)return fail('An administrator role is required',403);
  const url=new URL(request.url);
- if(!['GET','POST','PATCH'].includes(request.method))return fail('Method not supported',405);
+ if(!['GET','POST','PATCH','DELETE'].includes(request.method))return fail('Method not supported',405);
  if(request.method!=='GET'&&request.headers.get('Origin')!==url.origin)return fail('Cross-origin writes are forbidden',403);
  const db=env.BOOK_DB;
  const path=url.pathname.slice('/api/catalogue-admin/'.length);
@@ -81,6 +81,31 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
  if(!db)return fail('The BOOK_DB catalogue binding is not configured yet',503);
  if(!await catalogueReady(db))return fail('The catalogue database has not had its dedicated migrations applied yet',503);
  if(path==='health'&&request.method==='GET')return json({ready:true,catalogue:'BOOK_DB',schema:'installed',imageStorage:!!env.CATALOGUE_MEDIA});
+ if(request.method==='DELETE'&&segments.length===2&&segments[0]==='people'){
+  const personId=segments[1]||'';
+  if(!safeId(personId))return fail('Invalid contributor identifier');
+  const person=await db.prepare('SELECT id,preferred_name AS name FROM people WHERE id=?').bind(personId).first<{id:string;name:string}>();
+  if(!person)return fail('Contributor not found',404);
+  const [credits,names,identifiers,images]=await Promise.all([
+   db.prepare('SELECT count(*) AS n FROM contributions WHERE person_id=?').bind(personId).first<{n:number}>(),
+   db.prepare('SELECT count(*) AS n FROM person_names WHERE person_id=?').bind(personId).first<{n:number}>(),
+   db.prepare("SELECT count(*) AS n FROM entity_identifiers WHERE entity_kind='person' AND entity_id=?").bind(personId).first<{n:number}>(),
+   db.prepare("SELECT count(*) AS n FROM media_links WHERE entity_kind='person' AND entity_id=?").bind(personId).first<{n:number}>()
+  ]);
+  const relations={credits:credits?.n||0,alternateNames:names?.n||0,identifiers:identifiers?.n||0,images:images?.n||0};
+  if(Object.values(relations).some(n=>n>0))return json({error:'This contributor has linked records. Unlink or resolve those relationships before deleting.',relations},409);
+  try{
+   const results=await db.batch([
+    db.prepare('DELETE FROM people WHERE id=? AND NOT EXISTS (SELECT 1 FROM contributions WHERE person_id=?)').bind(personId,personId),
+    audit(db,session.user.id,'delete_unused_contributor','person',personId,{name:person.name,unlinked:true})
+   ]) as {meta?:{changes?:number}}[];
+   if(results[0]?.meta?.changes!==1)return fail('Contributor was changed or could not be deleted. Reload the list.',409);
+   return json({deleted:true,id:personId});
+  }catch(error){
+   console.error('Unused contributor deletion blocked',error);
+   return fail('This contributor is referenced elsewhere and cannot be deleted safely.',409);
+  }
+ }
  if(path==='diagnostics'&&request.method==='GET'){
   // Authenticated, read-only checks. No test records or bucket writes.
   try{
@@ -174,26 +199,12 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
     return json({work:{...work,synopsis:synopsis?.body??''},credits});
    }
    if(path==='author-suggestions'){
-    const name=q.toLocaleLowerCase('en-GB');
-    const [{results:catalogue},{results:existing}]=await Promise.all([
-     db.prepare("SELECT id,preferred_name AS name FROM people WHERE identity_status NOT IN ('merged','suppressed') AND (?='' OR instr(lower(preferred_name),lower(?))>0) ORDER BY preferred_name LIMIT ?").bind(q,q,l).all<{id:string;name:string}>(),
-     env.DB.prepare("SELECT id,display_name AS name FROM people WHERE (?='' OR instr(lower(display_name),lower(?))>0) ORDER BY display_name LIMIT ?").bind(q,q,l).all<{id:string;name:string}>()
-    ]);
-    // Show the canonical catalogue identity first. Older website profiles with
-    // the same normalised display name are not separate selectable copies.
-    // This is display-only deduplication, NOT an identity merge or a database write.
-    // Distinct same-name identities already in BOOK_DB remain visible for review.
-    const normaliseName=(value:string)=>value.normalize('NFKC').trim().replace(/\s+/g,' ').toLocaleLowerCase('en-GB');
-    const canonicalNames=new Set(catalogue.map(person=>normaliseName(person.name)));
-    const unique=new Map<string,{id:string;name:string}>();
-    for(const row of catalogue)if(row.id&&!unique.has(row.id))unique.set(row.id,row);
-    for(const row of existing){
-     if(!row.id||unique.has(row.id)||canonicalNames.has(normaliseName(row.name)))continue;
-     unique.set(row.id,row);
-    }
-    const items=[...unique.values()].filter(v=>!name||v.name.toLocaleLowerCase('en-GB').includes(name))
-     .sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id)).slice(0,l);
-    return json({items});
+    // Book entry uses one authoritative contributor catalogue: BOOK_DB.
+    // Legacy website profiles remain in DB solely to preserve historical
+    // references; never offer them as a competing author source.
+    const {results}=await db.prepare("SELECT id,preferred_name AS name FROM people WHERE identity_status NOT IN ('merged','suppressed') AND (?='' OR instr(lower(preferred_name),lower(?))>0) ORDER BY preferred_name,id LIMIT ?")
+     .bind(q,q,l).all<{id:string;name:string}>();
+    return json({items:results});
    }
    if(path==='legacy-people'){
     // Read-only lookup: offer an explicit reuse of existing website author IDs
