@@ -150,6 +150,15 @@ export default {
         return json({series,books:results});
       }
       if(url.pathname==='/api/people'){
+        // BOOK_DB is the sole public contributor directory when connected.
+        // Historical website records stay in DB for member/review referential integrity.
+        if(env.BOOK_DB){
+          const canonicalUrl=new URL('/api/catalogue-public/people',url.origin);
+          canonicalUrl.search=url.search;
+          const canonical=await publicCatalogueAPI(new Request(canonicalUrl),env.BOOK_DB);
+          if(canonical.ok)return canonical;
+          return canonical; // Do not silently mix legacy identities into an unavailable canonical directory.
+        }
         const q=(url.searchParams.get('q')??'').trim().slice(0,100);
         const role=url.searchParams.get('role');
         if(role&&!['author','narrator'].includes(role))return json({error:'Unknown contributor role'},400);
@@ -174,6 +183,13 @@ export default {
         return json({items:[...results,...extra.items.filter(x=>!ids.has(x.id))].slice(0,limit)});
       }
       if(url.pathname.startsWith('/api/person/')){
+        const canonicalId=decodeURIComponent(url.pathname.slice('/api/person/'.length));
+        if(env.BOOK_DB){
+          const canonical=await publicCatalogueAPI(
+            new Request(new URL('/api/catalogue-public/person/'+encodeURIComponent(canonicalId),url.origin)),env.BOOK_DB);
+          if(canonical.ok)return canonical;
+          if(canonical.status!==404)return canonical;
+        }
         const id=decodeURIComponent(url.pathname.slice('/api/person/'.length));
         const person=await env.DB.prepare('SELECT id,display_name AS name,biography FROM people WHERE id=?').bind(id).first();
         if(!person&&env.BOOK_DB)return publicCatalogueAPI(
