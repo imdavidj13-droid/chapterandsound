@@ -13,17 +13,29 @@ import {createInterface} from 'node:readline';
 import {resolve,join} from 'node:path';
 
 function usage(){
- console.error('Usage: node scripts/prepare-openlibrary-pilot.mjs --works works.txt.gz --authors authors.txt.gz --editions editions.txt.gz (--seeds pilot-work-keys.txt | --author-name "Simon Kernick" --max 10) --out .private-catalogue-pilot');
+ console.error('Usage: node scripts/prepare-openlibrary-pilot.mjs --works works.txt.gz --authors authors.txt.gz --editions editions.txt.gz (--seeds pilot-work-keys.txt | --author-key /authors/OL1516279A --titles-file pilot-titles.txt | --author-name "Simon Kernick" --max 10) --out .private-catalogue-pilot');
  process.exitCode=2;
 }
 const opts={};
 for(let i=2;i<process.argv.length;i+=2){opts[process.argv[i]]=process.argv[i+1]}
 const needed=['--works','--authors','--editions','--out'];
-if(needed.some(key=>!opts[key])||(!opts['--seeds']&&!opts['--author-name'])){usage();process.exit(2)}
-if(opts['--seeds']&&opts['--author-name'])throw Error('Choose either --seeds or --author-name, not both.');
+if(needed.some(key=>!opts[key])||(!opts['--seeds']&&!opts['--author-name']&&!opts['--author-key'])){usage();process.exit(2)}
+if([opts['--seeds'],opts['--author-name'],opts['--author-key']].filter(Boolean).length!==1)
+ throw Error('Choose exactly one: --seeds, --author-name, or --author-key.');
+if(opts['--author-key']&&!/^\/authors\/OL\d+A$/.test(opts['--author-key']))
+ throw Error('Invalid Open Library author key.');
+if(opts['--titles-file']&&!opts['--author-key']&&!opts['--author-name'])
+ throw Error('--titles-file requires --author-key or --author-name.');
 const output=resolve(opts['--out']);
 const max=Number(opts['--max']||10);
 if(!Number.isInteger(max)||max<1||max>250)throw Error('--max must be between 1 and 250.');
+const normalizeTitle=value=>normalize(value).normalize('NFKC').toLowerCase().replace(/[^\\p{L}\\p{N}]+/gu,' ').replace(/\\s+/g,' ').trim();
+const requestedTitles=opts['--titles-file']
+ ?readFileSync(opts['--titles-file'],'utf8').split(/\\r?\\n/).map(normalizeTitle).filter(Boolean)
+ :[];
+if(requestedTitles.length>250||new Set(requestedTitles).size!==requestedTitles.length)
+ throw Error('Title list must contain unique titles (maximum 250).');
+const matchedTitles=new Map();
 const wanted=new Set(opts['--seeds']?readFileSync(opts['--seeds'],'utf8').split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#')):[]);
 if(opts['--seeds']&&(!wanted.size||wanted.size>250||[...wanted].some(x=>!/^\/works\/OL\d+W$/.test(x)))){
  throw Error('Seed file must contain 1–250 unique Open Library work keys, e.g. /works/OL123W.');
@@ -52,24 +64,53 @@ async function scan(path,onRecord){
  }
  return {lines:seen,parsed};
 }
-if(opts['--author-name']){
- const authorName=String(opts['--author-name']).trim().normalize('NFKC').toLocaleLowerCase('en-GB');
- if(!authorName)throw Error('Provide an author name for automated pilot selection.');
- const matching=[];
- await scan(opts['--authors'],(key,record)=>{
-  if(normalize(record.name).toLocaleLowerCase('en-GB')===authorName&&/^\/authors\/OL\d+A$/.test(key))
-   matching.push(key);
- });
+if(opts['--author-name']||opts['--author-key']){
+ const authorName=String(opts['--author-name']||'').trim().normalize('NFKC').toLocaleLowerCase('en-GB');
+ const matching=opts['--author-key']?[opts['--author-key']]:[];
+ if(!opts['--author-key']){
+  if(!authorName)throw Error('Provide an author name for automated pilot selection.');
+  await scan(opts['--authors'],(key,record)=>{
+   if(normalize(record.name).toLocaleLowerCase('en-GB')===authorName&&/^\/authors\/OL\d+A$/.test(key))
+    matching.push(key);
+  });
+ }
  if(matching.length!==1)throw Error('Author name matched '+matching.length+' profiles. Resolve the exact author identity before pilot selection.');
  const possible=[];
  await scan(opts['--works'],(key,record)=>{
   if(!/^\/works\/OL\d+W$/.test(key))return;
   const keys=(record.authors||[]).map(a=>a?.author?.key||a?.key);
-  if(keys.includes(matching[0]))possible.push(key);
+  if(!keys.includes(matching[0]))return;
+  const norm=normalizeTitle(record.title);
+  if(requestedTitles.length){
+   const match=requestedTitles.find(title=>norm===title||norm.startsWith(title+' '));
+   if(!match)return;
+   const found=matchedTitles.get(match)||[];
+   found.push({key,title:record.title});
+   matchedTitles.set(match,found);
+  }else possible.push({key,title:record.title});
  });
- possible.sort();
- for(const key of possible.slice(0,max))wanted.add(key);
- if(!wanted.size)throw Error('This author has no work records in the selected official dump.');
+ if(requestedTitles.length){
+  for(const title of requestedTitles.slice(0,max)){
+   const matches=matchedTitles.get(title)||[];
+   if(matches.length!==1)throw Error('Pilot title "'+title+'" matched '+matches.length+
+    ' work records. Resolve that ambiguous title explicitly before selecting it.');
+   wanted.add(matches[0].key);
+  }
+ }else{
+  // Do not automatically select two work records carrying the same normalised title.
+  const byTitle=new Map();
+  for(const entry of possible){
+   const title=normalizeTitle(entry.title);
+   if(!byTitle.has(title))byTitle.set(title,[]);
+   byTitle.get(title).push(entry.key);
+  }
+  for(const [title,keys] of [...byTitle.entries()].sort((a,b)=>a[0].localeCompare(b[0]))){
+   if(keys.length!==1)continue;
+   wanted.add(keys[0]);
+   if(wanted.size>=max)break;
+  }
+ }
+ if(!wanted.size)throw Error('No unambiguous author works match the pilot selection.');
 }
 const workScan=await scan(opts['--works'],(key,record)=>{
  if(wanted.has(key)){
@@ -133,7 +174,7 @@ for(let i=0;i<candidates.length;i+=100){
  writeFileSync(join(output,name),JSON.stringify({candidates:candidates.slice(i,i+100)},null,2)+'\n');
  files.push(name);
 }
-const report={generatedAt:new Date().toISOString(),source:'Open Library monthly dumps',selection:opts['--author-name']?{authorName:opts['--author-name'],max}:null,requested:wanted.size,worksFound:workRecords.size,authorsFound:authors.size,
+const report={generatedAt:new Date().toISOString(),source:'Open Library monthly dumps',selection:opts['--author-name']||opts['--author-key']?{authorName:opts['--author-name']||null,authorKey:opts['--author-key']||null,titles:requestedTitles,max}:null,requested:wanted.size,worksFound:workRecords.size,authorsFound:authors.size,
  editionsMatched:[...editions.values()].reduce((sum,value)=>sum+value.length,0),
  candidates:candidates.length,reviewItems:errors.length,files,errors,
  scan:{works:workScan,authors:authorScan,editions:editionScan},
