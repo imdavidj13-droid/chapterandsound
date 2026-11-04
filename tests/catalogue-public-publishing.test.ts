@@ -35,7 +35,7 @@ function seededCatalogue(){
  };
  async function get<T>(route:string){
   const response=await publicCatalogueAPI(new Request('https://example.test/api/catalogue-public/'+route),connector);
-  assert.equal(response.status,200,await response.text());
+  if(response.status!==200)assert.fail('Catalogue response '+route+' returned '+response.status+': '+await response.text());
   return await response.json() as T;
  }
  return {get,close:()=>db.close()};
