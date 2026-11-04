@@ -1,6 +1,7 @@
 import {useCallback,useEffect,useState} from 'react';
 import type {FormEvent} from 'react';
 import {apiGet,apiWrite} from './api';
+import {CatalogueBookMetadata} from './CatalogueBookMetadata';
 
 type Edition={id:string;workId:string;format:string;title:string|null;statement:string|null;language:string|null;pages:number|null;revision:number};
 type Recording={id:string;workId:string;title:string|null;language:string|null;abridgement:string;performance:string;seconds:number|null;recordedDate:string|null;revision:number};
@@ -84,8 +85,9 @@ export function CatalogueLinkedEditions({workId,onSaved}:{workId:string;onSaved:
     <label>Runtime (seconds)<input type="number" min="1" value={values.seconds||''} onChange={e=>set('seconds',e.target.value)}/></label>
     <label>Recorded date<input placeholder="YYYY-MM-DD" value={values.recordedDate||''} onChange={e=>set('recordedDate',e.target.value)}/></label>
    </div>}
-   <p className="cs-book-edit-hint">Existing ISBNs, publishers and credits remain unchanged. Those relationships are managed through advanced catalogue tools.</p>
+   <p className="cs-book-edit-hint">ISBNs, publisher details, narrators and genres can be edited in the metadata panels below.</p>
    <button type="submit" className="primary" disabled={saving}>{saving?'Saving…':adding?'Add edition':'Save changes'}</button>
   </form>}
+  <CatalogueBookMetadata workId={workId}/>
  </div>;
 }

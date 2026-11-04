@@ -1,6 +1,7 @@
 import {catalogueUploadImage} from './catalogue-media-api.js';
 import type {CatalogueImageBucket} from './catalogue-media-api.js';
 import {manualCatalogueAPI} from './catalogue-manual-api.js';
+import {catalogueBookMetadataAPI} from './catalogue-book-metadata-api.js';
 import {authConfigured,createAuth} from './auth.js';
 import {isVerifiedSiteOwner} from './admin-role.js';
 
@@ -82,6 +83,8 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
  if(path==='health'&&request.method==='GET')return json({ready:true,catalogue:'BOOK_DB',schema:'installed',imageStorage:!!env.CATALOGUE_MEDIA});
  if(path==='upload-image'&&request.method==='POST')return catalogueUploadImage(request,db,env.CATALOGUE_MEDIA,session.user.id);
  if(segments[0]==='manual')return manualCatalogueAPI(request,db,session.user.id,path);
+ if(segments.length===3&&segments[0]==='works'&&segments[2]==='metadata')
+  return catalogueBookMetadataAPI(request,db,session.user.id,segments[1]||'');
  try{
   if(request.method==='GET'){
    const q=str(url.searchParams.get('q'),150),l=limit(url),o=offset(url);
