@@ -19,7 +19,7 @@ test('independently verified ISBN fills missing fields but preserves original wo
  assert.equal(result.candidate.workSourceKey,'/works/OL1W');
  assert.equal(result.candidate.editions?.length,1);
  assert.equal(result.rejectedSources.length,0);
- assert.equal(primary.editions[0].publisher,undefined,'input must remain unchanged');
+ assert.equal(primary.editions?.[0]?.publisher,undefined,'input must remain unchanged');
  assert.equal(primary.description,undefined);
 });
 test('conflicting metadata is disclosed rather than overwritten',()=>{
