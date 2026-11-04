@@ -51,3 +51,26 @@ test('work author mismatch prevents provisional classification',()=>{
  const parsed=parseIsbnSearch(html.replace('Kernick, Simon','Other Writer'),isbn);
  assert.equal(validateMatch(fixture().candidates[0],fixture().candidates[0]!.editions[0],parsed),'author_mismatch');
 });
+
+test('parses realistic bookinfo block and surname-first author',()=>{
+ const real='<div class="bookinfo"><h1>Relentless</h1>'+
+ '<p><strong>ISBN-13:</strong> 9780593054703</p>'+
+ '<p><strong>ISBN-10:</strong> 0593054709</p>'+
+ '<p><strong>Author:</strong> Kernick, Simon</p>'+
+ '<p><strong>Binding:</strong> Paperback</p>'+
+ '<p><strong>Publisher:</strong> Bantam</p>'+
+ '<p><strong>Published:</strong> 2006</p></div>';
+ const parsed=parseIsbnSearch(real,isbn);
+ assert.equal(parsed.format,'paperback');
+ assert.equal(parsed.title,'Relentless');
+ assert.equal(validateMatch(fixture().candidates[0],fixture().candidates[0]!.editions[0],parsed),'provisional_binding');
+});
+test('report shows why pages did not produce provisional bindings',async()=>{
+ const result=await research(fixture(),{
+  getRobots:async()=> 'User-agent: *\nAllow: /isbn/\n',
+  getPage:async()=>'<html><h1>Access unavailable</h1></html>',
+  max:1,delay:0
+ });
+ assert.equal(result.totals.provisionalFormats,0);
+ assert.equal(result.totals.statusCounts.no_structured_isbn,1);
+});
