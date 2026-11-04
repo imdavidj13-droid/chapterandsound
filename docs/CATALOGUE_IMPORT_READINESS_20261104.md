@@ -2,7 +2,7 @@
 
 Date: 2026-11-04  
 Target: `BOOK_DB` (`chapterandsounds-book-db`), never a second or source-specific catalogue.  
-Production import execution: **DISABLED**.
+Production publication: **DISABLED**. An owner-confirmed, private-draft import endpoint is implemented; **no production batch has been executed or verified**.
 
 ## 1. Repository schema audit
 
@@ -197,3 +197,17 @@ This produces a combined candidate manifest and `.report.json` with field confli
 - `tests/catalogue-import-merge.test.ts` covers source-backed field fusion, conflict retention, and identity rejection.
 
 The repository commits add test code; they do **not** establish that the current GitHub Actions or live deployment have passed.
+
+### Author-first pilot without manually listing ISBNs or work IDs
+
+After obtaining the official Open Library monthly works, authors and editions dumps, the offline preparer can choose the first ten works associated with one uniquely verified author identity.
+
+```powershell
+node scripts/prepare-openlibrary-pilot.mjs --works "D:\\catalogue-dumps\\works.txt.gz" --authors "D:\\catalogue-dumps\\authors.txt.gz" --editions "D:\\catalogue-dumps\\editions.txt.gz" --author-name "Simon Kernick" --max 10 --out ".private-catalogue-pilot"
+```
+
+If multiple Open Library author identities have the same preferred name, this command aborts rather than choosing one at random. All available linked editions are retained for the selected works. This avoids asking an administrator to manually search for ten source IDs.
+
+**Source completeness:** The pilot draft writer deliberately refuses records with unresolved optional field gaps or unverified edition data. The preview can still assess partially enriched records without writing them. The 10-book sample therefore requires enough validated source metadata before it can be saved. Reviewers must explicitly confirm the canonical contributor once, not edit each book's author separately.
+
+**Important distinction:** These are newly implemented repository capabilities, not evidence that ten books have already been imported. Production database access, backups and CI verification remain outstanding.
