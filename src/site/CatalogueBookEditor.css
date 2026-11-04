@@ -296,3 +296,17 @@
 .cs-import-lookup button:disabled{opacity:.55;cursor:not-allowed}
 .cs-import-lookup-status{font-size:.8rem;color:#2d5a40;background:#e7f0e5;padding:11px 15px;border-radius:8px;line-height:1.5}
 @media(max-width:650px){.cs-import-lookup{flex-direction:column;align-items:stretch}}
+
+.cs-import-found{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:9px;margin:12px 0}
+.cs-import-found>div{display:flex;gap:12px;justify-content:space-between;align-items:center;padding:12px;border:1px solid #d8e4d8;border-radius:9px;background:#f9fbf7;min-width:0}
+.cs-import-found>div>div{min-width:0;overflow-wrap:anywhere}
+.cs-import-found strong,.cs-import-found small{display:block;line-height:1.45}
+.cs-import-found strong{font-size:.8rem;color:#244a35}
+.cs-import-found small{font-size:.7rem;color:#647767;margin-top:4px}
+.cs-import-found button{flex:0 0 auto;border:1px solid #aac5b1;background:#e6f0e5;color:#23543a;padding:8px;border-radius:8px;font-size:.7rem;cursor:pointer}
+.cs-import-found button:disabled{opacity:.5;cursor:not-allowed}
+.cs-import-missing{margin-top:8px}
+.cs-import-missing summary{cursor:pointer;font-weight:750;color:#8a632b;font-size:.76rem}
+.cs-import-missing ul{margin:7px 0 0;padding-left:18px;color:#586b5e;font-size:.74rem;line-height:1.6}
+.cs-import-warning{font-size:.72rem;color:#7d642d;line-height:1.5;margin:8px 0}
+.cs-import-status.status-needs_enrichment{background:#fff0dc;color:#805421}
