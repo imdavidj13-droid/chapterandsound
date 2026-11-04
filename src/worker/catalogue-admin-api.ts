@@ -362,43 +362,19 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
     if(!safeId(requestedAuthorId))return fail('Invalid author identity');
     const selected=await db.prepare("SELECT id,preferred_name AS name FROM people WHERE id=? AND identity_status NOT IN ('merged','suppressed')")
      .bind(requestedAuthorId).first<{id:string;name:string}>();
-    if(selected){selectedAuthorId=selected.id;authorName=selected.name;}
-    else{
-     const legacy=await env.DB.prepare("SELECT id,display_name AS name,biography AS bio FROM people WHERE id=?")
-      .bind(requestedAuthorId).first<{id:string;name:string;bio:string|null}>();
-     if(!legacy)return fail('Selected author no longer exists. Search again.',409);
-     const conflict=await db.prepare("SELECT id FROM people WHERE lower(trim(preferred_name))=lower(?) AND identity_status NOT IN ('merged','suppressed') LIMIT 1")
-      .bind(legacy.name).first<{id:string}>();
-     if(conflict)return fail('This author also exists in the catalogue. Select its existing catalogue identity.',409);
-     selectedAuthorId=legacy.id;authorName=legacy.name;
-     statements.push(db.prepare('INSERT INTO people(id,preferred_name,bio) VALUES(?,?,?)').bind(legacy.id,legacy.name,legacy.bio||null));
-    }
+    if(!selected)return fail('Selected author is not in the canonical catalogue. Search again.',409);
+    selectedAuthorId=selected.id;authorName=selected.name;
     if(requestedAuthorName&&requestedAuthorName.toLocaleLowerCase()!==authorName.toLocaleLowerCase())
      return fail('Selected author and submitted name do not match. Search again.',409);
    }else if(requestedAuthorName){
     const {results:canonical}=await db.prepare(`SELECT id,preferred_name AS name FROM people
       WHERE lower(trim(preferred_name))=lower(?) AND identity_status NOT IN ('merged','suppressed') LIMIT 3`)
       .bind(requestedAuthorName).all<{id:string;name:string}>();
-    if(canonical.length>1)return fail('More than one author has that name. Resolve the duplicate author profiles before linking.',409);
-    if(canonical.length===1){
-     selectedAuthorId=canonical[0]!.id;authorName=canonical[0]!.name;
-    }else{
-     const {results:legacy}=await env.DB.prepare(`SELECT id,display_name AS name,biography AS bio FROM people
-       WHERE lower(trim(display_name))=lower(?) LIMIT 3`)
-       .bind(requestedAuthorName).all<{id:string;name:string;bio:string|null}>();
-     if(legacy.length>1)return fail('More than one existing author has that name. Review the matching profiles before linking.',409);
-     if(legacy.length===1){
-      const existing=legacy[0]!;
-      // Preserve the original contributor identity so historical links survive.
-      const collidingId=await db.prepare('SELECT id,preferred_name FROM people WHERE id=?').bind(existing.id).first<{id:string;preferred_name:string}>();
-      if(collidingId&&collidingId.preferred_name.toLocaleLowerCase()!==existing.name.toLocaleLowerCase())
-       return fail('An author identity conflict needs review before saving.',409);
-      selectedAuthorId=existing.id;authorName=existing.name;
-      if(!collidingId)statements.push(db.prepare('INSERT INTO people(id,preferred_name,bio) VALUES(?,?,?)').bind(existing.id,existing.name,existing.bio||null));
-     }else{
-      selectedAuthorId=uuid();authorName=requestedAuthorName;
-      statements.push(db.prepare('INSERT INTO people(id,preferred_name) VALUES(?,?)').bind(selectedAuthorId,requestedAuthorName));
-     }
+    if(canonical.length>1)return fail('Multiple catalogue authors share this name. Select the correct identity.',409);
+    if(canonical.length===1){selectedAuthorId=canonical[0]!.id;authorName=canonical[0]!.name;}
+    else{
+     selectedAuthorId=uuid();authorName=requestedAuthorName;
+     statements.push(db.prepare('INSERT INTO people(id,preferred_name) VALUES(?,?)').bind(selectedAuthorId,requestedAuthorName));
     }
    }
    if(selectedAuthorId){
@@ -487,17 +463,8 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
        .bind(narratorName).first<{id:string}>();
       if(!narrator&&narratorName.toLocaleLowerCase()===authorName.toLocaleLowerCase()&&selectedAuthorId)narrator={id:selectedAuthorId};
       if(!narrator){
-       const {results:oldNarrators}=await env.DB.prepare("SELECT id,display_name AS name,biography AS bio FROM people WHERE lower(trim(display_name))=lower(?) LIMIT 2")
-        .bind(narratorName).all<{id:string;name:string;bio:string|null}>();
-       if(oldNarrators.length>1)return fail('Narrator name is ambiguous; review the existing contributors first',409);
-       if(oldNarrators.length===1){
-        narrator={id:oldNarrators[0]!.id};
-        const exists=await db.prepare('SELECT id FROM people WHERE id=?').bind(narrator.id).first();
-        if(!exists)statements.push(db.prepare('INSERT INTO people(id,preferred_name,bio) VALUES(?,?,?)').bind(narrator.id,narratorName,oldNarrators[0]!.bio||null));
-       }else{
-        narrator={id:uuid()};
-        statements.push(db.prepare('INSERT INTO people(id,preferred_name) VALUES(?,?)').bind(narrator.id,narratorName));
-       }
+       narrator={id:uuid()};
+       statements.push(db.prepare('INSERT INTO people(id,preferred_name) VALUES(?,?)').bind(narrator.id,narratorName));
       }
       statements.push(db.prepare("INSERT INTO contributions(id,person_id,recording_id,role_code) VALUES(?,?,?,'narrator')").bind(uuid(),narrator.id,recordingId));
      }
