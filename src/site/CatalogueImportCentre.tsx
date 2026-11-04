@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {apiWrite} from './api';
+import {apiGet,apiWrite} from './api';
 
 type Decision='create_draft'|'existing_edition'|'review_match'|'invalid'|'duplicate_in_batch';
 type Row={index:number;title:string;author:string;isbn13:string|null;decision:Decision;reason:string;existingWorkId?:string;existingEditionId?:string};
@@ -14,6 +14,16 @@ export function CatalogueImportCentre(){
  const [input,setInput]=useState('');
  const [result,setResult]=useState<Result|null>(null);
  const [loading,setLoading]=useState(false),[error,setError]=useState('');
+ const [lookup,setLookup]=useState(''),[lookupLoading,setLookupLoading]=useState(false),[lookupNotice,setLookupNotice]=useState('');
+ async function discover(){
+  setLookupLoading(true);setError('');setResult(null);setLookupNotice('');
+  try{
+   const response=await apiGet<{source:string;lookupOnly:true;candidates:Record<string,unknown>[];notice:string}>('/api/catalogue-admin/import/discover?q='+encodeURIComponent(lookup));
+   setInput(JSON.stringify({candidates:response.candidates},null,2));
+   setLookupNotice(response.candidates.length?response.candidates.length+' candidates found. Review their metadata and run Preview batch below.': 'No verified book/author candidates were found for that query.');
+  }catch(e){setError(e instanceof Error?e.message:'Search unavailable')}
+  finally{setLookupLoading(false)}
+ }
  async function check(){
   setLoading(true);setError('');setResult(null);
   try{
@@ -29,6 +39,10 @@ export function CatalogueImportCentre(){
     <h3>Review a catalogue batch</h3>
     <p>Validate up to 100 candidates against the existing book catalogue. This preview never imports or publishes any records.</p></div>
    <span className="cs-import-dry-run">Read-only dry run</span></header>
+  <div className="cs-import-lookup"><label>Look up a title or author in Open Library
+   <input type="search" placeholder="e.g. Simon Kernick" value={lookup} onChange={e=>setLookup(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();if(lookup.trim().length>=3&&!lookupLoading)void discover()}}}/>
+  </label><button type="button" disabled={lookup.trim().length<3||lookupLoading} onClick={()=>void discover()}>{lookupLoading?'Searching…':'Find candidates'}</button></div>
+  {lookupNotice&&<p className="cs-import-lookup-status" role="status">{lookupNotice}</p>}
   <p className="cs-import-help">Paste a JSON manifest with a <code>candidates</code> array. Each candidate needs a title and author. ISBN, source ID, source key, format and publication date are optional. The example is fictional and will not be imported.</p>
   <textarea spellCheck={false} value={input} onChange={e=>{setInput(e.target.value);setResult(null)}} rows={12} aria-label="Import candidate JSON" placeholder={example}/>
   <div className="cs-import-actions"><button type="button" className="primary" disabled={!input.trim()||loading} onClick={()=>void check()}>{loading?'Checking against BOOK_DB…':'Preview batch'}</button>
