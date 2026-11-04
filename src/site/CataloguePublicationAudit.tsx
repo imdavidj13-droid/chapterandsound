@@ -35,7 +35,7 @@ export function CataloguePublicationAudit({workId,status}:{workId:string;status:
      getJson<SavedMetadata>('/api/catalogue-admin/works/'+encodeURIComponent(workId)+'/metadata')
     ]);
     saved=admin;metadata=meta;
-    add('Production BOOK_DB record',admin.work.id===workId?'passed':'failed',
+    add('Connected BOOK_DB record',admin.work.id===workId?'passed':'failed',
      'Status: '+admin.work.status+' · Title: '+admin.work.title+'.');
     add('Saved author relationship',admin.credits.some(c=>c.role==='author'||c.role==='coauthor')?'passed':'failed',
      admin.credits.filter(c=>c.role==='author'||c.role==='coauthor').map(c=>c.name).join(', ')||'No author credit saved.');
@@ -43,7 +43,7 @@ export function CataloguePublicationAudit({workId,status}:{workId:string;status:
      meta.editions.length+' edition(s) · '+meta.identifiers.filter(i=>i.code==='ISBN13').length+' ISBN-13 values · '+meta.events.length+' publication events.');
     add('Saved cover relationship',meta.covers.length>0?'passed':'warning',
      meta.covers.length+' primary cover link(s) found in BOOK_DB.');
-   }catch(e){add('Production BOOK_DB record','failed',e instanceof Error?e.message:'Admin database read unavailable');}
+   }catch(e){add('Connected BOOK_DB record','failed',e instanceof Error?e.message:'Admin database read unavailable');}
    if(status!=='published'&&status!=='verified'){
     add('Public visibility','warning','This book is not published. Public endpoints should not expose it.');
    }
