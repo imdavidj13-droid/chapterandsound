@@ -243,8 +243,11 @@ export default {
         const newBooks=await newResponse.json() as {items:{id:string}[]};
         const combined=new Map<string,(typeof legacyItems)[number]>();
         for(const item of legacyItems)combined.set(item.id,item);
+        // Canonical BOOK_DB metadata always wins for the same book ID.
+        // Member compatibility rows in DB are reference-only and must not
+        // override full covers, descriptions, formats or publication details.
         for(const item of newBooks.items){
-         if(!combined.has(item.id))combined.set(item.id,item as (typeof legacyItems)[number]);
+         combined.set(item.id,item as (typeof legacyItems)[number]);
         }
         const sorted=[...combined.values()].sort((a,b)=>a.title.localeCompare(b.title)||a.id.localeCompare(b.id));
         return json({items:sorted.slice(offset,offset+limit)});
