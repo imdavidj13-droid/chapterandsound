@@ -27,6 +27,22 @@ if(opts['--author-key']&&!/^\/authors\/OL\d+A$/.test(opts['--author-key']))
 if(opts['--titles-file']&&!opts['--author-key']&&!opts['--author-name'])
  throw Error('--titles-file requires --author-key or --author-name.');
 const output=resolve(opts['--out']);
+const resolution=opts['--resolution-file']?JSON.parse(readFileSync(opts['--resolution-file'],'utf8')):null;
+const resolutionByTitle=new Map();
+if(resolution){
+ if(!opts['--author-key']||resolution.authorKey!==opts['--author-key'])
+  throw Error('Resolution author key must match --author-key.');
+ if(!Array.isArray(resolution.books)||!resolution.books.length)throw Error('Resolution must contain books.');
+ const seenKeys=new Set();
+ for(const book of resolution.books){
+  const title=String(book.title||'').normalize('NFKC').toLowerCase().replace(/[^\\p{L}\\p{N}]+/gu,' ').trim();
+  const keys=[book.canonicalWorkKey,...(book.aliasWorkKeys||[])];
+  if(!title||resolutionByTitle.has(title)||keys.length<1||keys.some(k=>!/^\\/works\\/OL\\d+W$/.test(k)||seenKeys.has(k)))
+   throw Error('Resolution contains duplicate titles, work keys, or invalid identifiers.');
+  for(const key of keys)seenKeys.add(key);
+  resolutionByTitle.set(title,{...book,keys});
+ }
+}
 const max=Number(opts['--max']||10);
 if(!Number.isInteger(max)||max<1||max>250)throw Error('--max must be between 1 and 250.');
 const normalize=value=>typeof value==='string'?value.normalize('NFKC').trim().replace(/\s+/g,' '):'';
@@ -98,9 +114,24 @@ if(opts['--author-name']||opts['--author-key']){
   }else possible.push({key,title:record.title});
  });
  if(requestedTitles.length){
+  if(resolution && (resolutionByTitle.size!==Math.min(requestedTitles.length,max)||
+   requestedTitles.slice(0,max).some(t=>!resolutionByTitle.has(t))))
+   throw Error('Resolution must map each requested title exactly once.');
   for(const title of requestedTitles.slice(0,max)){
    const matches=matchedTitles.get(title)||[];
-   if(matches.length!==1){
+   const plan=resolutionByTitle.get(title);
+   const observed=new Set(matches.map(x=>x.key));
+   if(plan){
+    const expected=new Set(plan.keys);
+    if(observed.size!==expected.size||[...observed].some(k=>!expected.has(k))){
+     unresolvedTitles.push({title,reason:'resolution_mismatch_new_or_missing_source_work',
+      options:matches.sort((a,b)=>a.key.localeCompare(b.key)),expectedWorkKeys:plan.keys});
+     for(const match of matches)candidateAlternatives.add(match.key);
+    }else{
+     wanted.add(plan.canonicalWorkKey);
+     for(const key of plan.aliasWorkKeys||[])candidateAlternatives.add(key);
+    }
+   }else if(matches.length!==1){
     unresolvedTitles.push({title,reason:matches.length?'ambiguous_work_identity':'source_work_not_found',
      options:matches.sort((a,b)=>a.key.localeCompare(b.key))});
     for(const match of matches)candidateAlternatives.add(match.key);
@@ -167,15 +198,35 @@ for(const key of wanted){
  const names=work.authorKeys.map(k=>authors.get(k)).filter(Boolean);
  if(!names.length){errors.push({key,reason:'Author identity missing in author dump'});continue}
  if(!work.title){errors.push({key,reason:'Work title missing'});continue}
- const all=(editions.get(key)||[]).sort((a,b)=>a.sourceKey.localeCompare(b.sourceKey));
- if(!all.length){errors.push({key,reason:'No edition records found for work; retained as unresolved'});continue}
- // Preserve every edition and all available fields. Never discard editions
- // merely because the work has multiple formats or publication dates.
+ const plan=resolution?[...resolutionByTitle.values()].find(p=>p.canonicalWorkKey===key):null;
+ const sourceWorkKeys=plan?plan.keys:[key];
+ const allRaw=sourceWorkKeys.flatMap(sourceKey=>(editions.get(sourceKey)||[]).map(e=>({...e,sourceWorkKeys:[sourceKey]})))
+  .sort((a,b)=>a.sourceKey.localeCompare(b.sourceKey));
+ if(!allRaw.length){errors.push({key,reason:'No edition records found for work; retained as unresolved'});continue}
+ // Duplicate source identifiers and identical ISBNs collapse into a single edition.
+ // Keep every Open Library source key for provenance and manual review.
+ const byIdentity=new Map();
+ const duplicateEditionGroups=[];
+ for(const edition of allRaw){
+  const identity=edition.isbn13?'isbn13:'+edition.isbn13:
+   edition.isbn10?'isbn10:'+edition.isbn10:'openlibrary:'+edition.sourceKey;
+  if(byIdentity.has(identity)){
+   const existing=byIdentity.get(identity);
+   existing.sourceWorkKeys=[...new Set([...existing.sourceWorkKeys,...edition.sourceWorkKeys])];
+   existing.aliasEditionSourceKeys=[...new Set([...(existing.aliasEditionSourceKeys||[]),edition.sourceKey])];
+   if(['format','publisher','publicationDate','language'].some(field=>existing[field]&&edition[field]&&existing[field]!==edition[field]))
+    errors.push({key,reason:'Conflicting metadata across editions sharing '+identity+'; verify before import'});
+   duplicateEditionGroups.push({identity,sourceKey:edition.sourceKey,retainedKey:existing.sourceKey});
+  }else byIdentity.set(identity,edition);
+ }
+ const all=[...byIdentity.values()];
  const selected=all.find(e=>e.isbn13)||all[0];
- candidates.push({sourceId:'openlibrary',sourceKey:key,workSourceKey:key,title:work.title,author:names[0],
+ candidates.push({sourceId:'openlibrary',sourceKey:key,workSourceKey:key,sourceWorkKeys,
+  identityStatus:plan?'provisional_review_required':'single_source_work',title:work.title,author:names[0],
   authorSourceKeys:work.authorKeys,description:work.description,subjects:work.subjects,
   originalLanguage:work.originalLanguage,firstPublicationDate:work.firstPublicationDate,
-  isbn13:selected.isbn13,format:selected.format,editions:all});
+  isbn13:selected.isbn13,format:selected.format,editions:all,
+  duplicateEditionGroups});
  if(all.some(e=>!e.isbn13&&!e.isbn10))errors.push({key,reason:'Some editions lack usable ISBNs; retained for review'});
  if(all.some(e=>!e.format||!e.publisher||!e.publicationDate||!e.language))errors.push({key,reason:'Some editions have incomplete format, publisher, release date or language; retained for enrichment'});
  if(names.length>1)errors.push({key,reason:'Multiple author contributors require manual review before applying: '+names.join(', ')});
@@ -201,10 +252,14 @@ for(let i=0;i<candidates.length;i+=100){
 const report={generatedAt:new Date().toISOString(),source:'Open Library monthly dumps',selection:opts['--author-name']||opts['--author-key']?{authorName:opts['--author-name']||null,authorKey:opts['--author-key']||null,titles:requestedTitles,max}:null,requested:wanted.size,worksFound:workRecords.size,authorsFound:authors.size,
  editionsMatched:[...editions.values()].reduce((sum,value)=>sum+value.length,0),
  candidates:candidates.length,reviewItems:errors.length+unresolvedTitles.length,files,errors,
- unresolvedTitles,needsIdentityReview:unresolvedTitles.length,
+ unresolvedTitles,needsIdentityReview:unresolvedTitles.length+
+ candidates.filter(c=>c.identityStatus==='provisional_review_required').length,
+ resolutionUsed:Boolean(resolution),sourceWorkAliases:candidates.reduce((n,c)=>n+c.sourceWorkKeys.length-1,0),
+ collapsedDuplicateEditions:candidates.reduce((n,c)=>n+c.duplicateEditionGroups.length,0),
  scan:{works:workScan,authors:authorScan,editions:editionScan},
  caveats:['No database writes performed','All edition records for each seeded work are retained, including editions with incomplete metadata','Authors with multiple creators need identity review','Cover processing is deferred','Audiobook narrator and duration may need additional licensed metadata','Output needs a BOOK_DB dry-run preview before any future ingestion']};
 writeFileSync(join(output,'report.json'),JSON.stringify(report,null,2)+'\n');
 console.log(JSON.stringify({output,candidates:candidates.length,
- needsIdentityReview:unresolvedTitles.length,reviewItems:errors.length+unresolvedTitles.length,
+ needsIdentityReview:unresolvedTitles.length+candidates.filter(c=>c.identityStatus==='provisional_review_required').length,
+ reviewItems:errors.length+unresolvedTitles.length,
  files,report:'report.json'},null,2));
