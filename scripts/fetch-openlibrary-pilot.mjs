@@ -84,7 +84,7 @@ function formatOf(e){
  const raw=n(e.physical_format).toLowerCase();
  if(raw.includes('paperback')||raw.includes('mass market'))return 'paperback';
  if(raw.includes('hardcover')||raw.includes('hardback'))return 'hardback';
- if(raw.includes('ebook')||raw.includes('electronic')||raw.includes('kindle'))return 'ebook';
+ if(raw.includes('ebook')||raw.includes('e-book')||raw.includes('electronic')||raw.includes('kindle'))return 'ebook';
  if(raw.includes('audio')||raw.includes('cd')||raw.includes('cassette'))return 'audiobook';
  return 'unknown';
 }
@@ -156,7 +156,7 @@ for(const plan of resolution.books){
   if(e.sourceKey!==duplicate.sourceKey)duplicate.aliasEditionSourceKeys.push(e.sourceKey);
   const conflicts=['format','publisher','publicationDate','language','pageCount'].filter(k=>
    e[k]!=null&&e[k]!==''&&duplicate[k]!=null&&duplicate[k]!==''&&e[k]!==duplicate[k]);
-  if(conflicts.length)collisions.push({retained:duplicate.sourceKey,other:e.sourceKey,conflicts});
+  if(conflicts.length)collisions.push({retained:duplicate.sourceKey,other:e.sourceKey,conflicts,retainedMetadata:{...duplicate},alternativeMetadata:{...e}});
  }
  const canonical=works.find(w=>w.sourceKey===plan.canonicalWorkKey);
  const editions=[...unique.values()].sort((a,b)=>a.sourceKey.localeCompare(b.sourceKey));
