@@ -1,0 +1,163 @@
+
+/* Chapter & Sound — two independent, approved homepage compositions.
+   Never apply these presentation classes to admin or other shared routes. */
+.dual-editorial-home,.dual-room-home{min-width:0}
+.dual-editorial-home{color:#292622;padding:22px clamp(16px,3.1vw,52px) 65px;max-width:1660px;margin:0 auto}
+.dual-editorial-home h1,.dual-editorial-home h2,.dual-editorial-home h3{font-family:Georgia,'Times New Roman',serif;letter-spacing:-.035em}
+.dual-editorial-home h1{font-size:clamp(2.6rem,4vw,4.6rem);line-height:1.03;color:#68162b;margin:16px 0}
+.dual-editorial-home h2{color:#68162b}
+.dual-kicker{text-transform:uppercase;letter-spacing:.24em;font-weight:700;font-size:.67rem;color:inherit;opacity:.75}
+.dual-primary,.room-home-primary{display:inline-flex;align-items:center;justify-content:center;gap:20px;background:#72162f;color:#fff!important;border-radius:6px;padding:13px 20px;min-height:44px;text-decoration:none;font-weight:600;max-width:max-content}
+.dual-primary:hover{background:#501020;color:#fff!important}
+.dual-text-link{font-size:.84rem;text-decoration:underline;text-underline-offset:4px;color:#72162f}
+.dual-empty{font-family:Georgia,serif;padding:24px 14px;background:#f7f5ef;color:#5f625b;border-radius:8px;line-height:1.6}
+.dual-empty a{color:inherit;text-decoration:underline;text-underline-offset:3px}
+.dual-loading,.dual-error{padding:12px 16px;background:#f1f2ea;border-radius:8px;margin:0 0 14px}
+.dual-error{background:#fff0ef;color:#872039}
+.editorial-new-hero{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,1.28fr) minmax(235px,.84fr);gap:clamp(18px,2.9vw,42px);align-items:stretch;min-height:345px}
+.editorial-start-card{min-width:0;border-radius:7px;background:linear-gradient(145deg,#e5e9df,#dce1d7);padding:clamp(20px,2.9vw,40px);position:relative;overflow:hidden;display:flex;flex-direction:column}
+.editorial-start-card h2{font-size:clamp(2rem,3vw,3.3rem);line-height:1.05;color:#19251e;max-width:320px;margin:12px 0 20px}
+.editorial-start-card>p:not(.dual-kicker){font-size:1.06rem;max-width:320px;color:#303b32;line-height:1.5}
+.editorial-book-art{font-size:clamp(2.2rem,5vw,5rem);color:#607568;opacity:.48;letter-spacing:-.25em;white-space:nowrap;margin-top:auto}
+.editorial-intro{padding:12px 0 22px}
+.editorial-intro .dual-kicker{color:#701b33}
+.editorial-intro>p:not(.dual-kicker){font-family:Georgia,serif;font-size:clamp(1.3rem,2vw,1.95rem);color:#516152;line-height:1.35}
+.editorial-intro .dual-primary{margin-top:14px;font:normal 1.05rem Georgia,serif;padding:18px 25px}
+.editorial-taste{padding:24px;border:1px solid #dfdcd4;border-radius:8px}
+.editorial-taste h2{font-size:2rem;color:#212129;margin:0 0 16px}
+.editorial-taste>p{font-family:Georgia,serif;color:#4c594e;line-height:1.65}
+.editorial-taste-links{display:flex;flex-direction:column;align-items:start;gap:12px;margin-top:24px;border-top:1px solid #dedbd3;padding-top:18px}
+.editorial-taste-links a{text-decoration:underline;text-underline-offset:4px;color:#701b33;font-size:.9rem}
+.dual-home-section{margin-top:32px}
+.dual-section-heading{display:flex;align-items:center;gap:18px;margin-bottom:18px}
+.dual-section-heading h2{font:normal clamp(1.6rem,2.2vw,2.25rem) Georgia,serif;margin:0;line-height:1.2}
+.dual-editorial-home .dual-section-heading:after{content:'';height:1px;background:#cdbbbb;flex:1}
+.dual-section-heading a{margin-left:auto;order:3;flex:none;text-decoration:underline;text-underline-offset:4px;font-size:.82rem}
+.editorial-book-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px}
+.dual-book-pick{display:flex;align-items:flex-start;gap:14px;min-width:0}
+.dual-home-cover{width:110px;aspect-ratio:2/3;flex:none;background:#e0e2d6;box-shadow:0 5px 12px #25191316;border-radius:3px;overflow:hidden;display:grid;place-items:center}
+.dual-home-cover img{width:100%;height:100%;object-fit:cover}
+.dual-home-cover-placeholder{font:normal 1.5rem Georgia,serif;color:#657767;text-align:center}
+.dual-home-cover-placeholder span{color:#8c3444}
+.dual-book-pick-copy{min-width:0;display:flex;flex-direction:column;gap:8px;align-self:stretch}
+.dual-book-pick h3{font:normal 1.12rem/1.3 Georgia,serif;margin:0;overflow-wrap:anywhere}
+.dual-book-pick p{font:normal .91rem Georgia,serif;color:#666158;margin:0}
+.dual-book-pick .dual-text-link{margin-top:auto}
+.dual-home-reviews{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.dual-review{min-width:0;padding:10px 18px 12px 0;border-right:1px solid #e0ded6}
+.dual-review:last-child{border-right:0}
+.dual-review h3{font:normal 1.25rem/1.3 Georgia,serif;margin:6px 0}
+.dual-review>p{margin:0 0 8px;line-height:1.4}
+.dual-review-excerpt{font-family:Georgia,serif;color:#555952}
+.dual-review-rating{color:#792039}
+.editorial-return-hero{position:relative;background:linear-gradient(120deg,#fff9f1,#f2ece4);border-radius:8px;padding:24px clamp(20px,3.5vw,54px);min-height:176px;display:flex;flex-direction:column;align-items:start}
+.editorial-return-hero h1{font-size:clamp(2.45rem,3.6vw,4.1rem);margin:7px 0}
+.editorial-return-hero>p:not(.dual-kicker){font:normal clamp(1.15rem,1.7vw,1.5rem) Georgia,serif;color:#6a6961}
+.editorial-return-hero .dual-primary{position:absolute;right:32px;bottom:24px}
+.editorial-return-grid{display:grid;grid-template-columns:minmax(0,2.15fr) minmax(230px,.9fr);gap:18px;margin-top:14px}
+.editorial-reading-panel,.editorial-year-card{border:1px solid #ece5de;border-radius:8px;padding:22px;background:#fffdfa}
+.editorial-reading-row{display:grid;grid-template-columns:92px minmax(0,1fr) auto;gap:20px;padding:13px 0;border-top:1px solid #e5ded6;align-items:center}
+.editorial-reading-row:first-of-type{border-top:0}
+.editorial-reading-row .dual-home-cover{width:85px}
+.editorial-reading-row h3,.room-current-book h3{margin:0 0 4px;font:normal 1.2rem Georgia,serif}
+.editorial-reading-row p,.room-current-book p{margin:0 0 8px}
+.dual-format{display:inline-block;background:#eeede4;border-radius:5px;padding:4px 8px;font-size:.75rem}
+.dual-progress-copy{margin-top:12px}.dual-progress-label{font-size:.78rem;margin-bottom:6px!important}
+.dual-progress-track{height:7px;width:min(100%,270px);border-radius:8px;background:#e5e4dc;overflow:hidden}
+.dual-progress-track span{height:100%;display:block;background:#7b1932;border-radius:8px}
+.dual-small-action{background:#771a33;color:white!important;padding:11px 13px;border-radius:7px;font-size:.82rem;text-align:center}
+.editorial-year-card{background:linear-gradient(140deg,#f2f2e7,#e7eadd)}
+.editorial-year-card h2{font-size:1.65rem;margin-bottom:12px;color:#263129}
+.editorial-year-number{display:flex;align-items:center;gap:15px;border-top:1px solid #d3d6c9;padding:10px 0}
+.editorial-year-number strong{font:normal 2.1rem Georgia,serif;min-width:60px}
+.editorial-year-number span{font:.91rem Georgia,serif}
+.editorial-year-card>a{display:block;font-size:.84rem;margin-top:10px;text-decoration:underline}
+.editorial-saved{display:flex;align-items:center;justify-content:space-between;gap:20px;background:#f8efec;padding:22px 26px;border-radius:8px;margin-top:28px}
+.editorial-saved h2{font-size:1.55rem;margin:0 0 6px}
+.editorial-saved p{margin:0}
+.dual-room-home{color:#1e3427;padding:12px 8px 38px;max-width:1480px;margin:auto}
+.dual-room-home h1,.dual-room-home h2,.dual-room-home h3{font-family:Georgia,serif;letter-spacing:-.035em}
+.dual-room-home h1{font-size:clamp(2.3rem,3.8vw,3.8rem);line-height:1.08}
+.dual-room-home a:hover{color:#216544}
+.room-new-hero{min-height:300px;border-radius:18px;background:linear-gradient(115deg,#103b2a 0%,#1f5139 62%,#5d795c 100%);color:#fff;padding:clamp(24px,4vw,52px);display:flex;justify-content:space-between;gap:30px;align-items:center;overflow:hidden}
+.room-new-hero h1{color:#fff;max-width:530px;margin:10px 0 18px}
+.room-new-hero p:not(.dual-kicker){font:normal 1.12rem/1.5 Georgia,serif;max-width:500px}
+.room-home-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+.room-home-primary{background:#f8f8ef!important;color:#163c29!important;font-size:.86rem;border-radius:10px;padding:12px 18px;text-align:center}
+.room-home-outline{display:inline-flex;align-items:center;border:1px solid #c9dace;color:#fff!important;border-radius:10px;padding:12px 17px;font-size:.86rem}
+.room-hero-illustration{font:normal clamp(3rem,8vw,8rem) Georgia,serif;white-space:nowrap;color:#d9e6d0;opacity:.45}
+.room-home-shortcuts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:17px 0}
+.room-home-shortcuts a{background:#fff;border:1px solid #e1e8df;border-radius:13px;padding:20px;display:flex;flex-direction:column;gap:8px}
+.room-home-shortcuts strong{font:normal 1.15rem Georgia,serif}
+.room-home-shortcuts span{color:#627565;font-size:.81rem}
+.room-return-heading{padding:16px 6px 20px}
+.room-return-heading h1{margin:8px 0}
+.room-return-heading p:last-child{font:normal 1.05rem Georgia,serif;color:#536759}
+.room-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:16px}
+.room-metrics a{background:#fff;border:1px solid #e2e9e1;border-radius:13px;padding:21px;display:flex;flex-direction:column;gap:8px;box-shadow:0 4px 15px #1a422006}
+.room-metrics strong{font:normal clamp(1.85rem,3vw,2.6rem) Georgia,serif}
+.room-metrics span{font-size:.79rem;color:#627565}
+.room-dashboard-card{background:#fff;border-radius:15px;padding:22px;border:1px solid #e1e8df;box-shadow:0 5px 20px #163e1a07;min-width:0}
+.room-progress-panels{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(260px,1fr);gap:15px;margin-bottom:15px}
+.room-card-heading{display:flex;align-items:baseline;justify-content:space-between;gap:13px;border-bottom:1px solid #e4e9e1;padding-bottom:12px;margin-bottom:14px}
+.room-card-heading h2{font:normal clamp(1.3rem,2vw,1.65rem) Georgia,serif;margin:0}
+.room-card-heading a{font-size:.79rem;text-decoration:underline;text-underline-offset:4px}
+.room-current-book{display:flex;gap:18px;align-items:start;padding:12px 0}
+.room-current-book+.room-current-book{border-top:1px solid #e2e7e0}
+.room-current-book .dual-home-cover{width:90px}
+.room-current-book>div:last-child{min-width:0}
+.room-current-book h3{font-size:1.15rem}
+.room-current-book .dual-progress-track span{background:#315e43}
+.room-home-inline{display:inline-block;color:#275a40;font-size:.82rem;margin-top:10px;text-decoration:underline}
+.room-saved-card .room-home-primary{background:#22573a!important;color:white!important;margin-top:16px}
+.room-discovery{margin:17px 0}
+.room-discovery-books{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}
+.room-discovery-books .dual-book-pick{display:block}
+.room-discovery-books .dual-home-cover{width:100%;max-width:135px}
+.room-discovery-books .dual-book-pick-copy{padding-top:11px}
+.room-discovery-books .dual-book-pick .dual-text-link{color:#2d6746}
+.room-footer-panels{display:grid;grid-template-columns:minmax(0,2fr) minmax(190px,.75fr);gap:15px}
+.room-footer-panels .dual-review h3{font-size:1.04rem}
+.room-community-actions{display:flex;flex-direction:column;gap:12px}
+.room-community-actions a{padding:10px 12px;background:#f0f4ed;border-radius:9px}
+.room-community-actions h2{font-size:1.45rem;margin:0}
+@media(max-width:1150px){
+ .editorial-new-hero{grid-template-columns:1fr 1.25fr}.editorial-taste{grid-column:1/-1}
+ .editorial-book-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .room-discovery-books{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:800px){
+ .editorial-new-hero,.editorial-return-grid,.room-progress-panels,.room-footer-panels{grid-template-columns:1fr}
+ .editorial-taste{grid-column:auto}
+ .room-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .editorial-return-hero .dual-primary{position:static}
+ .editorial-return-hero{gap:6px}
+ .editorial-book-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .room-new-hero{min-height:250px}.room-hero-illustration{display:none}
+}
+@media(max-width:520px){
+ .dual-editorial-home{padding:12px 12px 45px}
+ .dual-editorial-home h1{font-size:2.5rem}
+ .editorial-new-hero{gap:12px}
+ .editorial-start-card,.editorial-taste{padding:21px}
+ .editorial-book-row,.dual-home-reviews,.room-home-shortcuts,.room-discovery-books{grid-template-columns:1fr}
+ .dual-book-pick{max-width:100%}
+ .dual-home-reviews{gap:10px}
+ .dual-review{border:0;border-bottom:1px solid #e2e2d9}
+ .editorial-reading-row{grid-template-columns:65px minmax(0,1fr);gap:12px}
+ .editorial-reading-row .dual-home-cover{width:65px}
+ .dual-small-action{grid-column:2;justify-self:start}
+ .dual-room-home{padding:5px 0 30px}
+ .room-new-hero{padding:27px 19px}
+ .room-metrics{gap:8px}
+ .room-metrics a{padding:14px}
+ .room-dashboard-card{padding:16px}
+ .room-current-book .dual-home-cover{width:76px}
+ .room-discovery-books .dual-book-pick{display:flex}
+ .room-discovery-books .dual-home-cover{width:80px}
+ .dual-section-heading{flex-wrap:wrap}
+ .dual-section-heading h2{flex:1 1 100%}
+ .dual-editorial-home .dual-section-heading:after{display:none}
+ .dual-section-heading a{margin-left:0}
+}
+@media(prefers-reduced-motion:reduce){.dual-editorial-home *,.dual-room-home *{scroll-behavior:auto!important;transition:none!important}}
