@@ -71,6 +71,31 @@ This verifies that the *exact same set* of source work IDs still matches each ti
 
 This is groundwork for a future public API: public clients receive one canonical work with separate verified editions and their format-specific metadata, rather than multiple source work records.
 
+## Enrich the saved 10-book pilot without scanning dumps
+
+After the targeted fetcher has produced \`api-candidates-01.json\`, run:
+
+\`\`\`powershell
+cd "C:\Projects\chapterandsound"
+git pull origin main
+node scripts/enrich-openlibrary-pilot.mjs --input ".private-catalogue-pilot/api-candidates-01.json" --out ".private-catalogue-pilot" --isbn-lookups
+\`\`\`
+
+This reads the existing local candidate file and, **only for editions whose
+format is unknown and have one valid ISBN-13**, performs a small exact-ISBN
+Open Library lookup, using a permanent on-disk cache in
+\`.private-catalogue-pilot/isbn-lookup-cache\`. No works/authors/editions
+dump scans occur. To run fully offline, omit \`--isbn-lookups\`.
+
+Results are saved to \`enriched-candidates-01.json\` and
+\`enrichment-report.json\`. The report includes per-book format coverage,
+ambiguous ISBNs, missing ISBNs, ISBN identity disagreements, conflicting
+duplicate editions, and audio-specific missing data. **These are not
+automatically importable D1 manifests.** No production database writes occur.
+Unknown or unsupported formats remain unknown, and no ISBN prefix is used to
+guess format. The source-reference and licensing checks must be completed
+before publication or public API redistribution.
+
 ## Requirements before writing anything
 
 1. Confirm `npm run typecheck`, `npm test`, `npm run test:catalogue-schema`, `npm run build` pass on the exact revision containing the pilot.
