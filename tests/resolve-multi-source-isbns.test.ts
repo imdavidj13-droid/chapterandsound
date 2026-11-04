@@ -51,3 +51,28 @@ test('Open Library mismatched work never proposes a format',async()=>{
  assert.equal(result.sources.openLibrary.mismatch,1);
  assert.equal(result.totals.provisionalOpenLibraryFormats,0);
 });
+
+test('Google HTTP 429 stops repeat Google requests and records reason',async()=>{
+ const input=sample();
+ input.candidates[1]!.editions[0]!.isbn13='9780593054710';
+ let googleCalls=0;
+ const updates: {done:number,total:number}[]=[];
+ const report=await resolvePilot(input,{
+  openLibrary:async()=>null,
+  googleBooks:async()=>{googleCalls++;throw Error('HTTP 429')},
+  onProgress:(p: {done:number,total:number})=>updates.push(p)
+ });
+ assert.equal(googleCalls,1);
+ assert.equal(report.sources.googleBooks.error,1);
+ assert.equal(report.sources.googleBooks.skipped,1);
+ assert.equal(report.findings[0].googleBooks.error,'Error: HTTP 429');
+ assert.equal(report.findings[1].googleBooks.status,'skipped');
+ assert.equal(updates.length,2);
+});
+test('Open Library mismatch retains specific reason',async()=>{
+ const report=await resolvePilot(sample(),{
+  openLibrary:async()=>({...ol,works:[{key:'/works/OL999W'}]}),
+  googleBooks:async()=>({items:[]})
+ });
+ assert.equal(report.findings[0].openLibrary.reason,'work_mismatch');
+});
