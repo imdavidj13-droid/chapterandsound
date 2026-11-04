@@ -70,7 +70,7 @@ test('ISBN repeated in primary and candidates on one edition is not a collision'
  const result=proposePublisherEditions(input,{records:[fact]});
  assert.equal(result.report.totals.alreadyPresent,1);
  assert.equal(result.report.totals.blocked,0);
- assert.equal(result.report.totals.proposedAdditions,0);
+ assert.equal(result.report.totals.proposedAdditions,1);
 });
 test('different edition source records with same ISBN remain ambiguous',()=>{
  const input=fixture();
@@ -90,9 +90,13 @@ test('candidate-only ISBN is unresolved, not counted as an existing verified edi
  const result=proposePublisherEditions(input,{records:[fact]});
  assert.equal(result.report.totals.alreadyPresent,0);
  assert.equal(result.report.totals.candidateOnlyLinks,1);
- assert.equal(result.report.totals.proposedAdditions,0);
+ assert.equal(result.report.totals.proposedAdditions,1);
+ assert.equal(result.report.totals.proposedWithPotentialDuplicates,1);
  assert.equal(result.report.candidateOnly[0].reason,'isbn_appears_only_as_candidate');
- assert.equal(result.report.totals.resultingEditions,10);
+ assert.deepEqual(result.report.proposed[0].potentialDuplicateSourceKeys,['/books/OL1M']);
+ assert.equal(result.candidates.candidates[0].editions[1].importEligible,false);
+ assert.ok(result.candidates.candidates[0].editions[1].validationIssues.includes('possible_duplicate_openlibrary_edition'));
+ assert.equal(result.report.totals.resultingEditions,11);
 });
 test('multiple source candidate ISBNs never become automatic edition assignments',()=>{
  const input=fixture();
