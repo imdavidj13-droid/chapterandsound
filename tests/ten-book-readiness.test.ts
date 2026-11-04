@@ -3,9 +3,12 @@ import {strict as assert} from 'node:assert';
 import {mkdtempSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+// @ts-expect-error The companion runtime module is plain JavaScript with no declaration file.
 import {assess,run} from '../scripts/assess-ten-book-readiness.mjs';
 
-const fixture=()=>({candidates:Array.from({length:10},(_,i)=>({
+type FixtureEdition = {sourceKey:string; format:string; isbn13:string; publisher:string; publicationDate:string; fieldProvenance?:{format:{source:string;status:string}}};
+type FixtureBook = {title:string;author:string;workSourceKey:string;authorSourceKeys:string[];description:string;firstPublicationDate:string;validationIssues:{code:string}[];editions:FixtureEdition[]};
+const fixture=():{candidates:FixtureBook[]}=>({candidates:Array.from({length:10},(_,i)=>({
  title:'Book '+i,author:'Fixture Author',workSourceKey:'/works/OL'+(i+1)+'W',
  authorSourceKeys:['/authors/OL1A'],description:'Test summary',firstPublicationDate:'2001',
  validationIssues:[],editions:[
@@ -27,9 +30,9 @@ test('prioritises evidence-backed complete edition without approving import',()=
 });
 test('reports missing description, edition format, and conflicted identity',()=>{
  const data=fixture();
- data.candidates[0].description='';
- data.candidates[0].editions=[data.candidates[0].editions[0]];
- data.candidates[0].validationIssues=[{code:'canonical_work_identity_unreviewed'}];
+ data.candidates[0]!.description='';
+ data.candidates[0]!.editions=[data.candidates[0]!.editions[0]!];
+ data.candidates[0]!.validationIssues=[{code:'canonical_work_identity_unreviewed'}];
  const report=assess(data);
  assert.equal(report.totals.bestEditionsWithCoreFields,9);
  assert.ok(report.books[0].blockers.includes('edition:format'));
@@ -37,7 +40,7 @@ test('reports missing description, edition format, and conflicted identity',()=>
  assert.ok(report.books[0].blockers.includes('identity_or_source:canonical_work_identity_unreviewed'));
 });
 test('rejects duplicate works and never touches production',()=>{
- const data=fixture();data.candidates[1].workSourceKey=data.candidates[0].workSourceKey;
+ const data=fixture();data.candidates[1]!.workSourceKey=data.candidates[0]!.workSourceKey;
  assert.throws(()=>assess(data),/Duplicate canonical work/);
 });
 test('CLI writes only review report in supplied directory',()=>{
