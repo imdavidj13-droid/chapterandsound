@@ -16,7 +16,7 @@ test('publisher exact ISBN populates missing fields and preserves original manif
  assert.equal(result.candidates.candidates[0].editions[0].format,'paperback');
  assert.equal(result.candidates.candidates[0].editions[0].publicationDate,'2011-05-12');
  assert.equal(result.report.totals.newlyFilledFields,3);
- assert.equal(result.report.totals.matchedEdtions,1);
+ assert.equal(result.report.totals.matchedEditions,1);
  assert.equal(result.report.totals.remainingUnknownFormats,9);
  assert.equal(result.candidates.candidates[0].editions[0].publisher,'');
 });
@@ -32,7 +32,7 @@ test('missing ISBN cannot create new edition or silently join by title',()=>{
  input.candidates[0]!.editions[0]!.isbn13=null;
  const result=reconcilePublisher(input,{records:[fact]});
  assert.equal(result.report.totals.unmatchedEvidence,1);
- assert.equal(result.report.totals.matchedEdtions,0);
+ assert.equal(result.report.totals.matchedEditions,0);
 });
 test('disallows duplicate evidence for same ISBN',()=>{
  assert.throws(()=>reconcilePublisher(fixture(),{records:[fact,fact]}),/Duplicate publisher ISBN/);
