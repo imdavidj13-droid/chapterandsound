@@ -90,6 +90,9 @@ export function ReadingRoomAuthorProfile({id,memberVerified}:{id:string;memberVe
  const hasBio=Boolean(person.biography?.trim());
  const audioBooks=books.filter(book=>recordings.some(recording=>recording.workId===book.id));
  const visible=tab==='shelf'?onShelf:tab==='audio'?audioBooks:books;
+ const similar=profile?.similarAuthors||[];
+ const notes=shelfNotes.filter(item=>books.some(book=>book.id===item.workId)&&Boolean(item.privateNote?.trim()));
+ const allFormats=[...new Set(books.flatMap(book=>book.formats||[]))];
  return <div className="room-author-profile">
   <div className="room-author-breadcrumb"><a href="/authors">Authors</a><span aria-hidden="true">/</span><span>{person.name}</span></div>
   <section className="room-author-banner">
@@ -107,34 +110,52 @@ export function ReadingRoomAuthorProfile({id,memberVerified}:{id:string;memberVe
   <div className="room-author-main-layout">
    <main className="room-author-main">
     <nav className="room-author-tabs" aria-label="Author profile sections">
-     <button type="button" onClick={()=>setTab('books')} className={tab==='books'?'active':''} aria-current={tab==='books'?'page':undefined}>Books <span>{books.length}</span></button>
-     {memberVerified&&<button type="button" onClick={()=>setTab('shelf')} className={tab==='shelf'?'active':''} aria-current={tab==='shelf'?'page':undefined}>On my shelf <span>{onShelf.length}</span></button>}
+     {memberVerified&&<button type="button" onClick={()=>setTab('shelf')} className={tab==='shelf'?'active':''} aria-current={tab==='shelf'?'page':undefined}>On My Shelf <span>{onShelf.length}</span></button>}
+     <button type="button" onClick={()=>setTab('books')} className={tab==='books'?'active':''} aria-current={tab==='books'?'page':undefined}>All Books <span>{books.length}</span></button>
      <button type="button" onClick={()=>setTab('about')} className={tab==='about'?'active':''} aria-current={tab==='about'?'page':undefined}>About</button>
+     <button type="button" onClick={()=>setTab('similar')} className={tab==='similar'?'active':''} aria-current={tab==='similar'?'page':undefined}>Similar Authors</button>
      {recordings.length>0&&<button type="button" onClick={()=>setTab('audio')} className={tab==='audio'?'active':''} aria-current={tab==='audio'?'page':undefined}>Audiobooks</button>}
     </nav>
-    {tab==='about'?<section className="room-author-about-panel"><h2>About {person.name}</h2><p>{hasBio?person.biography:'A biography has not been added to this author profile yet.'}</p></section>:<>
+    {tab==='about'?<section className="room-author-about-panel"><h2>About {person.name}</h2><p>{hasBio?person.biography:'A biography has not been added to this author profile yet.'}</p></section>:
+     tab==='similar'?<section className="room-author-about-panel">
+      <h2>Similar Authors</h2><p>Writers with published books that share catalogue subjects with {person.name}.</p>
+      {similar.length?<div className="room-author-similar-grid">{similar.map(other=><a key={other.id} href={'/person/'+encodeURIComponent(other.id)} className="room-author-similar-person">
+       <span className="room-author-similar-portrait">{other.portraitUrl?<img src={other.portraitUrl} alt="" loading="lazy"/>:initials(other.name)}</span>
+       <strong>{other.name}</strong><small>{other.sharedSubjects} shared {other.sharedSubjects===1?'subject':'subjects'}</small>
+      </a>)}</div>:<div className="room-author-empty">No similar authors can be verified from the published catalogue yet.</div>}
+     </section>:<>
      <div className="room-author-section-title">
       <div><p className="room-author-kicker">{tab==='shelf'?'YOUR COLLECTION':tab==='audio'?'LISTEN TO THEIR STORIES':'EXPLORE THE BOOKS'}</p>
       <h2>{tab==='shelf'?'Books on my shelf':tab==='audio'?'Available audiobooks':'Books by '+person.name}</h2></div>
       <span>{visible.length} {visible.length===1?'title':'titles'}</span>
      </div>
-     {visible.length?<div className="room-author-books">{visible.map(book=><BookCard key={book.id} book={book} onShelf={shelf.has(book.id)}/>)}</div>:
+     {visible.length?<div className="room-author-books">{visible.map(book=><BookCard key={book.id} book={book} onShelf={shelf.has(book.id)} review={reviews[book.id]}/>)}</div>:
       <div className="room-author-empty"><h3>{tab==='shelf'?'No books on your shelf yet':tab==='audio'?'No audiobook editions listed':'No published books yet'}</h3>
        <p>{tab==='shelf'?'Visit a book to add it to your shelf.':'New catalogue entries will appear here once published.'}</p></div>}
     </>}
    </main>
    <aside className="room-author-aside">
-    <section className="room-author-side-card">
-     <p className="room-author-kicker">AUTHOR AT A GLANCE</p>
-     <h3>{person.name}</h3>
-     <p>{hasBio?person.biography:'Browse the verified catalogue of published titles by this author.'}</p>
-     <div className="room-author-side-stat"><strong>{books.length}</strong><span>Published {books.length===1?'title':'titles'}</span></div>
+    <section className="room-author-side-card room-author-notes-card">
+     <p className="room-author-kicker">YOUR READING JOURNAL</p><h3>My Notes on {person.name}</h3>
+     {memberVerified?notes.length?<div className="room-author-notes">
+      {notes.slice(0,3).map((note,index)=><div key={note.workId+'-'+index}>
+       <strong>{books.find(book=>book.id===note.workId)?.title}</strong>
+       <p>{note.privateNote}</p>
+      </div>)}
+     </div>:<p>You haven't added any private notes about these books yet. Your reading thoughts will appear here when you save them.</p>
+     :<p>Sign in to see your private reading notes and books by this author.</p>}
+     <a href={memberVerified?'/shelf':'/signin'} className="room-author-side-cta">{memberVerified?'Open my bookshelf':'Sign in to your bookshelf'} →</a>
     </section>
-    {audioBooks.length>0&&<section className="room-author-side-card">
-      <p className="room-author-kicker">AUDIOBOOKS</p><h3>Listen to the stories</h3>
-      <p>{audioBooks.length} {audioBooks.length===1?'title has':'titles have'} a linked audio recording.</p>
-      <button className="room-author-side-link" type="button" onClick={()=>setTab('audio')}>View audiobooks →</button>
-    </section>}
+    <section className="room-author-side-card room-author-collection-card">
+     <p className="room-author-kicker">YOUR AUTHOR COLLECTION</p><h3>Read, listen, discover</h3>
+     <div className="room-author-collection-stats">
+      <div><strong>{books.length}</strong><span>Published {books.length===1?'book':'books'}</span></div>
+      <div><strong>{onShelf.length}</strong><span>On your shelf</span></div>
+      <div><strong>{allFormats.length}</strong><span>Available {allFormats.length===1?'format':'formats'}</span></div>
+     </div>
+     {allFormats.length>0&&<p>Formats: {allFormats.map(formatLabel).join(', ')}</p>}
+     <a className="room-author-side-cta" href="/books">Discover more books →</a>
+    </section>
    </aside>
   </div>
  </div>;
