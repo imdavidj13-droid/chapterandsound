@@ -53,7 +53,9 @@ test('a prospective new work can be previewed but never written',async()=>{
  const {db,driver}=fixture();
  try{
   const preview=await previewCatalogueImport(driver,[{title:'A New Novel',author:'Another Writer',isbn13:'9780306406157'}]);
-  assert.equal(preview.rows[0]?.decision,'create_draft');
+  assert.equal(preview.rows[0]?.decision,'needs_enrichment');
+  assert.ok(preview.rows[0]?.quality.missing.includes('work.editions (edition-level records required)'));
+  assert.equal(preview.rows[0]?.quality.ready,false);
   assert.equal(db.prepare('SELECT count(*) AS n FROM works').get()!.n,1);
  }finally{db.close()}
 });
@@ -65,7 +67,7 @@ test('invalid ISBN, duplicate batch entries and malformed manifest are rejected 
    {title:'Other Novel',author:'Someone',isbn13:'9780306406157'},
    {title:'Other Novel',author:'Someone',isbn13:'9780306406157'}
   ]);
-  assert.deepEqual(result.rows.map(x=>x.decision),['invalid','create_draft','duplicate_in_batch']);
+  assert.deepEqual(result.rows.map(x=>x.decision),['invalid','needs_enrichment','duplicate_in_batch']);
   await assert.rejects(()=>previewCatalogueImport(driver,Array.from({length:101},()=>({title:'x',author:'y'}))),/1–100/);
   await assert.rejects(()=>previewCatalogueImport(driver,null),/1–100/);
  }finally{db.close()}
