@@ -26,7 +26,8 @@ test('preview never writes to production and does not call an import endpoint',(
 test('owner lookup is limited, explicit, and does not assign an arbitrary ISBN to a work',()=>{
  assert.match(admin,/upstream\.searchParams\.set\('limit','10'\)/);
  assert.match(admin,/new URL\('https:\/\/openlibrary\.org\/search\.json'\)/);
- assert.match(admin,/isbn13:isbns\.length===1\?isbns\[0\]:''/);
+ assert.match(admin,/isbn13:'',format:''/);
+ assert.match(admin,/workSourceKey:key/);
  assert.match(admin,/lookupOnly:true/);
  assert.match(ui,/Find candidates/);
  assert.match(ui,/Preview batch/);
