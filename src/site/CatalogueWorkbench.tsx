@@ -57,6 +57,9 @@ export function CatalogueWorkbench(){
   }catch(e){setReady(false);setError(e instanceof Error?e.message:'Catalogue unavailable')}
   finally{setLoading(false)}
  },[]);
+ // Initial page loading must be read-only. Removing the automatic contributor
+ // reconciliation must never remove the catalogue's initial GET requests.
+ useEffect(()=>{void load()},[load]);
  // Legacy contributor reconciliation must be an intentional maintenance action,
  // never a database write caused by simply opening the catalogue screen.
  async function reconcileLegacyContributors(){
