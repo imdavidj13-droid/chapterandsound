@@ -52,7 +52,7 @@ export function ThemeShell({theme,onThemeChange,member,children,isHome,path,erro
    {open&&<button className="room-sidebar-scrim" type="button" aria-label="Close navigation" onClick={()=>setOpen(false)}/>}
    <div className="room-content"><RoomHeader member={member} theme={theme} onThemeChange={onThemeChange} open={open} setOpen={setOpen}/>
     {error&&<div className="backend-alert" role="status">{error}</div>}
-    <main id="main" className={isHome?'room-home-main':'room-page-main'}>{children}</main>
+    <main id="main" className={isHome?'room-home-main':path.startsWith('/person/')?'room-page-main room-author-profile-page':'room-page-main'}>{children}</main>
     <footer className="room-footer"><span>Chapter & Sound · Your reading world</span><div><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div></footer>
    </div>
   </div></div>;
