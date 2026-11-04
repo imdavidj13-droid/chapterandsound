@@ -133,3 +133,17 @@ Required checks cover: canonical title, source-backed author identity, descripti
 **Important:** A strict completeness gate is not a guarantee that every published book has every piece of metadata available anywhere. Some publishers and sources omit fields. Those records must be enriched using a compatible, rights-permitted source or held for review. No data is fabricated. Cover ingestion is deliberately deferred until the metadata pipeline is reliable.
 
 Regressions: `tests/catalogue-import-quality.test.ts` and the updated import preview and dump fixture tests.
+
+## Owner-initiated edition enrichment (added)
+
+For a small manually searched book, Admin → Import Centre now offers **Get book & editions**. This performs an explicit read-only fetch for one Open Library work and its first page of edition records, then replaces that candidate's work-level search summary with a richer draft manifest. The next **Preview batch** call reports the field-level gaps.
+
+- The endpoint is `GET /api/catalogue-admin/import/enrich?workKey=/works/OL...W`, restricted to the existing authenticated owner route.
+- It reads the work JSON and at most **50 editions** (not 50 separate single-book calls).
+- If Open Library reports more editions than were returned, `editionCountReported` is retained and the completeness gate blocks import until the offline dump fills the gap.
+- It preserves publisher, date, language, formats and edition-level ISBNs where actually supplied, but **does not** infer a format from an absent `physical_format`.
+- Audio narrator/duration and catalogue rights remain separate requirements. Covers are out of scope.
+- Search result author text is retained, but source author identifiers are checked independently; no automatic same-name author merge occurs.
+- Only manually initiated, low-volume API lookup is supported. Bulk workflows use the downloaded monthly dumps.
+
+This is a **pre-import metadata review**, not a production bulk ingestion engine. No live data was imported, and it is not a promise that every field exists in Open Library. Records with gaps must be enriched from compatible sources or held without pretending they are complete.
