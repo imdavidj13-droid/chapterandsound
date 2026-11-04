@@ -15,17 +15,26 @@ function ThemeChoice({theme,onChange}:{theme:ThemeId;onChange:(v:ThemeId)=>void}
    <button type="button" className={theme==='reading-room'?'is-selected':''} aria-pressed={theme==='reading-room'} onClick={()=>onChange('reading-room')}>Reading Room</button>
  </div>;
 }
+function GlobalBookSearch({compact=false}:{compact?:boolean}){
+ const [query,setQuery]=useState('');
+ return <form action="/search" method="get" role="search" className={compact?'room-top-search room-top-search-form':'editorial-global-search'}>
+  <span aria-hidden="true" className="global-search-icon">⌕</span>
+  <input type="search" name="q" value={query} onChange={e=>setQuery(e.target.value)}
+   aria-label="Search books and authors" placeholder="Search books, authors or keywords…"/>
+  <button type="submit" aria-label="Search catalogue">Search</button>
+ </form>;
+}
 function SiteBrand(){return <a href="/" className="theme-brand"><span aria-hidden="true" className="theme-book-icon">◫</span><span>Chapter <em>&</em> Sound</span></a>}
 function EditorialHeader({member,theme,onThemeChange,path}:{member:MemberIdentity|null;theme:ThemeId;onThemeChange:(v:ThemeId)=>void;path:string}){
  const [open,setOpen]=useState(false);
- return <header className="editorial-header"><div className="editorial-header-inner"><SiteBrand/>
+ return <header className="editorial-header"><div className="editorial-header-inner"><SiteBrand/><GlobalBookSearch/>
   <button className="theme-menu-toggle" type="button" aria-expanded={open} onClick={()=>setOpen(!open)}>{open?'Close':'Menu'} <span aria-hidden="true">☰</span></button>
   <nav className={open?'editorial-menu open':'editorial-menu'} aria-label="Editorial navigation">{editorialNav.map(([url,label])=><a key={url} href={url} aria-current={path===url?'page':undefined}>{label}</a>)}<a href="/community">Community</a><a href={member?'/account':'/signin'}>{member?member.displayName:'Sign in'}</a>
    <ThemeChoice theme={theme} onChange={onThemeChange}/>
   </nav></div></header>;
 }
 function RoomHeader({member,theme,onThemeChange,open,setOpen}:{member:MemberIdentity|null;theme:ThemeId;onThemeChange:(v:ThemeId)=>void;open:boolean;setOpen:(v:boolean)=>void}){
- return <header className="room-topbar"><button className="room-mobile-toggle" aria-label={open?'Close Reading Room navigation':'Open Reading Room navigation'} aria-expanded={open} onClick={()=>setOpen(!open)} type="button">☰</button><a className="room-top-search" href="/search"><span aria-hidden="true">⌕</span> Search books, authors or reviews…</a><div className="room-top-actions"><ThemeChoice theme={theme} onChange={onThemeChange}/><a href={member?'/account':'/signin'} className="room-person" aria-label={member?'Your account':'Sign in'}>{member?.displayName?.slice(0,1).toUpperCase()||'↗'}</a></div></header>;
+ return <header className="room-topbar"><button className="room-mobile-toggle" aria-label={open?'Close Reading Room navigation':'Open Reading Room navigation'} aria-expanded={open} onClick={()=>setOpen(!open)} type="button">☰</button><GlobalBookSearch compact/><div className="room-top-actions"><ThemeChoice theme={theme} onChange={onThemeChange}/><a href={member?'/account':'/signin'} className="room-person" aria-label={member?'Your account':'Sign in'}>{member?.displayName?.slice(0,1).toUpperCase()||'↗'}</a></div></header>;
 }
 export function ThemeShell({theme,onThemeChange,member,children,isHome,path,error}:ThemeProps){
  const [open,setOpen]=useState(false);
