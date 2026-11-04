@@ -103,6 +103,18 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
     ORDER BY w.created_at DESC,w.id DESC LIMIT ? OFFSET ?`).bind(q,q,l,o).all();
     return json({items:results});
    }
+   if(segments.length===3&&segments[0]==='works'&&segments[2]==='linked'){
+    const workId=segments[1]||'';
+    if(!safeId(workId))return fail('Invalid book ID');
+    if(!await recordExists(db,'works',workId))return fail('Book not found',404);
+    const [{results:editions},{results:recordings}]=await Promise.all([
+     db.prepare("SELECT id,work_id AS workId,format,title_override AS title,edition_statement AS statement,language,page_count AS pages,revision,publication_status AS publicationStatus FROM editions WHERE work_id=? ORDER BY created_at,id")
+      .bind(workId).all(),
+     db.prepare("SELECT id,work_id AS workId,recording_title AS title,language,abridgement,performance_type AS performance,duration_seconds AS seconds,recorded_date AS recordedDate,revision FROM audio_recordings WHERE work_id=? ORDER BY created_at,id")
+      .bind(workId).all()
+    ]);
+    return json({editions,recordings});
+   }
    if(segments.length===2&&segments[0]==='works'){
     const workId=segments[1]??'';
     if(!safeId(workId))return fail('Invalid catalogue ID');
