@@ -17,7 +17,7 @@ function fixture(){
    bind(...values:(string|number|null)[]){params=values;return item},
    async first<T>():Promise<T|null>{return db.prepare(sql).get(...params) as T|null},
    async all<T>():Promise<{results:T[]}>{return {results:db.prepare(sql).all(...params) as T[]}},
-   async run(){return db.prepare(sql).run(...params)}
+   async run(){const outcome=db.prepare(sql).run(...params);return {meta:{changes:Number(outcome.changes)}}}
   };
   return item;
  }
