@@ -4,7 +4,7 @@ import {apiGet,apiWrite} from './api';
 import './CatalogueBookEditor.css';
 
 type Person={id:string;name:string};
-type Saved={id:string;editionId:string|null;recordingId:string|null;saved:boolean};
+type Saved={id:string;editionId:string|null;recordingId:string|null;saved:boolean;status:'draft'|'published'};
 type ExistingWork={id:string;title:string;authors?:string|null;status?:string};
 type Props={authors:Person[];imageStorage:boolean;onSaved:(id:string,notice:string)=>void;onCancel:()=>void;onEditExisting?:(id:string)=>void};
 function validIsbn13(raw:string){if(!raw)return true;const digits=raw.replace(/[ -]/g,'');if(!/^\d{13}$/.test(digits))return false;return [...digits].reduce((total,d,index)=>total+Number(d)*(index%2?3:1),0)%10===0}
@@ -104,7 +104,7 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
     title,authorName:author,authorId:selectedAuthorId||undefined,type,language,firstPublicationDate:firstPublished,synopsis,
     ...(edition?{edition}:{})
    });
-   let message='Book saved with '+(addEdition?'its first edition':'its details')+' and linked author.';
+   let message='Draft saved with '+(addEdition?'its first edition':'its details')+' and linked author. It is not yet public.';
    if(file&&canUpload){
     const data=new FormData();
     data.set('entityKind',result.editionId?'edition':'work');data.set('entityId',result.editionId||result.id);
@@ -126,7 +126,7 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
  return <form className="cs-book-editor" onSubmit={submit}>
   <div className="cs-book-editor-heading">
    <div><span className="cs-book-eyebrow">CHAPTER & SOUND / CATALOGUE</span><h2>Create a new book</h2>
-   <p>Book details and the first edition in one place. Contributors are selected from the same catalogue.</p></div>
+   <p>Book details and the first edition in one place. New records are saved privately as drafts.</p></div>
    <button type="button" onClick={onCancel}>Close</button>
   </div>
   <div className="cs-book-editor-grid">
@@ -202,12 +202,12 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
       <label className="cs-book-editor-toggle"><input type="checkbox" checked={permission} onChange={e=>setPermission(e.target.checked)}/> I have permission to display this image</label>
      </>}
     </section>
-    <div className="cs-book-editor-summary"><strong>Publication status</strong><p>The current API saves directly as published. Draft and publish controls will be added after server-side permissions and status transitions are ready.</p></div>
+    <div className="cs-book-editor-summary"><strong>Save as draft</strong><p>New books are kept out of public search until you review and publish them from their existing-book editor.</p></div>
     <div className="cs-book-editor-summary"><strong>Quick checks</strong><ul><li>{title.trim()?'✓':'○'} Book title entered</li><li>{authorReady?'✓':'○'} Author identity confirmed</li><li>{isbn13Valid&&isbn10Valid?'✓':'○'} ISBNs valid (if supplied)</li><li>{duplicateCheckComplete&&!duplicateBlocked?'✓':'○'} Existing-title check complete</li><li>{isAudio?(narratorReady?'✓ Narrator resolved':'○ Narrator requires review'):'Print / digital edition'}</li></ul><small>{totalFields} details populated</small></div>
    </aside>
   </div>
   {error&&<p className="cs-admin-error" role="alert">{error}</p>}
   <div className="cs-book-editor-footer"><button type="button" disabled={saving} onClick={onCancel}>Cancel</button>
-   <button className="cs-book-save" disabled={saving||!title.trim()||!authorReady||!narratorReady||!duplicateCheckComplete||!!duplicateCheckError||duplicateBlocked||!isbn13Valid||!isbn10Valid||(!!file&&imageStorage&&!canUpload)} type="submit">{saving?'Saving book…':!duplicateCheckComplete?'Checking catalogue…':'Save book to catalogue'}</button></div>
+   <button className="cs-book-save" disabled={saving||!title.trim()||!authorReady||!narratorReady||!duplicateCheckComplete||!!duplicateCheckError||duplicateBlocked||!isbn13Valid||!isbn10Valid||(!!file&&imageStorage&&!canUpload)} type="submit">{saving?'Saving book…':!duplicateCheckComplete?'Checking catalogue…':'Save draft'}</button></div>
  </form>;
 }
