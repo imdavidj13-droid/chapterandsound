@@ -89,6 +89,12 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
     SELECT 1 FROM contributions c WHERE c.work_id=w.id AND c.person_id=?
     AND c.role_code IN ('author','coauthor'))
    ORDER BY w.first_publication_date DESC,w.canonical_title`).bind(id).all<{id:string;title:string;contribution:string;coverUrl:string|null;summary:string|null;formatCodes:string|null;firstPublished:string|null}>();
+  const {results:subjects}=await db.prepare(`SELECT s.label FROM subjects s
+   JOIN work_subjects ws ON ws.subject_id=s.id
+   JOIN works w ON w.id=ws.work_id AND w.status IN ('published','verified')
+   JOIN contributions c ON c.work_id=w.id
+   WHERE c.person_id=? AND c.role_code IN ('author','coauthor')
+   GROUP BY s.id,s.label ORDER BY COUNT(DISTINCT w.id) DESC,s.label LIMIT 5`).bind(id).all<{label:string}>();
   const {results:recordings}=await db.prepare(`SELECT r.id,r.work_id AS workId,w.canonical_title AS title,'narrator' AS contribution
    FROM audio_recordings r JOIN contributions c ON c.recording_id=r.id JOIN works w ON w.id=r.work_id
    WHERE c.person_id=? AND c.role_code='narrator' AND w.status IN ('published','verified')
@@ -111,7 +117,7 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
      )
     GROUP BY p.id,p.preferred_name
     ORDER BY sharedSubjects DESC,p.preferred_name LIMIT 8`).bind(id,id).all();
-  return json({person,works:works.map(w=>({...w,formats:w.formatCodes?w.formatCodes.split(','):[],firstPublishedYear:w.firstPublished?Number(w.firstPublished.slice(0,4)):null})),recordings,similarAuthors});
+  return json({person,works:works.map(w=>({...w,formats:w.formatCodes?w.formatCodes.split(','):[],firstPublishedYear:w.firstPublished?Number(w.firstPublished.slice(0,4)):null})),recordings,subjects:subjects.map(s=>s.label),similarAuthors});
  }
  if(path==='series'){
   const {results}=await db.prepare(`SELECT s.id,s.title,s.description,
