@@ -7,8 +7,8 @@ type Recording={id:string;workId:string;title:string};
 type ShelfRecord={workId:string;privateNote?:string|null;status?:string};
 type SimilarAuthor={id:string;name:string;portraitUrl?:string|null;sharedSubjects:number};
 type Profile={person:Author;works:Book[];recordings:Recording[];subjects?:string[];similarAuthors?:SimilarAuthor[]};
-type ReviewHighlight={count:number;average:number|null;body:string|null;title:string|null};
-type BookDetailResponse={reviews:{title?:string|null;body?:string|null;spoilers?:number|boolean;storyRating?:number|null}[];ratings:{story:{count:number;average:number|null}}};
+type ReviewHighlight={count:number;average:number|null;body:string|null;title:string|null;reviewId:string|null};
+type BookDetailResponse={reviews:{id:string;title?:string|null;body?:string|null;spoilers?:number|boolean;storyRating?:number|null}[];ratings:{story:{count:number;average:number|null}}};
 type Tab='books'|'shelf'|'about'|'audio'|'similar'|'interviews';
 
 const initials=(name:string)=>name.trim().split(/\s+/).slice(0,2).map(p=>p[0]?.toUpperCase()||'').join('');
@@ -37,7 +37,7 @@ function BookCard({book,onShelf,review}:{book:Book;onShelf:boolean;review?:Revie
    <p className="room-author-book-summary">{book.summary?snippet(book.summary,125):'Description not yet available.'}</p>
    {review?.body&&<p className="room-author-review-excerpt"><strong>Reader review</strong> {snippet(review.body,95)}</p>}
    <p className="room-author-book-formats">{formats.length?formats.map(formatLabel).join('  ·  '):'Edition formats not confirmed'}</p>
-   <a className="room-author-book-cta" href={'/book/'+encodeURIComponent(book.id)}>{review?.count?'Read reviews':'View book'} <span aria-hidden="true">→</span></a>
+   <a className="room-author-book-cta" href={review?.reviewId?'/review/'+encodeURIComponent(review.reviewId):'/book/'+encodeURIComponent(book.id)}>{review?.reviewId?'Read review':'View book'} <span aria-hidden="true">→</span></a>
   </div>
  </article>;
 }
@@ -77,8 +77,8 @@ export function ReadingRoomAuthorProfile({id,memberVerified}:{id:string;memberVe
     const published=data.reviews||[];
     const first=published.find(review=>!review.spoilers&&Boolean(review.body?.trim()));
     return [book.id,{count:data.ratings.story.count,average:data.ratings.story.average,
-     body:first?.body||null,title:first?.title||null}] as const;
-   }catch{return [book.id,{count:0,average:null,body:null,title:null}] as const}
+     body:first?.body||null,title:first?.title||null,reviewId:first?.id||null}] as const;
+   }catch{return [book.id,{count:0,average:null,body:null,title:null,reviewId:null}] as const}
   })).then(entries=>{if(active)setReviews(Object.fromEntries(entries))});
   return()=>{active=false};
  },[profile]);
