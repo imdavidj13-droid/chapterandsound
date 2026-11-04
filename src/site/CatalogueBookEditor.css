@@ -199,3 +199,13 @@
 .cs-book-cover-preview-panel h4{font-size:16px;margin:0 0 15px}
 .cs-book-cover-preview-panel p{font-size:12px;line-height:1.5;color:#617464}
 @media(max-width:800px){.cs-book-cover-editor-grid{grid-template-columns:1fr}.cs-book-cover-editor{padding:16px}}
+
+/* Read-only production D1 diagnostics, separate from editing controls. */
+.cs-catalogue-diagnostics{margin:24px 0;background:#fff;border:1px solid #d6e2d8;border-radius:14px;padding:22px;color:#173b29}
+.cs-catalogue-diagnostics h3{margin:0 0 7px;font-size:20px}
+.cs-catalogue-diagnostics p{font-size:13px;line-height:1.55;color:#597160}
+.cs-catalogue-diagnostic-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0}
+.cs-catalogue-diagnostic-grid span{display:flex;flex-direction:column;gap:8px;padding:14px;border:1px solid #d6e2d8;border-radius:10px;background:#f7faf7;font-size:12px;color:#536958}
+.cs-catalogue-diagnostic-grid strong{font-size:22px;color:#17442d}
+@media(max-width:750px){.cs-catalogue-diagnostic-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:460px){.cs-catalogue-diagnostic-grid{grid-template-columns:1fr}.cs-catalogue-diagnostics{padding:14px}}
