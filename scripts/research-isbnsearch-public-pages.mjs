@@ -32,7 +32,7 @@ export function parseIsbnSearch(html,isbn){
  // ISBNsearch uses .bookinfo h1 for title and .bookinfo p for
  // labelled fields. Extract individual paragraphs to avoid accidentally
  // pulling prices, navigation or adjacent listing information.
- const head=String(html||'').match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
+ const head=String(html||'').match(/<h[12]\b[^>]*>([\s\S]*?)<\/h[12]>/i);
  const title=head?visible(head[1]).trim():null;
  const fields={};
  for(const match of String(html||'').matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)){
