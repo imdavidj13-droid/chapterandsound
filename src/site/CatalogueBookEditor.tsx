@@ -153,7 +153,7 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
       <label>Work type<select value={type} onChange={e=>setType(e.target.value)}>{workTypes.map(x=><option key={x} value={x}>{name(x)}</option>)}</select></label>
       <small>Normally leave this as Book. This describes the content, not the format you buy or listen to.</small>
      </details>
-     <label>First published<input maxLength={10} placeholder="YYYY or YYYY-MM-DD" value={firstPublished} onChange={e=>setFirstPublished(e.target.value)}/></label>
+     <label>First published<input type="date" value={firstPublished} onChange={e=>setFirstPublished(e.target.value)} aria-label="First published date"/><small>Select the original publication date using the calendar.</small></label>
      <label>Description<textarea rows={5} maxLength={12000} value={synopsis} onChange={e=>setSynopsis(e.target.value)} placeholder="Book synopsis or editorial description"/></label>
     </section>
     <section className="cs-book-editor-section">
@@ -174,7 +174,7 @@ export function CatalogueBookEditor({authors,imageStorage,onSaved,onCancel,onEdi
       </div>
       <div className="cs-book-editor-two">
        <label>Publisher<input maxLength={500} value={publisher} onChange={e=>setPublisher(e.target.value)} placeholder="Publisher name"/></label>
-       <label>Edition release date<input maxLength={10} value={releaseDate} onChange={e=>setReleaseDate(e.target.value)} placeholder="YYYY-MM-DD"/></label>
+       <label>Edition release date<input type="date" value={releaseDate} onChange={e=>setReleaseDate(e.target.value)} aria-label="Edition release date"/></label>
       </div>
      </>}
     </section>
