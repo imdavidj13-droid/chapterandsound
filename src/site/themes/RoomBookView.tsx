@@ -10,7 +10,11 @@ export function RoomBookView({data,verified}:{data:BookPayload;verified:boolean}
  return <div className="room-book-detail">
   <nav className="room-breadcrumb" aria-label="Breadcrumb"><a href="/books">Books</a><span aria-hidden="true">/</span><span>{book.title}</span></nav>
   <section className="room-book-banner">
-    <div className="room-book-identity"><div className="room-book-placeholder" aria-label="No verified cover available"><span>Chapter<br/>& Sound</span></div>
+    <div className="room-book-identity"><div className="room-book-placeholder room-book-cover">
+      {(book.coverUrl||editions.find(e=>e.coverUrl)?.coverUrl)
+       ?<img src={(book.coverUrl||editions.find(e=>e.coverUrl)?.coverUrl)||undefined} alt={`Cover of ${book.title}`} loading="eager"/>
+       :<span>Chapter<br/>&amp; Sound</span>}
+     </div>
       <div><p className="eyebrow">The Reading Room / Book profile</p><h1>{book.title}</h1>
       {book.subtitle&&<p>{book.subtitle}</p>}
       <h2>{book.author||'Author unconfirmed'}</h2>
