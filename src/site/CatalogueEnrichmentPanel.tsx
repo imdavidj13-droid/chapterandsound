@@ -1,9 +1,10 @@
 import {useEffect,useMemo,useState} from 'react';
 import {apiGet,apiWrite} from './api';
 
-type Edition={id:string;format:string;revision:number;pageCount:number|null};
+type Edition={id:string;format:string;revision:number;pageCount:number|null;language?:string|null};
 type Identifier={editionId:string;code:string;value:string};
-type Meta={editions:Edition[];identifiers:Identifier[]};
+type Event={editionId:string;type:string;date:string|null;publisher:string|null};
+type Meta={editions:Edition[];identifiers:Identifier[];events:Event[]};
 type Finding={title?:string;isbn13?:string;field?:string;value?:unknown;source?:string;decision?:string};
 type Proposal={editionId:string;isbn13:string;revision:number;format:string;pages:number;title:string};
 type Lookup={found:boolean;editionId:string;isbn13:string;pageCount?:number|null;publisher?:string;publicationDate?:string;title?:string};
@@ -24,6 +25,12 @@ export function CatalogueEnrichmentPanel({workId,title}:{workId:string;title:str
    .then(setMeta).catch(e=>setError(e instanceof Error?e.message:'Unable to read editions'));
  },[workId]);
  const isbnFor=(editionId:string)=>meta?.identifiers.find(i=>i.editionId===editionId&&i.code==='ISBN13')?.value||'';
+ const comparison=(saved:string|number|null|undefined,observed:string|number|null|undefined)=>{
+  if(observed===null||observed===undefined||observed==='')return 'Unavailable';
+  if(saved===null||saved===undefined||saved==='')return 'Missing in catalogue';
+  return String(saved).trim().toLocaleLowerCase('en-GB')===String(observed).trim().toLocaleLowerCase('en-GB')?'Matching':'Different — review';
+ };
+ const editionEvents=(editionId:string)=>meta?.events.filter(event=>event.editionId===editionId&&event.type==='released')||[];
  async function lookupEdition(editionId:string){
   setLookupBusy(editionId);setError('');setNotice('');setApproved(false);
   try{
@@ -85,8 +92,13 @@ export function CatalogueEnrichmentPanel({workId,title}:{workId:string;title:str
   <p>Check an edition against Open Library by ISBN, or load your existing <strong>isbndb-manual-triage.json</strong> report. Results are proposals only: the existing catalogue stays unchanged until you approve each individual field.</p>
   {meta&&<div className="cs-enrichment-proposals">{meta.editions.map(edition=><div className="cs-enrichment-proposal" key={edition.id}>
    <div><strong>{edition.format.replaceAll('_',' ')}</strong><small>ISBN {isbnFor(edition.id)||'not available'} · Pages {edition.pageCount??'missing'}</small>
-    {lookups[edition.id]&&<small>{lookups[edition.id].found?(lookups[edition.id].pageCount?'Open Library proposes '+lookups[edition.id].pageCount+' pages':'No page count available from Open Library'):'ISBN not found in Open Library'}{lookups[edition.id].publisher?' · '+lookups[edition.id].publisher:''}{lookups[edition.id].publicationDate?' · '+lookups[edition.id].publicationDate:''}</small>}
-   </div><button type="button" disabled={!isbnFor(edition.id)||lookupBusy!==''||edition.pageCount!==null} onClick={()=>void lookupEdition(edition.id)}>{lookupBusy===edition.id?'Looking up…':'Check Open Library'}</button>
+    {lookups[edition.id]&&(lookups[edition.id].found?<div className="cs-enrichment-comparison" aria-label="Open Library comparison">
+     <small>Page count: <strong>{comparison(edition.pageCount,lookups[edition.id].pageCount)}</strong> · Open Library {lookups[edition.id].pageCount??'not supplied'}</small>
+     <small>Publisher: <strong>{comparison(editionEvents(edition.id)[0]?.publisher,lookups[edition.id].publisher)}</strong> · Open Library {lookups[edition.id].publisher||'not supplied'}</small>
+     <small>Publication date: <strong>{comparison(editionEvents(edition.id)[0]?.date,lookups[edition.id].publicationDate)}</strong> · Open Library {lookups[edition.id].publicationDate||'not supplied'}</small>
+     <small>These source observations are not verified replacements. Publication dates may have different precision.</small>
+    </div>:<small>ISBN not found in Open Library</small>)}
+   </div><button type="button" disabled={!isbnFor(edition.id)||lookupBusy!==''} onClick={()=>void lookupEdition(edition.id)}>{lookupBusy===edition.id?'Looking up…':'Check Open Library'}</button>
   </div>)}</div>}
   <label>Choose reviewed evidence file
    <input type="file" accept=".json,application/json" onChange={e=>{void loadFile(e.currentTarget.files?.[0]);e.currentTarget.value=''}}/>
