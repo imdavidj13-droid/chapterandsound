@@ -47,7 +47,9 @@ function useHomeRecords(member:HomeMember):HomeRecords{
  return state;
 }
 function Cover({url,title}:{url?:string|null;title:string}){
- return <div className="dual-home-cover">{url?<img loading="lazy" src={url} alt={'Cover of '+title}/>:<span className="dual-home-cover-placeholder" aria-label="Cover not available">C<span>&amp;</span>S</span>}</div>;
+ const [failed,setFailed]=useState(false);
+ useEffect(()=>{setFailed(false)},[url]);
+ return <div className="dual-home-cover">{url&&!failed?<img loading="lazy" src={url} referrerPolicy="no-referrer" alt={'Cover of '+title} onError={()=>setFailed(true)}/>:<span className="dual-home-cover-placeholder" aria-label="Cover not available">C<span>&amp;</span>S</span>}</div>;
 }
 function LinkedBook({book}:{book:HomeBook}){
  return <article className="dual-book-pick"><a href={href(book.id)}><Cover url={book.coverUrl} title={book.title}/></a><div className="dual-book-pick-copy"><h3><a href={href(book.id)}>{book.title}</a></h3><p>{book.author||'Author not confirmed'}</p><a href={href(book.id)} className="dual-text-link">Explore editions →</a></div></article>;
