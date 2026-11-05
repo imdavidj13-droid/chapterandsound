@@ -44,7 +44,6 @@ export function prepareFiveBookDrafts(input){
   candidates.push({sourceId:'openlibrary',sourceKey:book.workSourceKey,
    workSourceKey:book.workSourceKey,title,author:book.author,
    authorSourceKeys:book.authorSourceKeys,
-   ...(str(book.description)?{description:book.description}:{}),
    ...(Array.isArray(book.subjects)?{subjects:book.subjects}:{}),
    ...(str(book.originalLanguage)?{originalLanguage:book.originalLanguage}:{}),
    ...(date(book.firstPublicationDate)?{firstPublicationDate:date(book.firstPublicationDate)}:{}),
