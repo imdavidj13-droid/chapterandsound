@@ -379,7 +379,8 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
     if(!eligible.length)return fail('No eligible ISBN-identified non-audio editions are available for publication.',409);
     if(editionRows.some(e=>e.status!=='published')){
      if(body.publishReviewedEditions!==true)return fail('Explicit review confirmation is required before making identified editions public.',409);
-     if(eligible.length!==editionRows.length)return fail('Some editions lack a known format or valid ISBN. Review or quarantine them before publishing.',409);
+     if(eligible.length!==editionRows.length||editionRows.some(e=>!['draft','published'].includes(e.status)))
+      return fail('Some editions lack a known format, valid ISBN, or eligible publication state. Review or quarantine them before publishing.',409);
      editionIdsToPublish=eligible.filter(e=>e.status!=='published').map(e=>e.id);
     }
    }
