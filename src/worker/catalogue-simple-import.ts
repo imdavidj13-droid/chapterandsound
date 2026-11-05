@@ -318,8 +318,11 @@ export async function importSimpleBook(db:SimpleCatalogueDB,key:string,expectedI
  const existing=titles.results.filter(x=>norm(x.title)===norm(book.title));
  if(existing.length>1)throw Error('Multiple matching works already exist; resolve these before importing.');
  if(existing.length===1)return {created:false,id:existing[0]!.id,status:'already_in_catalogue'};
- if(!book.coverUrl||!book.coverKind||!await availableCover(book.coverUrl))
-  throw Error('No verified cover image is available for this book. Nothing was imported. Choose another result with a cover.');
+ // Artwork is not required to create a PRIVATE draft. We never persist
+ // an unverified Google Books thumbnail as a canonical edition cover.
+ // Any work-level cover link still requires a fresh image check before writing.
+ const workCoverValid=book.coverKind==='work'&&Boolean(book.coverUrl)&&
+  await availableCover(book.coverUrl);
 
  const pub=await db.prepare("SELECT organisation_id AS id FROM publishers p JOIN organisations o ON o.id=p.organisation_id WHERE lower(o.name)=lower(?) LIMIT 2").bind(book.publisher).all<{id:string}>();
  if(pub.results.length>1)throw Error('Multiple publisher identities matched; review required.');
@@ -333,7 +336,7 @@ export async function importSimpleBook(db:SimpleCatalogueDB,key:string,expectedI
  }
  if(!scheme)stmts.push(db.prepare("INSERT INTO identifier_schemes(id,code,entity_scope,uniqueness_scope) VALUES(?,'ISBN13','edition','global')").bind(schemeId));
  stmts.push(db.prepare("INSERT INTO works(id,canonical_title,status) VALUES(?,?,'draft')").bind(workId,book.title));
- if(book.coverKind==='work'){
+ if(workCoverValid){
   if(!book.coverWorkKey||!book.coverId)throw Error('Representative cover identity missing; nothing was imported.');
   // Idempotently provision only the additive cover table when an owner actually imports matching book art.
   // The canonical 0006 migration uses this exact schema, without modifying existing books.
@@ -352,7 +355,7 @@ export async function importSimpleBook(db:SimpleCatalogueDB,key:string,expectedI
  stmts.push(db.prepare("INSERT INTO entity_identifiers(id,scheme_id,entity_kind,entity_id,value,normalized_value) VALUES(?,?,'edition',?,?,?)").bind(uuid(),schemeId,editionId,code,code));
  stmts.push(db.prepare("INSERT INTO publication_events(id,edition_id,event_type,date_value,publisher_id) VALUES(?,?,'released',?,?)").bind(uuid(),editionId,book.publishedDate,publisherId));
  stmts.push(db.prepare("INSERT INTO text_content(id,entity_kind,entity_id,content_type,body,visibility) VALUES(?,'work',?,'synopsis',?,'private')").bind(uuid(),workId,selectedSynopsis));
- stmts.push(db.prepare("INSERT INTO catalogue_audit_log(id,actor_external_id,action,target_kind,target_id,details_json) VALUES(?,?,'simple_import','work',?,?)").bind(uuid(),actor,workId,JSON.stringify({source:book.source,sourceUrl:book.sourceUrl,synopsisSource:ownSynopsis?'admin_original':book.synopsisSource,isbn13:code,language:book.language,format:selectedFormat,formatReviewed:book.format==='unknown',coverSource:book.coverKind,coverUrl:book.coverUrl,rightsReviewRequired:true})));
+ stmts.push(db.prepare("INSERT INTO catalogue_audit_log(id,actor_external_id,action,target_kind,target_id,details_json) VALUES(?,?,'simple_import','work',?,?)").bind(uuid(),actor,workId,JSON.stringify({source:book.source,sourceUrl:book.sourceUrl,synopsisSource:ownSynopsis?'admin_original':book.synopsisSource,isbn13:code,language:book.language,format:selectedFormat,formatReviewed:book.format==='unknown',coverSource:workCoverValid?'work':book.coverKind==='edition'?'edition':null,coverUrl:workCoverValid||book.coverKind==='edition'?book.coverUrl:null,coverReviewRequired:!workCoverValid&&book.coverKind!=='edition',rightsReviewRequired:true})));
  try{await db.batch(stmts)}catch(e){throw Error('Import could not be completed. The database may already contain this edition; refresh before retrying.')}
  return {created:true,id:workId,editionId,status:'draft'};
 }
