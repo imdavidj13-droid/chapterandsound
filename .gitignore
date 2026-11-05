@@ -6,3 +6,9 @@ dist/
 coverage/
 reports/*.json
 .DS_Store
+
+# Private Open Library dump preparation, reports, backups and raw sources
+.private-catalogue-*/
+.private-catalogue-*.json
+catalogue-dumps/
+*.txt.gz
