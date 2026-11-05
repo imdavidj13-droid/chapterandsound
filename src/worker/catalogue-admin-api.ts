@@ -101,7 +101,7 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
    const data=fields(JSON.parse(raw));
    if(!data||data.confirmed!==true)return fail('Choose a book to import',400);
    const result=await importSimpleBook(db,str(data.key,120),str(data.isbn13,30),
-    env.ADMIN_EMAIL||'catalogue-admin',session.user.id,env.GOOGLE_BOOKS_API_KEY,str(data.originalSynopsis,8000));
+    env.ADMIN_EMAIL||'catalogue-admin',session.user.id,env.GOOGLE_BOOKS_API_KEY,str(data.originalSynopsis,8000),str(data.reviewedFormat,30));
    return json(result,result.created?201:200);
   }catch(e){return fail(e instanceof Error?e.message:'Book import unavailable',409)}
  }
