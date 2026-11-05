@@ -47,3 +47,21 @@ test('publisher field cannot imply format, even when ISBN is missing',()=>{
  assert.equal(result.queue.queue[0].researchRoute,'exact_isbn_publisher_or_national_bibliography');
  assert.equal(result.queue.queue[1].researchRoute,'edition_identity_no_isbn');
 });
+
+test('keeps valid source-qualified audiobook editions and prevents source-key collisions',()=>{
+ const input=fixture();
+ input.candidates[0]!.editions.push({
+  sourceKey:'storytel:isbn13:9781407426464',isbn13:'9781407426464',
+  format:'audiobook',fieldProvenance:{}
+ });
+ const result=consolidatePilot(input,[batch([fact])]);
+ assert.equal(result.report.totals.editions,11);
+ assert.equal(result.report.totals.knownFormats,2);
+ assert.equal(result.manifest.candidates[0].editions[1].sourceKey,'storytel:isbn13:9781407426464');
+ const duplicate=structuredClone(input);
+ duplicate.candidates[1]!.editions.push({
+  sourceKey:'storytel:isbn13:9781407426464',isbn13:null,
+  format:'audiobook',fieldProvenance:{}
+ });
+ assert.throws(()=>consolidatePilot(duplicate,[batch([])]),/duplicate edition source key/);
+});
