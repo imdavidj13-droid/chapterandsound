@@ -49,6 +49,21 @@ export function CatalogueImportCentre(){
   }catch(e){setError(e instanceof Error?e.message:'Could not enrich this work')}
   finally{setEnriching(null)}
  }
+ async function loadJsonFile(file:File|undefined){
+  if(!file)return;
+  setError('');
+  if(file.size>300000){setError('JSON file is too large (maximum 300 KB).');return}
+  try{
+   const raw=await file.text();
+   const parsed:unknown=JSON.parse(raw);
+   if(!parsed||typeof parsed!=='object'||!('candidates' in parsed)||
+      !Array.isArray(parsed.candidates)||parsed.candidates.length<1||parsed.candidates.length>10)
+    throw Error('Expected a JSON file with 1–10 candidates.');
+   setInput(JSON.stringify({candidates:parsed.candidates},null,2));
+   setResult(null);setDraftResult(null);setDraftConfirmed(false);setSelectedAuthors({});
+   setLookupNotice(parsed.candidates.length+' books loaded from file. Click Preview batch below.');
+  }catch(e){setError(e instanceof Error?e.message:'Unable to read JSON file')}
+ }
  async function check(){
   setLoading(true);setError('');setResult(null);setDraftResult(null);setDraftConfirmed(false);
   try{
@@ -96,6 +111,13 @@ export function CatalogueImportCentre(){
     </button>
    </div>)}
   </div>}
+  <div className="cs-import-file-load">
+   <label>Load a prepared book batch from your computer
+    <input type="file" accept=".json,application/json" aria-label="Choose catalogue JSON file"
+     onChange={e=>{const file=e.currentTarget.files?.[0];void loadJsonFile(file);e.currentTarget.value=''}}/>
+   </label>
+   <p>Select <strong>five-books-import-centre.json</strong> to load the five Simon Kernick books without using the clipboard.</p>
+  </div>
   <p className="cs-import-help">Paste a JSON manifest with a <code>candidates</code> array. Each candidate needs a title and author. ISBN, source ID, source key, format and publication date are optional. The example is fictional and will not be imported.</p>
   <textarea spellCheck={false} value={input} onChange={e=>{setInput(e.target.value);setResult(null);setDraftResult(null);setDraftConfirmed(false);setSelectedAuthors({})}} rows={12} aria-label="Import candidate JSON" placeholder={example}/>
   <div className="cs-import-actions"><button type="button" className="primary" disabled={!input.trim()||loading} onClick={()=>void check()}>{loading?'Checking against BOOK_DB…':'Preview batch'}</button>
