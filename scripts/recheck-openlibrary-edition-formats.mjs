@@ -21,11 +21,11 @@ export function evaluate(book,edition,raw){
  const known=[edition.isbn13,edition.isbn10].filter(Boolean);
  const actual=[...(raw.isbn_13||[]),...(raw.isbn_10||[])];
  if(known.length&&!known.some(v=>actual.includes(v)))return {status:'isbn_mismatch'};
- const expected=norm(book.title),observed=norm(raw.title);
- const articleVariant=expected.startsWith('the ')&&expected.slice(4)===observed;
+ const expected=norm(book.title),observedTitle=norm(raw.title);
+ const articleVariant=expected.startsWith('the ')&&expected.slice(4)===observedTitle;
  const workVerified=keys.some(k=>(book.sourceWorkKeys||[book.workSourceKey]).includes(k));
  const isbnVerified=known.length>0&&known.some(v=>actual.includes(v));
- if(expected!==observed&&!observed.startsWith(expected+' ')&&!(articleVariant&&workVerified&&isbnVerified))
+ if(expected!==observedTitle&&!observedTitle.startsWith(expected+' ')&&!(articleVariant&&workVerified&&isbnVerified))
   return {status:'title_mismatch'};
 
  const found=parseFormat(raw.physical_format);
