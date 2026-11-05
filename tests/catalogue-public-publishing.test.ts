@@ -19,6 +19,8 @@ function seededCatalogue(){
  insert("INSERT INTO contributions(id,person_id,work_id,role_code) VALUES('published-credit','canonical-author','published-work','author')");
  insert("INSERT INTO contributions(id,person_id,work_id,role_code) VALUES('draft-credit','draft-only-author','draft-work','author')");
  insert("INSERT INTO editions(id,work_id,format,publication_status) VALUES('published-ebook','published-work','ebook','published')");
+ insert("INSERT INTO identifier_schemes(id,code,entity_scope,uniqueness_scope) VALUES('isbn-scheme','ISBN13','edition','global')");
+ insert("INSERT INTO entity_identifiers(id,scheme_id,entity_kind,entity_id,value,normalized_value) VALUES('published-isbn','isbn-scheme','edition','published-ebook','9780306406157','9780306406157')");
  insert("INSERT INTO editions(id,work_id,format,publication_status) VALUES('unapproved-paperback','published-work','paperback','draft')");
  insert("INSERT INTO editions(id,work_id,format) VALUES('draft-ebook','draft-work','ebook')");
  insert("INSERT INTO text_content(id,entity_kind,entity_id,content_type,body,visibility) VALUES('public-description','work','published-work','synopsis','Public book synopsis','public')");
@@ -49,11 +51,13 @@ test('published book appears in search, detail page, and canonical author biblio
   assert.equal(list.items[0]?.author,'Simon Kernick');
   assert.equal(list.items[0]?.authorId,'canonical-author');
   assert.deepEqual(list.items[0]?.formats,['ebook']);
-  const detail=await f.get<{book:{id:string;authorId:string;summary:string};editions:{id:string}[]}>('book/published-work');
+  const detail=await f.get<{book:{id:string;authorId:string;summary:string;coverUrl:string|null};editions:{id:string;coverUrl:string|null}[]}>('book/published-work');
   assert.equal(detail.book.id,'published-work');
   assert.equal(detail.book.authorId,'canonical-author');
   assert.equal(detail.book.summary,'Public book synopsis');
   assert.deepEqual(detail.editions.map(x=>x.id),['published-ebook']);
+  assert.equal(detail.book.coverUrl,'https://covers.openlibrary.org/b/isbn/9780306406157-L.jpg?default=false');
+  assert.equal(detail.editions[0]?.coverUrl,'https://covers.openlibrary.org/b/isbn/9780306406157-L.jpg?default=false');
   assert.deepEqual(list.items[0]?.formats,['ebook']);
   const profile=await f.get<{person:{id:string};works:{id:string}[]}>('person/canonical-author');
   assert.equal(profile.person.id,'canonical-author');
