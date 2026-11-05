@@ -53,7 +53,7 @@ function mockSources(withOpenDescription=true){
 test('one-click importer saves one work, author, exact ISBN edition and private synopsis; retry never duplicates',async()=>{
  const f=fixture(),restore=mockSources();
  try{
-  const result=await importSimpleBook(f.conn,'g:abc123',code,'catalogue-admin','owner');
+  const result=await importSimpleBook(f.conn,'g:abc123',code,'catalogue-admin','owner',undefined,undefined,'paperback');
   assert.equal(result.created,true);
   assert.equal(result.status,'draft');
   assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM works').get()?.count,1);
@@ -65,7 +65,7 @@ test('one-click importer saves one work, author, exact ISBN edition and private 
   assert.equal(f.sqlite.prepare("SELECT body,visibility FROM text_content").get()?.visibility,'private');
   assert.equal(f.sqlite.prepare("SELECT normalized_value FROM entity_identifiers").get()?.normalized_value,code);
   assert.equal(f.sqlite.prepare("SELECT COUNT(*) AS count FROM publication_events").get()?.count,1);
-  const again=await importSimpleBook(f.conn,'g:abc123',code,'catalogue-admin','owner');
+  const again=await importSimpleBook(f.conn,'g:abc123',code,'catalogue-admin','owner',undefined,undefined,'paperback');
   assert.equal(again.created,false);
   assert.equal(again.id,result.id);
   assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM works').get()?.count,1);
@@ -80,7 +80,7 @@ test('does not permanently copy a Google Books description without an independen
   await assert.rejects(importSimpleBook(f.conn,'g:abc123',code,'catalogue-admin','owner'),/authorised synopsis/);
   assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM works').get()?.count,0);
   const saved=await importSimpleBook(f.conn,'g:abc123',code,'catalogue-admin','owner',undefined,
-   'An original test synopsis supplied by the catalogue administrator.');
+   'An original test synopsis supplied by the catalogue administrator.','paperback');
   assert.equal(saved.created,true);
   assert.match(String(f.sqlite.prepare('SELECT body FROM text_content').get()?.body),/original test synopsis/);
  }finally{restore();f.close()}
@@ -132,4 +132,26 @@ test('Open Library work artwork does not get reused for a different chosen ISBN 
   assert.equal(book.coverUrl,'https://covers.openlibrary.org/b/isbn/'+code+'-L.jpg?default=false');
   assert.equal(book.language,'en');
  }finally{globalThis.fetch=original}
+});
+
+test('unknown edition format cannot be saved without explicit reviewed format; approved correction is publishable',async()=>{
+ const f=fixture(),restore=mockSources();
+ try{
+  await assert.rejects(
+   importSimpleBook(f.conn,'g:abc123',code,'catalogue-admin','owner'),
+   /Choose a verified paperback, hardback or ebook format/);
+  assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM works').get()?.count,0);
+  const result=await importSimpleBook(f.conn,'g:abc123',code,'catalogue-admin','owner',undefined,undefined,'paperback');
+  assert.equal(result.created,true);
+  assert.equal(f.sqlite.prepare('SELECT format FROM editions').get()?.format,'paperback');
+ }finally{restore();f.close()}
+});
+test('import rejects arbitrary or conflicting format overrides',async()=>{
+ const f=fixture(),restore=mockSources();
+ try{
+  await assert.rejects(
+   importSimpleBook(f.conn,'g:abc123',code,'catalogue-admin','owner',undefined,undefined,'audiobook'),
+   /Format selection conflicts/);
+  assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM works').get()?.count,0);
+ }finally{restore();f.close()}
 });
