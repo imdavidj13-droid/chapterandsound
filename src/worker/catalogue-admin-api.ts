@@ -96,7 +96,7 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
  if(path==='simple-import/add'&&request.method==='POST'){
   try{
    const raw=await request.text();
-   if(raw.length>3000)return fail('Request too large',413);
+   if(raw.length>13000)return fail('Request too large',413);
    const data=fields(JSON.parse(raw));
    if(!data||data.confirmed!==true)return fail('Choose a book to import',400);
    const result=await importSimpleBook(db,str(data.key,120),str(data.isbn13,30),
