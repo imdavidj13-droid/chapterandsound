@@ -31,3 +31,12 @@ test('saved book editor supports publication audit and never auto-publishes a ne
  assert.match(api,/INSERT INTO works\(id,canonical_title,work_type,original_language,first_publication_date,status\)/);
  assert.match(workbench,/changePublication\('published'\)/);
 });
+
+test('publishing and returning drafts use the themed accessible confirmation instead of native browser dialogs',()=>{
+ assert.doesNotMatch(workbench,/window\.confirm\(/);
+ assert.match(workbench,/role="alertdialog"/);
+ assert.match(workbench,/aria-modal="true"/);
+ assert.match(workbench,/setPublicationConfirmation\('published'\)/);
+ assert.match(workbench,/setPublicationConfirmation\('draft'\)/);
+ assert.match(workbench,/onClick=\{\(\)=>void changePublication\(publicationConfirmation\)\}/);
+});
