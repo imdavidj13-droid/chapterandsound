@@ -207,3 +207,77 @@ test('known book-level artwork is retained separately when the selected ISBN has
   assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM media_links').get()?.count,0);
  }finally{globalThis.fetch=restore;f.close()}
 });
+
+test('author search requests ISBNdb only once for multiple returned books',async()=>{
+ const original=globalThis.fetch;
+ let isbnDbCalls=0;
+ globalThis.fetch=async(input:RequestInfo|URL,init?:RequestInit)=>{
+  const address=String(input);
+  if(address.includes('api2.isbndb.com/books/')){
+   isbnDbCalls++;
+   assert.equal((init?.headers as Record<string,string>).Authorization,'TEST_KEY');
+   assert.ok(address.includes('pageSize=20'));
+   return Response.json({total:25,books:[
+    {isbn13:code,title:'Relentless',authors:['Simon Kernick'],binding:'Paperback',language:'en'},
+    {isbn13:'9781408855652',title:'Another book',authors:['Simon Kernick'],binding:'Hardback',language:'en'}
+   ]});
+  }
+  if(address.includes('googleapis.com'))return Response.json({items:[]});
+  if(address.includes('openlibrary.org/search.json'))return Response.json({docs:[]});
+  return new Response('not found',{status:404});
+ };
+ try{
+  const result=await findSimpleBooks('Simon Kernick','catalogue-admin',undefined,'TEST_KEY');
+  assert.equal(isbnDbCalls,1);
+  assert.equal(result.sources.isbnDb,'matched');
+  assert.equal(result.items.length,2);
+  assert.equal(result.items[0]?.source,'ISBNdb');
+  assert.ok(result.items.every(item=>item.coverUrl===null));
+ }finally{globalThis.fetch=original}
+});
+test('search merges matching ISBNs without duplicating Google and ISBNdb editions',async()=>{
+ const original=globalThis.fetch;
+ let isbnDbCalls=0;
+ globalThis.fetch=async(input:RequestInfo|URL)=>{
+  const address=String(input);
+  if(address.includes('api2.isbndb.com/books/')){
+   isbnDbCalls++;
+   return Response.json({total:1,books:[{isbn13:code,title:'Relentless',authors:['Simon Kernick']}]});
+  }
+  if(address.includes('googleapis.com'))return Response.json({items:[{id:'abc123',volumeInfo:{
+   title:'Relentless',authors:['Simon Kernick'],industryIdentifiers:[{type:'ISBN_13',identifier:code}]
+  }}]});
+  if(address.includes('openlibrary.org/search.json'))return Response.json({docs:[]});
+  return new Response('not found',{status:404});
+ };
+ try{
+  const result=await findSimpleBooks('Simon Kernick','catalogue-admin',undefined,'TEST_KEY');
+  assert.equal(isbnDbCalls,1);
+  assert.equal(result.items.filter(item=>item.isbn13===code).length,1);
+  assert.equal(result.items[0]?.source,'Google Books');
+ }finally{globalThis.fetch=original}
+});
+test('ISBNdb-only results are research-only and cannot write catalogue data',async()=>{
+ const f=fixture();
+ try{
+  await assert.rejects(importSimpleBook(f.conn,'i:'+code,code,'catalogue-admin','owner'),/research-only/);
+  assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM works').get()?.count,0);
+  assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM editions').get()?.count,0);
+ }finally{f.close()}
+});
+test('ISBNdb failure does not block Google Books search',async()=>{
+ const original=globalThis.fetch;
+ globalThis.fetch=async(input:RequestInfo|URL)=>{
+  const address=String(input);
+  if(address.includes('api2.isbndb.com/books/'))return new Response('',{status:429});
+  if(address.includes('googleapis.com'))return Response.json({items:[{id:'abc123',volumeInfo:{
+   title:'Relentless',authors:['Simon Kernick'],industryIdentifiers:[{type:'ISBN_13',identifier:code}]
+  }}]});
+  return Response.json({docs:[]});
+ };
+ try{
+  const result=await findSimpleBooks('Simon Kernick','catalogue-admin',undefined,'TEST_KEY');
+  assert.equal(result.sources.isbnDb,'rate_limited');
+  assert.equal(result.items[0]?.source,'Google Books');
+ }finally{globalThis.fetch=original}
+});
