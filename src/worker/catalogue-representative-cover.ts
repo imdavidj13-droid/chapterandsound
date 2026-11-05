@@ -1,7 +1,7 @@
 /** Owner-only curated representative artwork, independent of ISBN edition covers. */
 interface Stmt{bind(...v:(string|number|null)[]):Stmt;first<T>():Promise<T|null>;all<T>():Promise<{results:T[]}>;run():Promise<unknown>}
 export interface CoverDB{prepare(sql:string):Stmt;batch(statements:Stmt[]):Promise<unknown[]>}
-const clean=(s:string)=>s.normalize('NFKC').toLocaleLowerCase('en-GB').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+const clean=(s:string)=>s.normalize('NFKC').toLocaleLowerCase('en-GB').replace(/[^a-z0-9]+/gi,' ').trim();
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
 const fail=(msg:string,status=400)=>json({error:msg},status);
 type Candidate={workKey:string;coverId:number;title:string;author:string;url:string};
