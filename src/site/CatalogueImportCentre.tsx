@@ -30,7 +30,7 @@ export function CatalogueImportCentre(){
    setItems(found.items);
    setSourceStatus([found.sources.google==='unavailable'?'Google Books unavailable':'',
     found.sources.openLibrary==='unavailable'?'Open Library unavailable':'',
-    found.sources.isbnDb==='unavailable'?'ISBNdb unavailable':''].filter(Boolean).join(' · '));
+    found.sources.isbnDb==='unavailable'?'ISBNdb unavailable':found.sources.isbnDb==='rate_limited'?'ISBNdb rate-limited; other sources still available':''].filter(Boolean).join(' · '));
    if(found.items.length===0)setNotice('No matching titles were found. Try an exact ISBN or a more specific book title.');
   }catch(e){setError(e instanceof Error?e.message:'Book search failed')}
   finally{setBusy(false)}
@@ -67,7 +67,7 @@ export function CatalogueImportCentre(){
   <div className="cs-simple-import-heading">
    <p className="cs-admin-eyebrow">CHAPTER &amp; SOUND · CATALOGUE</p>
    <h3>Find and add a book</h3>
-   <p>Search by book title, author or ISBN. English editions appear first when their language is known. Choose a result to import its details and one ISBN-identified edition.</p>
+   <p>Search by book title, author or ISBN. ISBNdb searches return multiple matching editions per request. English editions appear first when their language is known. ISBNdb-only results are research-only until rights checks are complete.</p>
   </div>
   <form className="cs-simple-import-search" onSubmit={e=>{e.preventDefault();void search()}}>
    <label htmlFor="cs-simple-query">Book title, author or ISBN</label>
