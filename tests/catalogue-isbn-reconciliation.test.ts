@@ -105,3 +105,42 @@ test('distinguishes an empty Google Books search from unmatched ISBN responses',
  assert.equal(result.sourceDiagnostics.ISBNdb,'transport_error');
  assert.equal(result.canImport,false);
 });
+
+test('year-only and exact-day claims remain compatible without inventing date precision',async()=>{
+ const olDate:typeof fetch=async input=>{
+  if(String(input).includes('openlibrary.org/isbn/'))return Response.json({
+   title:'Relentless',isbn_13:[isbn],publishers:['Corgi'],
+   publish_date:'2007-01-01'
+  });
+  if(String(input).includes('googleapis.com'))return Response.json({totalItems:0});
+  return new Response('',{status:404});
+ };
+ const result=await resolveISBNClaims(isbn,{fetchImpl:olDate,lookupIsbndb:lookup});
+ assert.equal(result.status,'ready_for_review');
+ assert.equal(result.fields.publishedDate.value,'2007');
+ assert.equal(result.fields.publishedDate.conflict,false);
+ assert.deepEqual(result.fields.publishedDate.claims.map(c=>c.value),['2007','2007-01-01']);
+ assert.equal(result.canImport,false);
+});
+test('contradictory months remain genuine publication-date conflicts',async()=>{
+ const dated:typeof fetch=async input=>{
+  if(String(input).includes('openlibrary.org/isbn/'))return Response.json({
+   title:'Relentless',isbn_13:[isbn],publish_date:'2007-02-01'
+  });
+  return Response.json({totalItems:0});
+ };
+ const specific=async():Promise<ISBNdbLookup>=>({...matched,edition:{...matched.edition,publishedDate:'2007-01'}});
+ const result=await resolveISBNClaims(isbn,{fetchImpl:dated,lookupIsbndb:specific});
+ assert.equal(result.status,'conflict');
+ assert.ok(result.conflicts.includes('publishedDate'));
+});
+test('different publication years remain genuine conflicts',async()=>{
+ const dated:typeof fetch=async input=>{
+  if(String(input).includes('openlibrary.org/isbn/'))return Response.json({
+   title:'Relentless',isbn_13:[isbn],publish_date:'2008'
+  });
+  return Response.json({totalItems:0});
+ };
+ const result=await resolveISBNClaims(isbn,{fetchImpl:dated,lookupIsbndb:lookup});
+ assert.ok(result.conflicts.includes('publishedDate'));
+});
