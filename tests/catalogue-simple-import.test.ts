@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
 import {readFileSync,readdirSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
-import {getSimpleBook,importSimpleBook,findSimpleBooks} from '../src/worker/catalogue-simple-import';
+import {getSimpleBook,importSimpleBook,findSimpleBooks,googlePreviewCover} from '../src/worker/catalogue-simple-import';
 
 const code='9780552156905';
 function fixture(){
@@ -302,5 +302,28 @@ test('safe search diagnostics expose ISBNdb counts and deduplicated editions',as
   assert.equal(result.diagnostics.googleCandidates,1);
   assert.equal(result.diagnostics.openLibraryCandidates,0);
   assert.equal(result.items.filter(x=>x.isbn13===code).length,1);
+ }finally{globalThis.fetch=original}
+});
+
+test('Google preview thumbnails are https and restricted to provider-owned hosts',()=>{
+ assert.equal(googlePreviewCover('http://books.google.com/books/content?id=abc'),'https://books.google.com/books/content?id=abc');
+ assert.equal(googlePreviewCover('https://evil.example/cover.png'),null);
+ assert.equal(googlePreviewCover('javascript:alert(1)'),null);
+});
+test('search exposes Google artwork for display without marking it as verified edition art',async()=>{
+ const original=globalThis.fetch;
+ globalThis.fetch=async(input:RequestInfo|URL)=>{
+  if(String(input).includes('googleapis.com'))return Response.json({items:[{
+   id:'cover-test',volumeInfo:{title:'Relentless',authors:['Simon Kernick'],
+    industryIdentifiers:[{type:'ISBN_13',identifier:code}],
+    imageLinks:{thumbnail:'http://books.google.com/books/content?id=cover-test'}
+   }
+  }]});
+  return Response.json({docs:[]});
+ };
+ try{
+  const results=await findSimpleBooks('Relentless','catalogue-admin');
+  assert.equal(results.items[0]?.previewCoverUrl,'https://books.google.com/books/content?id=cover-test');
+  assert.equal(results.items[0]?.coverUrl,'https://covers.openlibrary.org/b/isbn/'+code+'-L.jpg?default=false');
  }finally{globalThis.fetch=original}
 });
