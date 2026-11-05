@@ -38,6 +38,7 @@ interface Env {
   ADMIN_EMAIL?:string;
   GOOGLE_BOOKS_API_KEY?:string;
   ISBNDB_API_KEY?:string;
+  CATALOGUE_WORK_ONLY_IMPORT_ENABLED?:string;
   SIGNUP_MODE?:string;
 }
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
@@ -233,6 +234,8 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
    payload=fields(JSON.parse(body));
   }catch{return fail('Provide valid work-only candidate JSON')}
   if(!payload)return fail('Provide a work-only candidate');
+  if(path==='import/work-only/drafts'&&env.CATALOGUE_WORK_ONLY_IMPORT_ENABLED!=='true')
+   return fail('Work-only production imports are disabled until database validation is complete.',503);
   if(path==='import/work-only/drafts'&&payload.confirmed!==true)
    return fail('Explicit work-only draft confirmation is required',409);
   try{
