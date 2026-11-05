@@ -22,6 +22,7 @@ export type BookSuggestion={
 export type BookDetail=BookSuggestion&{
  synopsis:string|null;synopsisSource:'Open Library'|'Google Books'|null;
  format:string;complete:boolean;missing:string[];sourceUrl:string;
+ coverKind:'edition'|'work'|null;coverWorkKey:string|null;coverId:number|null;
 };
 const str=(v:unknown,max=500)=>typeof v==='string'?v.trim().slice(0,max):'';
 const isbn=(v:unknown)=>str(v,30).replace(/[\s-]/g,'');
@@ -63,7 +64,7 @@ const formatOf=(v:unknown)=>{
 };
 const uuid=()=>crypto.randomUUID();
 const metadata=(d:BookDetail)=>{
- const missing=['title','author','isbn13','publisher','publishedDate','pages','synopsis']
+ const missing=['title','author','isbn13','publisher','publishedDate','pages','synopsis','coverUrl']
   .filter(k=>!d[k as keyof BookDetail]);
  return {...d,missing,complete:missing.length===0};
 };
@@ -108,6 +109,34 @@ function googleSuggestion(v:GVolume):BookSuggestion|null{
  * A work's representative artwork is not evidence for any individual edition.
  */
 const editionCover=(code:string|null)=>code?'https://covers.openlibrary.org/b/isbn/'+code+'-L.jpg?default=false':null;
+/** Verify the actual source-hosted image before offering it for import.
+ * A plausible ISBN URL is not proof that the image exists.
+ */
+async function availableCover(url:string|null):Promise<boolean>{
+ if(!url||!url.startsWith('https://covers.openlibrary.org/b/'))return false;
+ try{
+  const response=await fetch(url,{headers:{Accept:'image/jpeg,image/*'},
+   signal:AbortSignal.timeout(9000),redirect:'follow'});
+  const valid=response.ok&&(response.headers.get('content-type')||'').toLowerCase().startsWith('image/');
+  if(response.body)await response.body.cancel();
+  return valid;
+ }catch{return false}
+}
+async function representativeFor(workKey:string,title:string,author:string,contact:string){
+ if(!/^\/works\/OL\d+W$/.test(workKey)||!author)return null;
+ try{
+  const query=new URL('https://openlibrary.org/search.json');
+  query.searchParams.set('title',title);query.searchParams.set('author',author);
+  query.searchParams.set('fields','key,title,author_name,cover_i');query.searchParams.set('limit','20');
+  const response=await fetchJson<{docs?:OSearch[]}>(query.toString(),olAgent(contact));
+  const found=response.docs?.find(d=>d.key===workKey&&norm(d.title||'')===norm(title)&&
+   d.author_name?.some(name=>norm(name)===norm(author))&&Number.isSafeInteger(d.cover_i)&&Number(d.cover_i)>0);
+  if(!found?.cover_i)return null;
+  const url='https://covers.openlibrary.org/b/id/'+found.cover_i+'-L.jpg?default=false';
+  return await availableCover(url)?{coverUrl:url,coverWorkKey:workKey,coverId:found.cover_i}:null;
+ }catch{return null}
+}
+
 const olAgent=(contact:string)=>'ChapterAndSoundCatalogue/0.2 ('+contact+')';
 export async function findSimpleBooks(query:string,contact:string,googleKey?:string){
  const q=str(query,120);
@@ -165,8 +194,10 @@ export async function getSimpleBook(key:string,contact:string,googleKey?:string)
   const edition=ol?.edition;
   const desc=cleanDescription(edition?.description)||cleanDescription(ol?.work?.description);
   const googleDesc=cleanDescription(volume.volumeInfo?.description);
+  const coverUrl=editionCover(suggestion.isbn13);
+  const hasCover=await availableCover(coverUrl);
   return metadata({...suggestion,
-   coverUrl:editionCover(suggestion.isbn13),
+   coverUrl:hasCover?coverUrl:null,coverKind:hasCover?'edition':null,coverWorkKey:null,coverId:null,
    publisher:suggestion.publisher||str(edition?.publishers?.[0])||null,
    publishedDate:suggestion.publishedDate||date(edition?.publish_date),
    pages:suggestion.pages||pages(edition?.number_of_pages),
@@ -194,10 +225,15 @@ export async function getSimpleBook(key:string,contact:string,googleKey?:string)
    catch{}
   }
   if(!author)throw Error('This Open Library work has no confirmed author. Search the title in Google Books.');
+  const directCover=editionCover(code);
+  const editionHasCover=await availableCover(directCover);
+  const representative=editionHasCover?null:await representativeFor(wkey,str(work.title)||str(candidate.title),author,contact);
   return metadata({key,title:str(work.title)||str(candidate.title),author,isbn13:code,
+   coverKind:editionHasCover?'edition':representative?'work':null,
+   coverWorkKey:representative?.coverWorkKey||null,coverId:representative?.coverId||null,
    publisher:str(candidate.publishers?.[0])||null,publishedDate:date(candidate.publish_date),
    pages:pages(candidate.number_of_pages),language:language(candidate.languages?.[0]?.key),
-   coverUrl:editionCover(code),
+   coverUrl:editionHasCover?directCover:representative?.coverUrl||null,
    source:'Open Library',format:formatOf(candidate.physical_format),synopsis:desc,
    synopsisSource:desc?'Open Library':null,sourceUrl:'https://openlibrary.org'+wkey,complete:false,missing:[]});
  }
@@ -220,6 +256,8 @@ export async function importSimpleBook(db:SimpleCatalogueDB,key:string,expectedI
   throw Error('Choose a verified paperback, hardback or ebook format before importing.');
  if(!selectedSynopsis)
   throw Error('An original or authorised synopsis is required to import this book. Google Books descriptions are preview only.');
+ if(!book.coverUrl||!book.coverKind||!await availableCover(book.coverUrl))
+  throw Error('No verified cover image is available for this book. Nothing was imported. Choose another result with a cover.');
  const match=await db.prepare("SELECT i.entity_id AS editionId,e.work_id AS workId FROM entity_identifiers i JOIN identifier_schemes s ON s.id=i.scheme_id JOIN editions e ON e.id=i.entity_id WHERE s.code='ISBN13' AND i.normalized_value=? AND i.entity_kind='edition' LIMIT 2").bind(code).all<{editionId:string;workId:string}>();
  if(match.results.length>1)throw Error('Multiple editions already use this ISBN. Resolve the catalogue identity first.');
  if(match.results.length===1)return {created:false,id:match.results[0]!.workId,status:'already_in_catalogue',editionId:match.results[0]!.editionId};
@@ -243,12 +281,18 @@ export async function importSimpleBook(db:SimpleCatalogueDB,key:string,expectedI
  }
  if(!scheme)stmts.push(db.prepare("INSERT INTO identifier_schemes(id,code,entity_scope,uniqueness_scope) VALUES(?,'ISBN13','edition','global')").bind(schemeId));
  stmts.push(db.prepare("INSERT INTO works(id,canonical_title,status) VALUES(?,?,'draft')").bind(workId,book.title));
+ if(book.coverKind==='work'){
+  if(!book.coverWorkKey||!book.coverId)throw Error('Representative cover identity missing; nothing was imported.');
+  // Existing canonical work identity is refetched during this import. Never assign a different work's art.
+  stmts.push(db.prepare("INSERT INTO work_representative_covers(work_id,openlibrary_work_key,openlibrary_cover_id,chosen_by) VALUES(?,?,?,?)")
+   .bind(workId,book.coverWorkKey,book.coverId,actor));
+ }
  stmts.push(db.prepare("INSERT INTO contributions(id,person_id,work_id,role_code) VALUES(?,?,?,'author')").bind(uuid(),authorId,workId));
  stmts.push(db.prepare("INSERT INTO editions(id,work_id,format,page_count,language,publication_status,verification_status) VALUES(?,?,?,?,?,'draft','needs_review')").bind(editionId,workId,selectedFormat,book.pages,book.language));
  stmts.push(db.prepare("INSERT INTO entity_identifiers(id,scheme_id,entity_kind,entity_id,value,normalized_value) VALUES(?,?,'edition',?,?,?)").bind(uuid(),schemeId,editionId,code,code));
  stmts.push(db.prepare("INSERT INTO publication_events(id,edition_id,event_type,date_value,publisher_id) VALUES(?,?,'released',?,?)").bind(uuid(),editionId,book.publishedDate,publisherId));
  stmts.push(db.prepare("INSERT INTO text_content(id,entity_kind,entity_id,content_type,body,visibility) VALUES(?,'work',?,'synopsis',?,'private')").bind(uuid(),workId,selectedSynopsis));
- stmts.push(db.prepare("INSERT INTO catalogue_audit_log(id,actor_external_id,action,target_kind,target_id,details_json) VALUES(?,?,'simple_import','work',?,?)").bind(uuid(),actor,workId,JSON.stringify({source:book.source,sourceUrl:book.sourceUrl,synopsisSource:ownSynopsis?'admin_original':book.synopsisSource,isbn13:code,language:book.language,format:selectedFormat,formatReviewed:book.format==='unknown',rightsReviewRequired:true})));
+ stmts.push(db.prepare("INSERT INTO catalogue_audit_log(id,actor_external_id,action,target_kind,target_id,details_json) VALUES(?,?,'simple_import','work',?,?)").bind(uuid(),actor,workId,JSON.stringify({source:book.source,sourceUrl:book.sourceUrl,synopsisSource:ownSynopsis?'admin_original':book.synopsisSource,isbn13:code,language:book.language,format:selectedFormat,formatReviewed:book.format==='unknown',coverSource:book.coverKind,coverUrl:book.coverUrl,rightsReviewRequired:true})));
  try{await db.batch(stmts)}catch(e){throw Error('Import could not be completed. The database may already contain this edition; refresh before retrying.')}
  return {created:true,id:workId,editionId,status:'draft'};
 }
