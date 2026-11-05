@@ -1,0 +1,24 @@
+{
+  "mode": "publisher_and_retailer_exact_isbn_evidence",
+  "reviewOnly": true,
+  "importEligible": false,
+  "author": "Simon Kernick",
+  "assembledOn": "2026-11-05",
+  "records": [
+    {
+      "title": "A Good Day to Die",
+      "isbn13": "9780593054130",
+      "editionSourceKey": "/books/OL7544224M",
+      "format": "paperback",
+      "feature": null,
+      "source": "publishers_weekly_edition_bibliography",
+      "sourceUrl": "https://www.publishersweekly.com/9780312349950",
+      "note": "Publishers Weekly edition/format listing explicitly identifies ISBN 9780593054130 as Paperback, 449 pages, distinct from 9780593051467 hardcover."
+    }
+  ],
+  "notes": [
+    "Exact ISBN+source edition key required by reconciliation; proposed facts not imported.",
+    "Avoid misidentification of neighboring Penguin eBook ISBNs: 9781407095295, 9781407093895 and 9781407095325 are NOT the same ISBNs as the outstanding editions 9781407095301, 9781407093901 and 9781407095332.",
+    "No production database writes."
+  ]
+}
