@@ -32,7 +32,12 @@ function validatePilot(input){
   if(!book.title||!book.author||!book.workSourceKey||!Array.isArray(book.editions))
    throw Error('Incomplete canonical work');
   for(const ed of book.editions){
-   if(!/^\/books\/OL\d+M$/.test(ed.sourceKey)||keys.has(ed.sourceKey))
+   // Preserve canonical Open Library edition IDs and source-qualified audio
+   // identifiers. A source-qualified ID is not an Open Library edition key.
+   const validSourceKey=typeof ed.sourceKey==='string'&&
+    (/^\/books\/OL\d+M$/.test(ed.sourceKey)||
+     /^[a-z][a-z0-9_-]*:isbn13:97[89]\d{10}$/.test(ed.sourceKey));
+   if(!validSourceKey||keys.has(ed.sourceKey))
     throw Error('Invalid or duplicate edition source key: '+ed.sourceKey);
    keys.add(ed.sourceKey);
    if(ed.isbn13){
