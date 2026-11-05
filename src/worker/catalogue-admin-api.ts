@@ -364,20 +364,35 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
    if(old.revision!==expected)return fail('This book changed elsewhere. Reload before changing its status.',409);
    if(!['draft','published'].includes(old.status))return fail('This book has a protected status requiring separate review',409);
    if(old.status===target)return json({saved:true,id:workId,status:target,revision:old.revision});
+   let editionIdsToPublish:string[]=[];
    if(target==='published'){
     const contributor=await db.prepare("SELECT id FROM contributions WHERE work_id=? AND role_code IN ('author','coauthor') LIMIT 1").bind(workId).first();
-    const edition=await db.prepare('SELECT id FROM editions WHERE work_id=? LIMIT 1').bind(workId).first();
-    if(!contributor||!edition)return fail('Before publishing, link an author and at least one edition.',409);
+    if(!contributor)return fail('Before publishing, link a confirmed author.',409);
+    const {results:editionRows}=await db.prepare(`SELECT e.id,e.format,e.publication_status AS status,
+      (SELECT ei.normalized_value FROM entity_identifiers ei
+       JOIN identifier_schemes s ON s.id=ei.scheme_id
+       WHERE ei.entity_kind='edition' AND ei.entity_id=e.id AND s.code='ISBN13' LIMIT 1) AS isbn13
+      FROM editions e WHERE e.work_id=?`).bind(workId).all<{id:string;format:string;status:string;isbn13:string|null}>();
+    if(!editionRows.length)return fail('A work must have at least one identified edition.',409);
+    const eligible=editionRows.filter(e=>['paperback','hardback','ebook','other_print','other_digital'].includes(e.format)
+      &&!!e.isbn13&&validIsbn13(e.isbn13));
+    if(!eligible.length)return fail('No eligible ISBN-identified non-audio editions are available for publication.',409);
+    if(editionRows.some(e=>e.status!=='published')){
+     if(body.publishReviewedEditions!==true)return fail('Explicit review confirmation is required before making identified editions public.',409);
+     if(eligible.length!==editionRows.length)return fail('Some editions lack a known format or valid ISBN. Review or quarantine them before publishing.',409);
+     editionIdsToPublish=eligible.filter(e=>e.status!=='published').map(e=>e.id);
+    }
    }
    const nextRev=old.revision+1,after={...old,status:target,revision:nextRev};
    const batch=await db.batch([
     db.prepare("UPDATE works SET status=?,revision=revision+1,updated_at=CURRENT_TIMESTAMP WHERE id=? AND revision=? AND status=?")
      .bind(target,workId,expected,old.status),
+    ...editionIdsToPublish.map(id=>db.prepare("UPDATE editions SET publication_status='published',updated_at=CURRENT_TIMESTAMP WHERE id=? AND work_id=? AND publication_status='draft'").bind(id,workId)),
     db.prepare("UPDATE text_content SET visibility=? WHERE entity_kind='work' AND entity_id=? AND content_type='synopsis' AND source_claim_id IS NULL")
      .bind(target==='published'?'public':'private',workId),
     db.prepare("INSERT INTO record_revisions(id,entity_kind,entity_id,revision,before_json,after_json,actor_external_id,reason) VALUES(?,'work',?,?,?,?,?,?)")
      .bind(uuid(),workId,nextRev,JSON.stringify(old),JSON.stringify(after),actor,'Publication status change'),
-    audit(db,actor,'publication_status','work',workId,{before:old.status,after:target})
+    audit(db,actor,'publication_status','work',workId,{before:old.status,after:target,reviewedEditionIds:editionIdsToPublish,sourceVerificationPending:true})
    ]) as {meta?:{changes?:number}}[];
    if(batch[0]?.meta?.changes===0)return fail('This book changed elsewhere. Reload and try again.',409);
    return json({saved:true,id:workId,status:target,revision:nextRev});
