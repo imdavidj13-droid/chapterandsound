@@ -18,11 +18,16 @@ export function evaluate(book,edition,raw){
  const keys=(raw.works||[]).map(w=>w.key);
  if(keys.length&&!keys.some(k=>(book.sourceWorkKeys||[book.workSourceKey]).includes(k)))
   return {status:'work_mismatch'};
- if(norm(raw.title)!==norm(book.title)&&!norm(raw.title).startsWith(norm(book.title)+' '))
-  return {status:'title_mismatch'};
  const known=[edition.isbn13,edition.isbn10].filter(Boolean);
  const actual=[...(raw.isbn_13||[]),...(raw.isbn_10||[])];
  if(known.length&&!known.some(v=>actual.includes(v)))return {status:'isbn_mismatch'};
+ const expected=norm(book.title),observed=norm(raw.title);
+ const articleVariant=expected.startsWith('the ')&&expected.slice(4)===observed;
+ const workVerified=keys.some(k=>(book.sourceWorkKeys||[book.workSourceKey]).includes(k));
+ const isbnVerified=known.length>0&&known.some(v=>actual.includes(v));
+ if(expected!==observed&&!observed.startsWith(expected+' ')&&!(articleVariant&&workVerified&&isbnVerified))
+  return {status:'title_mismatch'};
+
  const found=parseFormat(raw.physical_format);
  const observed={
   ...(found?{format:found}:{}),
