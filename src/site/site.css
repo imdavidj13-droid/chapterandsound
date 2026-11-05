@@ -152,3 +152,19 @@
 /* Contributor portrait from the canonical catalogue, with initials fallback. */
 .person-portrait{position:relative;overflow:hidden}
 .person-portrait img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;border-radius:50%}
+
+/* Chapter & Sound catalogue publication confirmation. */
+.cs-publication-modal-backdrop{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:20px;background:rgba(15,34,25,.68);backdrop-filter:blur(5px)}
+.cs-publication-modal{box-sizing:border-box;width:min(100%,490px);padding:clamp(24px,5vw,38px);border:1px solid #d8e3d5;border-radius:22px;background:#fffdf7;color:#193927;box-shadow:0 26px 85px rgba(5,22,13,.27);text-align:center}
+.cs-publication-modal-symbol{display:grid;place-items:center;width:54px;height:54px;margin:0 auto 18px;border-radius:50%;background:#e7f0e5;color:#215b3d;font:30px Georgia,serif}
+.cs-publication-modal-eyebrow{margin:0 0 12px;color:#52705a;font-size:.7rem;letter-spacing:.16em;font-weight:750}
+.cs-publication-modal h2{margin:0;color:#143b27;font:normal clamp(1.75rem,4vw,2.25rem)/1.15 Georgia,serif}
+.cs-publication-modal-book{margin:12px 0 16px;font-size:1rem;font-weight:750;color:#285b3b}
+.cs-publication-modal-detail{margin:0;color:#465e4e;font-size:.93rem;line-height:1.7}
+.cs-publication-modal-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:30px}
+.cs-publication-modal-actions button{min-height:46px;padding:11px 20px;border-radius:11px;border:1px solid #bcd0be;background:#fff;color:#204830;font-weight:700;cursor:pointer}
+.cs-publication-modal-actions .cs-publication-modal-confirm{border-color:#20573a;background:#20573a;color:#fff}
+.cs-publication-modal-actions button:hover:not(:disabled){filter:brightness(.95)}
+.cs-publication-modal-actions button:focus-visible{outline:3px solid #a8c8a5;outline-offset:3px}
+.cs-publication-modal-actions button:disabled{opacity:.65;cursor:wait}
+@media(max-width:480px){.cs-publication-modal-actions{flex-direction:column-reverse}.cs-publication-modal-actions button{width:100%}}
