@@ -36,7 +36,8 @@ function workCover(){
     WHERE e.work_id=w.id AND e.publication_status='published'
     AND EXISTS(SELECT 1 FROM entity_identifiers i JOIN identifier_schemes s ON s.id=i.scheme_id
      WHERE i.entity_kind='edition' AND i.entity_id=e.id AND s.code='ISBN13')
-    ORDER BY CASE e.format WHEN 'paperback' THEN 0 WHEN 'hardback' THEN 1 WHEN 'ebook' THEN 2 ELSE 3 END,e.created_at,e.id
+    ORDER BY CASE WHEN e.language='en' THEN 0 WHEN e.language IS NULL THEN 1 ELSE 2 END,
+     CASE e.format WHEN 'paperback' THEN 0 WHEN 'hardback' THEN 1 WHEN 'ebook' THEN 2 ELSE 3 END,e.created_at,e.id
     LIMIT 1)
  )`;
 }
