@@ -57,6 +57,8 @@ test('provider outage does not hide other exact ISBN matches',async()=>{
   status:'unavailable',message:'not configured'
  })});
  assert.equal(result.sourceStatus.ISBNdb,'unavailable');
+ assert.equal(result.sourceDiagnostics.ISBNdb,'request_unavailable');
+ assert.equal(result.sourceDiagnostics['Google Books'],'http_403');
  assert.equal(result.sourceStatus['Google Books'],'HTTP_403');
  assert.equal(result.fields.format.value,'paperback');
  assert.equal(result.canImport,false);
@@ -73,6 +75,7 @@ test('mismatched ISBN data from Google is never merged',async()=>{
  assert.equal(result.fields.title.value,'Relentless');
  assert.equal(result.fields.pages.value,480);
  assert.equal(result.sourceStatus['Google Books'],'not_found');
+ assert.equal(result.sourceDiagnostics['Google Books'],'results_without_exact_isbn');
 });
 test('missing English edition evidence blocks automatic readiness',async()=>{
  const nl=async():Promise<ISBNdbLookup>=>({...matched,edition:{...matched.edition,language:'nl'}});
@@ -87,4 +90,18 @@ test('invalid ISBN is rejected before provider requests',async()=>{
   calls++;return Response.json({});
  }}),/Invalid ISBN/);
  assert.equal(calls,0);
+});
+
+test('distinguishes an empty Google Books search from unmatched ISBN responses',async()=>{
+ const fetchImpl:typeof fetch=async input=>{
+  if(String(input).includes('googleapis.com'))return Response.json({totalItems:0});
+  return new Response('',{status:404});
+ };
+ const result=await resolveISBNClaims(isbn,{fetchImpl,lookupIsbndb:async()=>({
+  status:'unavailable',message:'network failure',reason:'transport_error'
+ })});
+ assert.equal(result.sourceStatus['Google Books'],'not_found');
+ assert.equal(result.sourceDiagnostics['Google Books'],'no_results');
+ assert.equal(result.sourceDiagnostics.ISBNdb,'transport_error');
+ assert.equal(result.canImport,false);
 });
