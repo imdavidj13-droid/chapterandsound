@@ -35,7 +35,7 @@ export async function catalogueBookMetadataAPI(request:Request,db:MetadataDB,act
  try{
   if(request.method==='GET'){
    const [editions,identifiers,events,recordings,credits,genres,covers]=await Promise.all([
-    db.prepare('SELECT id,format,revision,publication_status AS publicationStatus FROM editions WHERE work_id=? ORDER BY created_at').bind(workId).all(),
+    db.prepare('SELECT id,format,revision,language,page_count AS pageCount,publication_status AS publicationStatus FROM editions WHERE work_id=? ORDER BY created_at').bind(workId).all(),
     db.prepare("SELECT i.id,i.entity_id AS editionId,s.code,i.value FROM entity_identifiers i JOIN identifier_schemes s ON s.id=i.scheme_id JOIN editions e ON e.id=i.entity_id WHERE i.entity_kind='edition' AND e.work_id=? ORDER BY s.code").bind(workId).all(),
     db.prepare('SELECT ev.id,ev.edition_id AS editionId,ev.event_type AS type,ev.date_value AS date,ev.publisher_id AS publisherId,o.name AS publisher FROM publication_events ev JOIN editions e ON e.id=ev.edition_id LEFT JOIN organisations o ON o.id=ev.publisher_id WHERE e.work_id=? ORDER BY ev.rowid DESC').bind(workId).all(),
     db.prepare('SELECT id,recording_title AS title FROM audio_recordings WHERE work_id=?').bind(workId).all(),
