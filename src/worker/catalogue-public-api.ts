@@ -13,13 +13,31 @@ function image(kind:'work'|'edition'|'person',idColumn:string,role:string){
  return `(SELECT '/api/catalogue-media/'||l.asset_id FROM media_links l
  WHERE l.entity_kind='${kind}' AND l.entity_id=${idColumn} AND l.role='${role}' AND l.is_primary=1 LIMIT 1)`;
 }
+/** Open Library explicitly permits linking directly to cover images.
+ * Keep R2 rights-reviewed images first; missing ISBN covers return 404, not a fake blank image.
+ * Never return image links from draft editions on the public site.
+ */
+function isbnCover(editionIdColumn:string){
+ return `(SELECT 'https://covers.openlibrary.org/b/isbn/'||i.normalized_value||'-L.jpg?default=false'
+ FROM entity_identifiers i JOIN identifier_schemes s ON s.id=i.scheme_id
+ WHERE i.entity_kind='edition' AND i.entity_id=${editionIdColumn}
+ AND s.code='ISBN13' AND length(i.normalized_value)=13
+ AND i.normalized_value NOT GLOB '*[^0-9]*'
+ ORDER BY i.is_primary DESC,i.id LIMIT 1)`;
+}
 function workCover(){
  return `COALESCE(
    ${image('work','w.id','representative_cover')},
    (SELECT '/api/catalogue-media/'||l.asset_id FROM editions e
     JOIN media_links l ON l.entity_kind='edition' AND l.entity_id=e.id
     WHERE e.work_id=w.id AND e.publication_status='published' AND l.role='front_cover' AND l.is_primary=1
-    ORDER BY e.created_at,e.id LIMIT 1)
+    ORDER BY e.created_at,e.id LIMIT 1),
+   (SELECT ${isbnCover('e.id')} FROM editions e
+    WHERE e.work_id=w.id AND e.publication_status='published'
+    AND EXISTS(SELECT 1 FROM entity_identifiers i JOIN identifier_schemes s ON s.id=i.scheme_id
+     WHERE i.entity_kind='edition' AND i.entity_id=e.id AND s.code='ISBN13')
+    ORDER BY CASE e.format WHEN 'paperback' THEN 0 WHEN 'hardback' THEN 1 WHEN 'ebook' THEN 2 ELSE 3 END,e.created_at,e.id
+    LIMIT 1)
  )`;
 }
 function synopsis(){return `(SELECT t.body FROM text_content t
@@ -146,7 +164,7 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
     FROM works w WHERE w.id=? AND w.status IN ('published','verified')`).bind(id).first();
   if(!book)return json({error:'Book not found'},404);
   const {results:editions}=await db.prepare(`SELECT e.id,e.format,
-    ${image('edition','e.id','front_cover')} AS coverUrl,
+    COALESCE(${image('edition','e.id','front_cover')},${isbnCover('e.id')}) AS coverUrl,
     (SELECT o.name FROM publication_events p JOIN organisations o ON o.id=p.publisher_id WHERE p.edition_id=e.id ORDER BY p.rowid DESC LIMIT 1) AS publisher,
     (SELECT p.date_value FROM publication_events p WHERE p.edition_id=e.id AND p.event_type='released' ORDER BY p.rowid DESC LIMIT 1) AS publishedAt,
     e.language,e.page_count AS pageCount,
