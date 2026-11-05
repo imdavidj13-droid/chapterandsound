@@ -1,13 +1,56 @@
 import {useCallback,useEffect,useState} from 'react';
 import type {FormEvent} from 'react';
-import {apiGet} from './api';
+import {apiGet,apiWrite} from './api';
 
 type Edition={id:string;format:string;language?:string|null;publicationStatus?:string};
 type Identifier={editionId:string;code:string;value:string};
 type Cover={kind:'work'|'edition';entityId:string;assetId:string};
 type Metadata={editions:Edition[];covers:Cover[];identifiers:Identifier[]};
+type RepresentativeCandidate={workKey:string;coverId:number;title:string;author:string;url:string};
+type RepresentativeResponse={current:{workKey:string;coverId:number}|null;candidates:RepresentativeCandidate[]};
 const empty:Metadata={editions:[],covers:[],identifiers:[]};
 
+function RepresentativeCoverChooser({workId}:{workId:string}){
+ const [data,setData]=useState<RepresentativeResponse|null>(null);
+ const [loading,setLoading]=useState(false);
+ const [saving,setSaving]=useState(false);
+ const [error,setError]=useState(''),[notice,setNotice]=useState('');
+ const load=useCallback(async()=>{
+  setLoading(true);setError('');
+  try{setData(await apiGet<RepresentativeResponse>('/api/catalogue-admin/works/'+encodeURIComponent(workId)+'/representative-cover'))}
+  catch(e){setError(e instanceof Error?e.message:'Cover choices unavailable')}
+  finally{setLoading(false)}
+ },[workId]);
+ useEffect(()=>{setData(null);void load()},[load]);
+ async function choose(item:RepresentativeCandidate){
+  if(saving)return;
+  setSaving(true);setError('');setNotice('');
+  try{
+   await apiWrite('/api/catalogue-admin/works/'+encodeURIComponent(workId)+'/representative-cover','POST',
+    {workKey:item.workKey,coverId:item.coverId,confirmed:true});
+   await load();setNotice('Representative cover saved. The public book page will show this book artwork; edition covers stay unchanged.');
+  }catch(e){setError(e instanceof Error?e.message:'Could not save cover')}
+  finally{setSaving(false)}
+ }
+ return <section className="cs-representative-cover-picker" aria-label="Choose book representative cover">
+  <h4>Choose the main book cover</h4>
+  <p>This is the cover readers see in book searches and the book banner. It is independent of individual ISBN edition artwork.</p>
+  {loading&&<p role="status">Checking matching book covers…</p>}
+  {error&&<p className="cs-admin-error" role="alert">{error}</p>}
+  {notice&&<p className="cs-admin-success" role="status">{notice}</p>}
+  {data&&<div className="cs-representative-cover-options">
+   {data.candidates.map(item=><article key={item.workKey+'-'+item.coverId} className="cs-representative-cover-choice">
+    <img src={item.url} alt={'Book cover for '+item.title} loading="lazy" referrerPolicy="no-referrer"/>
+    <div><strong>{item.title}</strong><small>{item.author}</small>
+     {data.current?.coverId===item.coverId&&data.current.workKey===item.workKey&&<small>Selected main cover</small>}
+    </div>
+    <button type="button" disabled={saving||data.current?.coverId===item.coverId&&data.current.workKey===item.workKey}
+     onClick={()=>void choose(item)}>{data.current?.coverId===item.coverId&&data.current.workKey===item.workKey?'Selected':'Use as main cover'}</button>
+   </article>)}
+   {!data.candidates.length&&<p>No exact title-and-author cover matches were found in Open Library. You can still upload an authorised representative cover below.</p>}
+  </div>}
+ </section>;
+}
 export function CatalogueCoverEditor({workId,imageStorage}:{workId:string;imageStorage:boolean}){
  const [data,setData]=useState<Metadata>(empty);
  const [kind,setKind]=useState<'work'|'edition'>('work'),[editionId,setEditionId]=useState('');
@@ -69,6 +112,7 @@ export function CatalogueCoverEditor({workId,imageStorage}:{workId:string;imageS
  }
  return <section className="cs-book-cover-editor">
   <h3>Book and edition covers</h3>
+  <RepresentativeCoverChooser workId={workId}/>
   <p>Manage the representative cover of this book, or the front cover of any of its editions. Replacements retain the previous asset and rights records for audit purposes.</p>
   {!imageStorage?<p className="cs-book-storage-warning" role="status">Cloudflare R2 image storage is not connected. Cover uploads are unavailable.</p>:<>
    {error&&<p className="cs-admin-error" role="alert">{error}</p>}
