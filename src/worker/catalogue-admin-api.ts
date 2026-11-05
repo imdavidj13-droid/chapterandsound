@@ -426,7 +426,13 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
     if(!editionRows.length)return fail('A work must have at least one identified edition.',409);
     const eligible=editionRows.filter(e=>['paperback','hardback','ebook','other_print','other_digital'].includes(e.format)
       &&!!e.isbn13&&validIsbn13(e.isbn13));
-    if(!eligible.length)return fail('No eligible ISBN-identified non-audio editions are available for publication.',409);
+    if(!eligible.length){
+     const hasValidIsbn=editionRows.some(e=>!!e.isbn13&&validIsbn13(e.isbn13));
+     const hasPublishableFormat=editionRows.some(e=>['paperback','hardback','ebook','other_print','other_digital'].includes(e.format));
+     if(!hasValidIsbn)return fail('This book cannot be published yet: its saved edition has no valid ISBN-13. Open Editions & audio, select the edition, and add or correct its ISBN in the metadata section.',409);
+     if(!hasPublishableFormat)return fail('This book cannot be published yet: its edition format is unknown. Open Editions & audio, choose Fix edition format, and save the verified paperback, hardback or ebook format.',409);
+     return fail('This book needs an edition with a valid ISBN-13 and a confirmed paperback, hardback or ebook format. Review the saved edition in Editions & audio.',409);
+    }
     if(editionRows.some(e=>e.status!=='published')){
      if(body.publishReviewedEditions!==true)return fail('Explicit review confirmation is required before making identified editions public.',409);
      if(eligible.length!==editionRows.length||editionRows.some(e=>!['draft','published'].includes(e.status)))
