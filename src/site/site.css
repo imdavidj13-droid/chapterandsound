@@ -254,25 +254,53 @@
 .cs-representative-cover-choice button:disabled{background:#e6f0e6;color:#245335;border-color:#cadcc9;cursor:default}
 
 
-/* Admin importer: two compact columns on wide screens, one on narrow screens.
-   Cards align at their own natural heights so expanded editions do not stretch
-   unrelated cards in the adjacent column. */
+/* Compact, equal-height importer cards. Expanded source details may enlarge
+   a row, but cards in that row stretch together instead of leaving empty gaps. */
 .cs-simple-import-grid{
  display:grid;
  grid-template-columns:minmax(0,1fr);
  gap:12px;
- align-items:start;
+ align-items:stretch;
 }
 .cs-simple-import-grid .cs-simple-import-result{
  margin:0;
  min-width:0;
+ min-height:168px;
+ height:100%;
+ align-items:flex-start;
+ box-sizing:border-box;
 }
 .cs-simple-import-grid .cs-simple-import-description{
  min-width:0;
  overflow-wrap:anywhere;
+ display:flex;
+ flex-direction:column;
+ gap:5px;
+ align-self:stretch;
+}
+.cs-simple-import-grid .cs-simple-import-description h5{
+ display:-webkit-box;
+ -webkit-box-orient:vertical;
+ -webkit-line-clamp:2;
+ line-clamp:2;
+ overflow:hidden;
+}
+.cs-simple-import-grid .cs-simple-import-description>small{
+ display:-webkit-box;
+ -webkit-box-orient:vertical;
+ -webkit-line-clamp:2;
+ line-clamp:2;
+ overflow:hidden;
 }
 .cs-simple-import-grid details{
  min-width:0;
+ margin-top:auto !important;
+}
+.cs-simple-import-grid details[open]{
+ margin-top:10px !important;
+}
+.cs-simple-import-grid details summary{
+ padding-block:8px !important;
 }
 @media(min-width:1050px){
  .cs-simple-import-grid{
