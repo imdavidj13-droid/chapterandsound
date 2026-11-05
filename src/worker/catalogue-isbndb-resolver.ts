@@ -12,7 +12,7 @@ export type ISBNdbEdition={
 };
 export type ISBNdbLookup=
  |{status:'matched';edition:ISBNdbEdition;rights:'not_reviewed';coverStatus:'not_verified'}
- |{status:'not_found'|'unavailable'|'rate_limited'|'authentication_error'|'provider_error'|'invalid_response'|'isbn_mismatch';httpStatus?:number;message:string;reason?:'not_configured'|'timeout'|'transport_error'|'request_rejected'};
+ |{status:'not_found'|'unavailable'|'rate_limited'|'authentication_error'|'provider_error'|'invalid_response'|'isbn_mismatch';httpStatus?:number;message:string;reason?:'not_configured'|'timeout'|'transport_error'|'request_rejected'|'redirect_blocked'};
 const str=(x:unknown,max=500)=>typeof x==='string'?x.trim().slice(0,max):'';
 const isbn13=(v:string)=>/^97[89]\d{10}$/.test(v)&&[...v].reduce((t,d,i)=>t+Number(d)*(i%2?3:1),0)%10===0;
 const isbn10To13=(value:string)=>{
@@ -66,18 +66,29 @@ export async function lookupISBNdbEdition(rawIsbn:string,key?:string,fetchImpl:t
  if(!expected)return empty('invalid_response','Enter a valid ISBN-10 or ISBN-13.');
  if(!key?.trim())return {...empty('unavailable','ISBNdb is not configured on this Worker.'),reason:'not_configured'};
  let response:Response;
- try{
-  response=await fetchImpl('https://api2.isbndb.com/book/'+expected,{
-   method:'GET',headers:{Authorization:key,Accept:'application/json'},
-   signal:AbortSignal.timeout(15000),redirect:'error'
-  });
- }catch(error){
-  // Never echo provider URLs or exception messages: runtimes may include sensitive headers.
-  const name=error instanceof Error?error.name:'';
-  const reason=name==='TimeoutError'||name==='AbortError'?'timeout':
-   name==='TypeError'?'transport_error':'request_rejected';
-  return {...empty('unavailable',reason==='timeout'?'ISBNdb lookup timed out.':'ISBNdb request did not reach the provider.'),reason};
+ // One interactive lookup, with at most one bounded retry for a short-term 429.
+ // This does NOT provide global 1 req/sec coordination across Cloudflare isolates.
+ for(let attempt=0;attempt<2;attempt++){
+  try{
+   response=await fetchImpl('https://api2.isbndb.com/book/'+expected,{
+    method:'GET',headers:{Authorization:key.trim(),Accept:'application/json'},
+    signal:AbortSignal.timeout(15000),redirect:'manual'
+   });
+  }catch(error){
+   // Never echo exception messages, URLs or headers: they may contain credentials.
+   const name=error instanceof Error?error.name:'';
+   const reason=name==='TimeoutError'||name==='AbortError'?'timeout':
+    name==='TypeError'?'transport_error':'request_rejected';
+   return {...empty('unavailable',reason==='timeout'?'ISBNdb lookup timed out.':'ISBNdb request did not reach the provider.'),reason};
+  }
+  if(response.status!==429||attempt===1)break;
+  // Respect a short Retry-After only; never hold a Worker open for a long quota reset.
+  const retryAfter=response.headers.get('Retry-After');
+  const seconds=retryAfter===null?1.25:Number(retryAfter);
+  if(!Number.isFinite(seconds)||seconds>5||seconds<0)break;
+  await new Promise<void>(resolve=>setTimeout(resolve,Math.max(1250,seconds*1000)));
  }
+ if(response.status>=300&&response.status<400)return {...empty('provider_error','ISBNdb endpoint redirected; verify the API hostname.',response.status),reason:'redirect_blocked'};
  if(response.status===404)return empty('not_found','No ISBNdb edition found for this ISBN.',404);
  if(response.status===429)return empty('rate_limited','ISBNdb rate limit or daily quota reached.',429);
  if(response.status===401||response.status===403)return empty('authentication_error','ISBNdb rejected the configured API key or subscription.',response.status);
