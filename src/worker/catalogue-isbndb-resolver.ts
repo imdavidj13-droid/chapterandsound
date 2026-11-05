@@ -12,7 +12,7 @@ export type ISBNdbEdition={
 };
 export type ISBNdbLookup=
  |{status:'matched';edition:ISBNdbEdition;rights:'not_reviewed';coverStatus:'not_verified'}
- |{status:'not_found'|'unavailable'|'rate_limited'|'authentication_error'|'provider_error'|'invalid_response'|'isbn_mismatch';httpStatus?:number;message:string;reason?:'not_configured'|'timeout'|'transport_error'|'request_rejected'};
+ |{status:'not_found'|'unavailable'|'rate_limited'|'authentication_error'|'provider_error'|'invalid_response'|'isbn_mismatch';httpStatus?:number;message:string;reason?:'not_configured'|'timeout'|'transport_error'|'request_rejected'|'redirect_blocked'};
 const str=(x:unknown,max=500)=>typeof x==='string'?x.trim().slice(0,max):'';
 const isbn13=(v:string)=>/^97[89]\d{10}$/.test(v)&&[...v].reduce((t,d,i)=>t+Number(d)*(i%2?3:1),0)%10===0;
 const isbn10To13=(value:string)=>{
@@ -69,7 +69,7 @@ export async function lookupISBNdbEdition(rawIsbn:string,key?:string,fetchImpl:t
  try{
   response=await fetchImpl('https://api2.isbndb.com/book/'+expected,{
    method:'GET',headers:{Authorization:key,Accept:'application/json'},
-   signal:AbortSignal.timeout(15000),redirect:'error'
+   signal:AbortSignal.timeout(15000),redirect:'manual'
   });
  }catch(error){
   // Never echo provider URLs or exception messages: runtimes may include sensitive headers.
@@ -78,6 +78,9 @@ export async function lookupISBNdbEdition(rawIsbn:string,key?:string,fetchImpl:t
    name==='TypeError'?'transport_error':'request_rejected';
   return {...empty('unavailable',reason==='timeout'?'ISBNdb lookup timed out.':'ISBNdb request did not reach the provider.'),reason};
  }
+ // A redirect may indicate a changed provider host. Never forward a secret key
+ // automatically to an unverified destination; report the redirect instead.
+ if(response.status>=300&&response.status<400)return {...empty('provider_error','ISBNdb endpoint redirected; verify the subscribed API hostname.',response.status),reason:'redirect_blocked'};
  if(response.status===404)return empty('not_found','No ISBNdb edition found for this ISBN.',404);
  if(response.status===429)return empty('rate_limited','ISBNdb rate limit or daily quota reached.',429);
  if(response.status===401||response.status===403)return empty('authentication_error','ISBNdb rejected the configured API key or subscription.',response.status);
