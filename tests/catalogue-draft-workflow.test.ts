@@ -41,3 +41,13 @@ test('publishing and returning drafts use the themed accessible confirmation ins
  assert.match(workbench,/setPublicationConfirmation\('draft'\)/);
  assert.match(workbench,/onClick=\{\(\)=>void changePublication\(publicationConfirmation\)\}/);
 });
+
+test('ISBN enrichment allows checking existing page counts and reports differences without overriding them',()=>{
+ const enrichment=readFileSync(new URL('../src/site/CatalogueEnrichmentPanel.tsx',import.meta.url),'utf8');
+ assert.match(enrichment,/disabled=\{!isbnFor\(edition\.id\)\|\|lookupBusy!==''\}/);
+ assert.match(enrichment,/Different — review/);
+ assert.match(enrichment,/Missing in catalogue/);
+ assert.match(enrichment,/Unavailable/);
+ assert.match(enrichment,/Matching/);
+ assert.match(enrichment,/publicationDate/);
+});
