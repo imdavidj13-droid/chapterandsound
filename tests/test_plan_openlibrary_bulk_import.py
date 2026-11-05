@@ -66,6 +66,18 @@ class BulkPlanTests(unittest.TestCase):
         result=self.plan([left,right])
         self.assertEqual(result["readyForFurtherPreview"],0)
         self.assertEqual(result["identityOrIsbnReview"],2)
+    def test_duplicate_isbn_inside_work_is_flagged(self):
+        book=self.candidate()
+        book["editions"].append({"sourceKey":"/books/OL2M","isbn13":"9780552156905","format":"paperback"})
+        result=self.plan([book])
+        self.assertEqual(result["readyForFurtherPreview"],0)
+        self.assertEqual(result["identityOrIsbnReview"],1)
+    def test_shared_source_edition_key_is_flagged(self):
+        left=self.candidate()
+        right=self.candidate("/works/OL2W","Different Book","Other Author","9781408855652")
+        result=self.plan([left,right])
+        self.assertEqual(result["readyForFurtherPreview"],0)
+        self.assertEqual(result["identityOrIsbnReview"],2)
     def test_unknown_format_is_deferred_for_enrichment(self):
         book=self.candidate()
         book["editions"][0]["format"]=""
