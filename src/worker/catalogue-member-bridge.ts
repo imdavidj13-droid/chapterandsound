@@ -36,7 +36,7 @@ export async function ensureMemberCatalogueReference(
   if(current&&current.workId!==workId)return {ok:false,error:'Edition identity conflict',status:409};
   if(!current){
    if(!catalogueDB)return {ok:false,error:'Book edition not found',status:404};
-   const edition=await catalogueDB.prepare("SELECT id,format FROM editions WHERE id=? AND work_id=? AND publication_status NOT IN ('withdrawn')")
+   const edition=await catalogueDB.prepare("SELECT id,format FROM editions WHERE id=? AND work_id=? AND publication_status='published'")
     .bind(editionId,workId).first<{id:string;format:string}>();
    if(!edition)return {ok:false,error:'Edition does not belong to this book',status:400};
    const format=allowed.has(edition.format)?edition.format:edition.format==='audio_cd'?'audiobook':'unknown';
