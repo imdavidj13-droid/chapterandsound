@@ -7,7 +7,7 @@ type Meta={editions:Edition[];identifiers:Identifier[]};
 type Finding={title?:string;isbn13?:string;field?:string;value?:unknown;source?:string;decision?:string};
 type Proposal={editionId:string;isbn13:string;revision:number;format:string;pages:number;title:string};
 const isbn=(s:string)=>s.replace(/[ -]/g,'');
-const norm=(s:string)=>s.normalize('NFKC').toLocaleLowerCase('en-GB').replace(/[^\\p{L}\\p{N}]+/gu,' ').trim();
+const norm=(s:string)=>s.normalize('NFKC').toLocaleLowerCase('en-GB').replace(/[^a-z0-9]+/gi,' ').trim();
 
 export function CatalogueEnrichmentPanel({workId,title}:{workId:string;title:string}){
  const [meta,setMeta]=useState<Meta|null>(null);
