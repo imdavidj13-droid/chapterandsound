@@ -18,7 +18,7 @@ export interface SimpleCatalogueDB {
 }
 export type BookSuggestion={
  key:string;title:string;author:string;isbn13:string|null;publisher:string|null;
- publishedDate:string|null;pages:number|null;coverUrl:string|null;language:string|null;source:'Google Books'|'Open Library'|'ISBNdb';
+ publishedDate:string|null;pages:number|null;coverUrl:string|null;previewCoverUrl?:string|null;language:string|null;source:'Google Books'|'Open Library'|'ISBNdb';
 };
 export type BookDetail=BookSuggestion&{
  synopsis:string|null;synopsisSource:'Open Library'|'Google Books'|null;
@@ -96,6 +96,21 @@ const googleById=(id:string,key?:string)=>{
  if(key)url.searchParams.set('key',key);
  return url.toString();
 };
+/** Search-only thumbnail from the provider's volume listing.
+ * A grouped Google volume may represent a different printing: NEVER save this
+ * thumbnail as an ISBN-verified edition cover.
+ */
+export function googlePreviewCover(raw:unknown):string|null{
+ const value=str(raw,2000);
+ if(!value)return null;
+ try{
+  const url=new URL(value);
+  if(url.protocol!=='https:'&&url.protocol!=='http:')return null;
+  if(!['books.google.com','books.googleusercontent.com'].includes(url.hostname))return null;
+  url.protocol='https:';
+  return url.toString();
+ }catch{return null}
+}
 function googleSuggestion(v:GVolume):BookSuggestion|null{
  const info=v.volumeInfo;
  if(!v.id||!info?.title||!info.authors?.[0])return null;
@@ -105,6 +120,7 @@ function googleSuggestion(v:GVolume):BookSuggestion|null{
   isbn13:code?isbn13Of(code.identifier):null,publisher:str(info.publisher)||null,
   publishedDate:date(info.publishedDate),pages:pages(info.pageCount),language:language(info.language),
   coverUrl:editionCover(code?isbn13Of(code.identifier):null),
+  previewCoverUrl:googlePreviewCover(info.imageLinks?.thumbnail)||googlePreviewCover(info.imageLinks?.smallThumbnail),
   source:'Google Books'};
 }
 /** All edition previews use the same ISBN-backed cover URL as the public catalogue.
