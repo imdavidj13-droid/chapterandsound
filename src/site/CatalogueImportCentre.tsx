@@ -47,7 +47,9 @@ export function CatalogueImportCentre(){
   setImporting(item.key);setError('');setNotice('');setSaved(null);setSelected(null);setOriginalSynopsis('');
   try{
    const detail=await apiGet<Detail>('/api/catalogue-admin/simple-import/detail?key='+encodeURIComponent(item.key));
-   const canImport=detail.complete&&detail.synopsisSource==='Open Library';
+   // Open Library search returns *works*, not ISBN-specific editions.
+   // Always show the actual chosen edition's cover and ISBN before importing.
+   const canImport=item.source!=='Open Library'&&detail.complete&&detail.synopsisSource==='Open Library';
    if(canImport)await save(detail);
    else setSelected(detail);
   }catch(e){setError(e instanceof Error?e.message:'Could not retrieve this book')}
@@ -79,14 +81,15 @@ export function CatalogueImportCentre(){
   {items.length>0&&<div className="cs-simple-import-results">
    <h4>Search results <span>{items.length} found</span></h4>
    {items.map(item=><article className="cs-simple-import-result" key={item.key}>
-    <div className="cs-simple-import-cover">{item.coverUrl?<img src={item.coverUrl} alt="" loading="lazy" referrerPolicy="no-referrer"/>:<span aria-hidden="true">C&amp;S</span>}</div>
+    <div className="cs-simple-import-cover">{item.coverUrl?<img src={item.coverUrl} alt="" loading="lazy" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.style.display='none'}}/>:<span aria-hidden="true">C&amp;S</span>}</div>
     <div className="cs-simple-import-description">
      <h5>{item.title}</h5><p>{item.author}</p>
      <small>{item.publisher||'Publisher to check'} · {item.publishedDate||'Date to check'} · {item.pages?item.pages+' pages':'Pages to check'}</small>
-     <small>{item.isbn13?'ISBN '+item.isbn13+' · ':''}{languageLabel(item.language)} · {item.source}</small>
+     <small>{item.isbn13?'Edition ISBN '+item.isbn13+' · ':'Book-level search result · '}{languageLabel(item.language)} · {item.source}</small>
+     {!item.isbn13&&<small>The illustration represents the book, not necessarily the edition that will be chosen.</small>}
     </div>
     <button type="button" disabled={Boolean(importing)} onClick={()=>void selectAndImport(item)}>
-     {importing===item.key?'Checking…':'Import book'}
+     {importing===item.key?'Checking…':item.isbn13?'Import book':'Choose edition'}
     </button>
    </article>)}
   </div>}
@@ -94,6 +97,11 @@ export function CatalogueImportCentre(){
    <div className="cs-simple-import-review-heading"><div>
     <p className="cs-admin-eyebrow">BOOK DETAILS</p><h4>{selected.title}</h4><p>{selected.author}</p></div>
     <button type="button" onClick={()=>setSelected(null)}>Close</button>
+   </div>
+   <div className="cs-simple-import-chosen-cover">
+    {selected.coverUrl?<img src={selected.coverUrl} alt={'Edition cover for '+selected.title} referrerPolicy="no-referrer" onError={e=>{e.currentTarget.hidden=true}}/>:<span>Cover unavailable for this ISBN</span>}
+    <div><strong>Selected edition cover</strong><p>This is the image source associated with ISBN {selected.isbn13||'not identified'}, not the book-level search thumbnail.</p>
+    <p>If the edition cover is unavailable, a placeholder is displayed rather than silently switching to another edition.</p></div>
    </div>
    <dl>
     <div><dt>ISBN</dt><dd>{selected.isbn13||'Missing'}</dd></div>
