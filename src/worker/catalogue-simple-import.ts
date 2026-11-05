@@ -256,8 +256,6 @@ export async function importSimpleBook(db:SimpleCatalogueDB,key:string,expectedI
   throw Error('Choose a verified paperback, hardback or ebook format before importing.');
  if(!selectedSynopsis)
   throw Error('An original or authorised synopsis is required to import this book. Google Books descriptions are preview only.');
- if(!book.coverUrl||!book.coverKind||!await availableCover(book.coverUrl))
-  throw Error('No verified cover image is available for this book. Nothing was imported. Choose another result with a cover.');
  const match=await db.prepare("SELECT i.entity_id AS editionId,e.work_id AS workId FROM entity_identifiers i JOIN identifier_schemes s ON s.id=i.scheme_id JOIN editions e ON e.id=i.entity_id WHERE s.code='ISBN13' AND i.normalized_value=? AND i.entity_kind='edition' LIMIT 2").bind(code).all<{editionId:string;workId:string}>();
  if(match.results.length>1)throw Error('Multiple editions already use this ISBN. Resolve the catalogue identity first.');
  if(match.results.length===1)return {created:false,id:match.results[0]!.workId,status:'already_in_catalogue',editionId:match.results[0]!.editionId};
@@ -269,6 +267,9 @@ export async function importSimpleBook(db:SimpleCatalogueDB,key:string,expectedI
  const existing=titles.results.filter(x=>norm(x.title)===norm(book.title));
  if(existing.length>1)throw Error('Multiple matching works already exist; resolve these before importing.');
  if(existing.length===1)return {created:false,id:existing[0]!.id,status:'already_in_catalogue'};
+ if(!book.coverUrl||!book.coverKind||!await availableCover(book.coverUrl))
+  throw Error('No verified cover image is available for this book. Nothing was imported. Choose another result with a cover.');
+
  const pub=await db.prepare("SELECT organisation_id AS id FROM publishers p JOIN organisations o ON o.id=p.organisation_id WHERE lower(o.name)=lower(?) LIMIT 2").bind(book.publisher).all<{id:string}>();
  if(pub.results.length>1)throw Error('Multiple publisher identities matched; review required.');
  const publisherId=pub.results[0]?.id||uuid(),workId=uuid(),editionId=uuid(),scheme=await db.prepare("SELECT id FROM identifier_schemes WHERE code='ISBN13'").first<{id:string}>();
