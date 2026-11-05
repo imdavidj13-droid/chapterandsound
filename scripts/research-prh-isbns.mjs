@@ -7,7 +7,7 @@
 import {readFileSync,writeFileSync,mkdirSync,renameSync} from 'node:fs';
 import {resolve,join} from 'node:path';
 import {pathToFileURL} from 'node:url';
-const domains=['PRH.UK','RH.UK','PDK.UK','PRH.US'];
+const domains=['ALL','PRH.UK','RH.UK','PDK.UK','PRH.US'];
 const normalize=x=>String(x||'').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
 const compact=x=>typeof x==='string'&&x.trim()?x.trim():null;
 const number=x=>typeof x==='number'?x:typeof x==='string'&&x.trim()?Number(x):null;
@@ -75,7 +75,8 @@ export function extractTitle(payload,isbn,expectedTitle){
  return {status:'matched',titleVerification:titleStatus,fields};
 }
 async function request(isbn,domain,apiKey,fetchImpl){
- const url=new URL('https://api.penguinrandomhouse.com/resources/v2/title/domains/'+domain+'/titles/'+isbn);
+ const base=domain==='ALL'?'/resources/v2/title/titles/'+isbn:'/resources/v2/title/domains/'+domain+'/titles/'+isbn;
+ const url=new URL('https://api.penguinrandomhouse.com'+base);
  url.searchParams.set('api_key',apiKey);
  url.searchParams.set('suppressLinks','true');
  let response;
@@ -104,7 +105,7 @@ export async function probePenguinRandomHouse(input,{
    const response=await request(item.isbn13,domain,key,fetchImpl);
    if(response.status==='authentication_error'||response.status==='rate_limited'){
     attempts.push({domain,status:response.status,httpStatus:response.httpStatus});
-    const stop={status:response.status,records,attempted:records.length+1,
+    const stop={status:response.status,httpStatus:response.httpStatus,domain,records,attempted:records.length+1,
      totals:{eligibleIsbns:all.length,matched:records.filter(x=>x.status==='matched').length},
      reason:'Stop: check activation/permissions or rate limit; no other requests attempted'};
     return stop;
@@ -133,7 +134,7 @@ export async function probePenguinRandomHouse(input,{
   fieldCounts:fields},domains:domainsToQuery,
   notes:['A matched ISBN/title is only a provisional field observation; contributor identities and reuse rights require separate review.',
    'Only known structured fields are retained; API key and request URLs are never printed.',
-   'PRH.UK/RH.UK/PDK.UK checked before PRH.US; a US-only search would undercount UK editions.',
+   'Domain-independent ISBN lookup is attempted first, followed by UK and US market-specific variants.',
    'Publisher field names vary across API responses; absent fields remain absent, never defaulted.',
    'Cover URLs and copyrighted descriptions are not downloaded or imported.']};
 }
@@ -150,7 +151,8 @@ export async function run(argv){
  const dir=resolve(opts['--out']);mkdirSync(dir,{recursive:true});
  const file=join(dir,'prh-isbn-coverage-report.json');
  writeFileSync(file+'.partial',JSON.stringify(result,null,2)+'\n');renameSync(file+'.partial',file);
- return {report:file,totals:result.totals,status:result.status,reason:result.reason||null};
+ return {report:file,totals:result.totals,status:result.status,httpStatus:result.httpStatus||null,
+  stoppedAtDomain:result.domain||null,reason:result.reason||null};
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)
  run(process.argv.slice(2)).then(x=>console.log(JSON.stringify(x,null,2)))
