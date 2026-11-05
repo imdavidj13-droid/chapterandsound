@@ -9,6 +9,7 @@ interface Statement {
  bind(...args:Scalar[]):Statement;
  first<T>():Promise<T|null>;
  all<T>():Promise<{results:T[]}>;
+ run():Promise<unknown>;
 }
 export interface SimpleCatalogueDB {
  prepare(sql:string):Statement;
