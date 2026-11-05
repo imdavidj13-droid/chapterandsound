@@ -23,7 +23,8 @@ test('publisher and cover URL do not invent format or publication approval',()=>
 test('qualified audiobook ID preserved; source is recorded without permission assumptions',()=>{
  const report=buildSourceLedger(fixture(),registry);
  assert.equal(report.totals.knownFormats,1);
- assert.equal(report.editions[1].identityKind,'provider_specific_id');
+ assert.equal(report.editions[1].identityKind,'isbn13');
+ assert.equal(report.editions[1].editionSourceKey,'storytel:isbn13:9781407426464');
  assert.equal(report.sourceStats[0].source,'storytel');
  assert.equal(report.editions[1].fields.find((x:{field:string})=>x.field==='edition.format').source,'storytel');
  assert.equal(report.editions[1].publicationStatus,'not_approved');
