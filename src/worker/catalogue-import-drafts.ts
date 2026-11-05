@@ -64,14 +64,24 @@ export async function importCatalogueDrafts(db:DraftImportDB,input:unknown,actor
   authorKeysByName.set(personKey,sourceAuthors);
   const authors=(await db.prepare("SELECT id,preferred_name AS name FROM people WHERE lower(trim(preferred_name))=lower(?) AND identity_status NOT IN ('merged','suppressed') LIMIT 3")
    .bind(author).all<{id:string;name:string}>()).results;
+  const authorSourceKey=(candidate.authorSourceKeys||[]).length===1?candidate.authorSourceKeys![0]:'';
+  const linked=authorSourceKey?(await db.prepare(
+   "SELECT DISTINCT p.id,p.preferred_name AS name FROM catalogue_audit_log a JOIN contributions c ON c.work_id=a.target_id AND c.role_code='author' JOIN people p ON p.id=c.person_id WHERE a.action IN ('import_draft','import_work_only_draft') AND a.target_kind='work' AND EXISTS (SELECT 1 FROM json_each(a.details_json,'$.authorSourceKeys') WHERE value=?) AND p.identity_status NOT IN ('merged','suppressed') LIMIT 3"
+  ).bind(authorSourceKey).all<{id:string;name:string}>()).results:[];
+  if(linked.length>1)throw new ImportConflict('Open Library author source key resolves to multiple canonical people: '+authorSourceKey);
+  if(linked.length===1&&linked[0]!.name.trim().toLocaleLowerCase('en-GB')!==author.toLocaleLowerCase('en-GB'))
+   throw new ImportConflict('Open Library author source identity has a different canonical name: '+author);
+  if(linked.length===1&&(authors.length!==1||authors[0]!.id!==linked[0]!.id))
+   throw new ImportConflict('Open Library author source identity conflicts with existing name matches: '+author);
   let personId=personIds.get(personKey);
   if(!personId){
    if(authors.length){
-    if(authors.length!==1||!candidate.authorId||candidate.authorId!==authors[0]?.id)
+    if(authors.length!==1||(!candidate.authorId&&linked[0]?.id!==authors[0]?.id)
+     ||candidate.authorId&&candidate.authorId!==authors[0]?.id)
      throw new ImportConflict('Existing author requires a confirmed canonical authorId: '+author);
-    personId=authors[0].id;
+    personId=authors[0]!.id;
    }else{
-    if(candidate.authorId)throw new ImportConflict('An unknown authorId was supplied for '+author);
+    if(candidate.authorId||linked.length)throw new ImportConflict('Author source identity conflicts with catalogue author records: '+author);
     personId=id();
     statements.push(db.prepare('INSERT INTO people(id,preferred_name) VALUES(?,?)').bind(personId,author));
    }
@@ -87,7 +97,14 @@ export async function importCatalogueDrafts(db:DraftImportDB,input:unknown,actor
   const desc=clean(candidate.description,8000);
   if(desc)statements.push(db.prepare("INSERT INTO text_content(id,entity_kind,entity_id,content_type,body,visibility) VALUES(?,'work',?,'synopsis',?,'private')")
    .bind(id(),workId,desc));
-  const subjects=[...new Set((candidate.subjects||[]).map(value=>clean(value,300)).filter(Boolean))];
+  // Deduplicate by the same case-insensitive identity used for subject lookup.
+  // Open Library often supplies 'History' and 'history' in one work.
+  const subjectsByKey=new Map<string,string>();
+  for(const value of candidate.subjects||[]){
+   const label=clean(value,300),key=label.toLocaleLowerCase('en-GB');
+   if(label&&!subjectsByKey.has(key))subjectsByKey.set(key,label);
+  }
+  const subjects=[...subjectsByKey.values()];
   if(subjects.length>40)throw new ImportConflict('This work has more than 40 subject tags; split and review the subject taxonomy: '+title);
   if(subjects.length){
    if(!classificationSchemeId){
