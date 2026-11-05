@@ -230,3 +230,12 @@
 .cs-simple-import-success h4{font:normal 1.4rem Georgia,serif;margin:0}
 .cs-simple-import-success a{color:#185c37;font-weight:700}
 @media(max-width:640px){.cs-simple-import-search,.cs-simple-import-results{padding-inline:16px}.cs-simple-import-heading{padding:20px}.cs-simple-import-result{align-items:start;flex-wrap:wrap;gap:12px}.cs-simple-import-description{flex-basis:calc(100% - 75px)}.cs-simple-import-result>button{width:100%}.cs-simple-import-search>div{flex-direction:column}.cs-simple-import-review{margin:0 16px 20px;padding:16px}.cs-simple-import-review dl{grid-template-columns:1fr}}
+
+
+/* The detail step always identifies the edition whose ISBN will be saved. */
+.cs-simple-import-chosen-cover{display:flex;align-items:center;gap:18px;padding:16px;margin-top:18px;border:1px solid #d8e5d8;border-radius:12px;background:#f6faf4}
+.cs-simple-import-chosen-cover img{flex:none;width:92px;max-height:145px;object-fit:contain;background:#edf3e9;border-radius:5px}
+.cs-simple-import-chosen-cover>span{display:flex;align-items:center;justify-content:center;width:92px;min-height:125px;background:#eaf0e8;border-radius:5px;color:#4c6653;font-size:.8rem;text-align:center}
+.cs-simple-import-chosen-cover strong{color:#1d4831}
+.cs-simple-import-chosen-cover p{margin:6px 0;color:#506956;line-height:1.5;font-size:.86rem}
+@media(max-width:440px){.cs-simple-import-chosen-cover{align-items:flex-start;gap:12px}.cs-simple-import-chosen-cover img,.cs-simple-import-chosen-cover>span{width:70px}}
