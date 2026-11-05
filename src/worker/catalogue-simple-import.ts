@@ -186,8 +186,10 @@ export async function importSimpleBook(db:SimpleCatalogueDB,key:string,expectedI
  const selectedSynopsis=ownSynopsis||((book.synopsisSource==='Open Library')?book.synopsis:null);
  const code=isbn(expectedIsbn);
  if(!validIsbn(code)||book.isbn13!==code)throw Error('The ISBN changed since your search; refresh the result');
- if(!book.title||!book.author||!book.publisher||!book.publishedDate||!book.pages||!selectedSynopsis)
-  throw Error('This result is missing a required field. Choose a more complete edition.');
+ if(!book.title||!book.author||!book.publisher||!book.publishedDate||!book.pages)
+  throw Error('This edition is missing a title, author, publisher, release date or page count. Choose a more complete result.');
+ if(!selectedSynopsis)
+  throw Error('An original or authorised synopsis is required to import this book. Google Books descriptions are preview only.');
  const match=await db.prepare("SELECT i.entity_id AS editionId,e.work_id AS workId FROM entity_identifiers i JOIN identifier_schemes s ON s.id=i.scheme_id JOIN editions e ON e.id=i.entity_id WHERE s.code='ISBN13' AND i.normalized_value=? AND i.entity_kind='edition' LIMIT 2").bind(code).all<{editionId:string;workId:string}>();
  if(match.results.length>1)throw Error('Multiple editions already use this ISBN. Resolve the catalogue identity first.');
  if(match.results.length===1)return {created:false,id:match.results[0]!.workId,status:'already_in_catalogue',editionId:match.results[0]!.editionId};
