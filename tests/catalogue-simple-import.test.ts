@@ -37,12 +37,12 @@ function mockSources(withOpenDescription=true){
   let data:unknown=null;
   if(url.includes('googleapis.com/books/v1/volumes/abc123'))
    data={id:'abc123',volumeInfo:{title:'Relentless',authors:['Simon Kernick'],publisher:'Corgi Books',
-    publishedDate:'2007-01-01',pageCount:480,industryIdentifiers:[{type:'ISBN_13',identifier:code}],description:'Publisher text that must not be saved'}};
+    publishedDate:'2007-01-01',pageCount:480,language:'en',industryIdentifiers:[{type:'ISBN_13',identifier:code}],description:'Publisher text that must not be saved'}};
   else if(url.includes('googleapis.com/books/v1/volumes?'))
-   data={items:[{id:'abc123',volumeInfo:{title:'Relentless',authors:['Simon Kernick'],publisher:'Corgi Books',publishedDate:'2007',pageCount:480,
+   data={items:[{id:'abc123',volumeInfo:{title:'Relentless',authors:['Simon Kernick'],publisher:'Corgi Books',publishedDate:'2007',pageCount:480,language:'en',
     industryIdentifiers:[{type:'ISBN_13',identifier:code}]}}]};
   else if(url.includes('/isbn/'+code+'.json'))
-   data={key:'/books/OL1M',isbn_13:[code],physical_format:'Paperback',works:[{key:'/works/OL1W'}]};
+   data={key:'/books/OL1M',isbn_13:[code],physical_format:'Paperback',languages:[{key:'/languages/eng'}],works:[{key:'/works/OL1W'}]};
   else if(url.includes('/works/OL1W.json'))
    data={title:'Relentless',description:withOpenDescription?'A short test synopsis prepared for this importer.':undefined};
   else if(url.includes('openlibrary.org/search.json'))data={docs:[]};
@@ -60,6 +60,8 @@ test('one-click importer saves one work, author, exact ISBN edition and private 
   assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM editions').get()?.count,1);
   assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM people').get()?.count,1);
   assert.equal(f.sqlite.prepare('SELECT page_count AS pages,format FROM editions').get()?.pages,480);
+  assert.equal(f.sqlite.prepare('SELECT language FROM editions').get()?.language,'en');
+  assert.equal(f.sqlite.prepare('SELECT first_publication_date FROM works').get()?.first_publication_date,null);
   assert.equal(f.sqlite.prepare("SELECT body,visibility FROM text_content").get()?.visibility,'private');
   assert.equal(f.sqlite.prepare("SELECT normalized_value FROM entity_identifiers").get()?.normalized_value,code);
   assert.equal(f.sqlite.prepare("SELECT COUNT(*) AS count FROM publication_events").get()?.count,1);
@@ -89,4 +91,24 @@ test('search returns Google volume results with explicit ISBN, no arbitrary Open
   assert.equal(found.items[0]?.isbn13,code);
   assert.equal(found.items[0]?.title,'Relentless');
  }finally{restore()}
+});
+
+test('title search prioritises explicitly English editions over unknown and foreign language editions',async()=>{
+ const original=globalThis.fetch;
+ globalThis.fetch=async(input:RequestInfo|URL)=>{
+  const address=String(input);
+  if(address.includes('googleapis.com/books/v1/volumes?')){
+   return Response.json({items:[
+    {id:'spanish',volumeInfo:{title:'Persuader',authors:['Lee Child'],language:'es',industryIdentifiers:[{type:'ISBN_13',identifier:'9780306406157'}]}},
+    {id:'unknown',volumeInfo:{title:'Persuader',authors:['Lee Child'],industryIdentifiers:[{type:'ISBN_13',identifier:'9780552156905'}]}},
+    {id:'english',volumeInfo:{title:'Persuader',authors:['Lee Child'],language:'en',industryIdentifiers:[{type:'ISBN_13',identifier:'9781861972712'}]}}
+   ]});
+  }
+  return Response.json({docs:[]});
+ };
+ try{
+  const result=await findSimpleBooks('Persuader','catalogue-admin');
+  assert.deepEqual(result.items.map(item=>item.language),['en',null,'es']);
+  assert.deepEqual(result.items.map(item=>item.key),['g:english','g:unknown','g:spanish']);
+ }finally{globalThis.fetch=original}
 });
