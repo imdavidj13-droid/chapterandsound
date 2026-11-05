@@ -108,3 +108,24 @@ test('same author name from a different Open Library source key needs review',as
   assert.equal(db.prepare('SELECT count(*) AS n FROM works').get()?.n,1);
  }finally{db.close()}
 });
+
+test('invalid historical publication date is deferred rather than blocking a draft',async()=>{
+ const {db,driver}=fixture();
+ try{
+  const candidate=work({firstPublicationDate:'circa 1800'});
+  assert.equal((await previewWorkOnlyDraft(driver,candidate)).decision,'create_work_draft');
+  const result=await importWorkOnlyDraft(driver,candidate,'owner-test');
+  assert.equal(result.saved,true);
+  assert.equal(db.prepare('SELECT first_publication_date AS date FROM works').get()?.date,null);
+  const audit=db.prepare("SELECT details_json FROM catalogue_audit_log WHERE action='import_work_only_draft'").get() as {details_json:string};
+  assert.equal(JSON.parse(audit.details_json).firstPublicationDateDeferred,true);
+  assert.equal(db.prepare('SELECT status FROM works').get()?.status,'draft');
+ }finally{db.close()}
+});
+test('valid first publication date is retained verbatim',async()=>{
+ const {db,driver}=fixture();
+ try{
+  await importWorkOnlyDraft(driver,work({firstPublicationDate:'2001-05'}),'owner-test');
+  assert.equal(db.prepare('SELECT first_publication_date AS date FROM works').get()?.date,'2001-05');
+ }finally{db.close()}
+});
