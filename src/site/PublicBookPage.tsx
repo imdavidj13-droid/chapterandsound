@@ -71,7 +71,7 @@ export function PublicBookPage({id,verified,theme='editorial'}:{id:string;verifi
    <div className="public-book-copy">
     <p className="eyebrow">Book overview · Chapter & Sound</p><h1>{book.title}</h1>
     {book.subtitle&&<p className="intro">{book.subtitle}</p>}
-    <p className="book-author-line">By {book.authorId?<a href={'/person/'+encodeURIComponent(book.authorId)}><strong>{book.author||'View author'}</strong></a>:<strong>{book.author||'Author not yet confirmed'}</strong>}{book.year?<> · First published {book.year}</>:null}</p>
+    <p className="book-author-line">By {book.authorId?<a href={'/person/'+encodeURIComponent(book.authorId)}><strong>{book.author||'View author'}</strong></a>:<strong>{book.author||'Author not yet confirmed'}</strong>}{book.year?<> · Publication year on record: {book.year}</>:null}</p>
     <p>{book.summary||'A verified synopsis has not yet been added to this record.'}</p>
     <div className="actions"><a className="button" href={verified?'/add-book':'/signin'}>{verified?'Add to my bookshelf':'Sign in to add'}</a><a href={verified?'/write-review?book='+encodeURIComponent(book.id):'/signin'} className="button secondary">{verified?'Write a review':'Sign in to review'}</a></div>
     {book.verificationStatus!=='verified'&&<p className="muted small">Book metadata awaits verification.</p>}
