@@ -6,7 +6,7 @@ type Suggestion={key:string;title:string;author:string;isbn13:string|null;publis
 type Detail=Suggestion&{synopsis:string|null;synopsisSource:'Open Library'|'Google Books'|null;
  complete:boolean;missing:string[];format:string;sourceUrl:string;
  coverKind:'work'|'edition'|null;coverWorkKey:string|null;coverId:number|null;researchOnly?:boolean;};
-type SearchResponse={items:Suggestion[];sources:{google:string;openLibrary:string;isbnDb?:string}};
+type SearchResponse={items:Suggestion[];sources:{google:string;openLibrary:string;isbnDb?:string};diagnostics?:{googleCandidates:number;openLibraryCandidates:number;isbnDbCandidates:number;isbnDbNewEditions:number;isbnDbReason?:string|null}};
 type SaveResponse={created:boolean;id:string;status:string;editionId?:string};
 const languageLabel=(code:string|null)=>code==='en'?'English':code==='es'?'Spanish':code==='fr'?'French':code==='de'?'German':code==='it'?'Italian':code==='pt'?'Portuguese':code?code.toUpperCase():'Language unconfirmed';
 const requiredLabels:Record<string,string>={isbn13:'ISBN',publisher:'publisher',
@@ -28,9 +28,13 @@ export function CatalogueImportCentre(){
   try{
    const found=await apiGet<SearchResponse>('/api/catalogue-admin/simple-import/search?q='+encodeURIComponent(query.trim()));
    setItems(found.items);
-   setSourceStatus([found.sources.google==='unavailable'?'Google Books unavailable':'',
-    found.sources.openLibrary==='unavailable'?'Open Library unavailable':'',
-    found.sources.isbnDb==='unavailable'?'ISBNdb unavailable':found.sources.isbnDb==='rate_limited'?'ISBNdb rate-limited; other sources still available':''].filter(Boolean).join(' · '));
+   setSourceStatus([
+    'ISBNdb: '+(found.sources.isbnDb||'not reported')+
+      (found.diagnostics?' · '+found.diagnostics.isbnDbCandidates+' candidates, '+found.diagnostics.isbnDbNewEditions+' additional editions':'')+
+      (found.diagnostics?.isbnDbReason?' ('+found.diagnostics.isbnDbReason+')':''),
+    'Google Books: '+found.sources.google+(found.diagnostics?' · '+found.diagnostics.googleCandidates+' candidates':''),
+    'Open Library: '+found.sources.openLibrary+(found.diagnostics?' · '+found.diagnostics.openLibraryCandidates+' candidates':'')
+   ].join(' | '));
    if(found.items.length===0)setNotice('No matching titles were found. Try an exact ISBN or a more specific book title.');
   }catch(e){setError(e instanceof Error?e.message:'Book search failed')}
   finally{setBusy(false)}
