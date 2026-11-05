@@ -130,7 +130,7 @@ export async function resolveISBNClaims(codeInput:string,opts:{
   statuses['Open Library']=olResult.value?'matched':'not_found';if(olResult.value)evidence.push(olResult.value);
  }else statuses['Open Library']=String(olResult.reason instanceof Error?olResult.reason.message:'request_failed').slice(0,50);
  const fields={
-  title:combine<string>(evidence,'title'),author:combine<string>(evidence.map(e=>({...e,author:e.authors[0]||null})) as EditionEvidence[],'author'),
+  title:combine<string>(evidence,'title'),author:combine<string>(evidence.map(e=>({...e,title:e.authors[0]||null})),'title'),
   publisher:combine<string>(evidence,'publisher'),publishedDate:combine<string>(evidence,'publishedDate'),
   pages:combine<number>(evidence,'pages'),language:combine<string>(evidence,'language'),
   format:combine<string>(evidence,'format')
