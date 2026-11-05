@@ -107,3 +107,34 @@ test('real schema: book genre is created and can be removed without deleting sub
   assert.equal(f.db.prepare('SELECT count(*) AS count FROM subjects').get()?.count,1);
  }finally{f.close()}
 });
+
+test('approved edition enrichment updates a blank page count by exact ISBN without replacing it later',async()=>{
+ const f=fixture();
+ try{
+  const first=await f.send({action:'identifier',editionId:'ed-a',code:'ISBN13',value:'9780306406157'});
+  assert.equal(first.status,200);
+  const result=await f.send({action:'enrichPageCount',editionId:'ed-a',isbn13:'9780306406157',
+    pageCount:314,expectedRevision:1,confirmed:true,rightsReviewed:true});
+  assert.equal(result.status,200,await result.text());
+  assert.equal(f.db.prepare("SELECT page_count AS pages FROM editions WHERE id='ed-a'").get()?.pages,314);
+  const rejected=await f.send({action:'enrichPageCount',editionId:'ed-a',isbn13:'9780306406157',
+    pageCount:399,expectedRevision:2,confirmed:true,rightsReviewed:true});
+  assert.equal(rejected.status,409);
+  assert.equal(f.db.prepare("SELECT page_count AS pages FROM editions WHERE id='ed-a'").get()?.pages,314);
+  const audit=f.db.prepare("SELECT COUNT(*) AS count FROM catalogue_audit_log WHERE action='approved_page_count_enrichment'").get();
+  assert.equal(audit?.count,1);
+ }finally{f.close()}
+});
+test('ISBN mismatch or missing explicit source rights review cannot enrich the catalogue',async()=>{
+ const f=fixture();
+ try{
+  await f.send({action:'identifier',editionId:'ed-a',code:'ISBN13',value:'9780306406157'});
+  const incorrect=await f.send({action:'enrichPageCount',editionId:'ed-a',isbn13:'9781861972712',
+    pageCount:100,expectedRevision:1,confirmed:true,rightsReviewed:true});
+  assert.equal(incorrect.status,409);
+  const unapproved=await f.send({action:'enrichPageCount',editionId:'ed-a',isbn13:'9780306406157',
+    pageCount:100,expectedRevision:1,confirmed:true,rightsReviewed:false});
+  assert.equal(unapproved.status,409);
+  assert.equal(f.db.prepare("SELECT page_count AS pages FROM editions WHERE id='ed-a'").get()?.pages,null);
+ }finally{f.close()}
+});
