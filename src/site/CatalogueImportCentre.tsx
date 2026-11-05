@@ -2,11 +2,12 @@ import {useState} from 'react';
 import {apiGet,apiWrite} from './api';
 
 type Suggestion={key:string;title:string;author:string;isbn13:string|null;publisher:string|null;
- publishedDate:string|null;pages:number|null;coverUrl:string|null;source:string};
+ publishedDate:string|null;pages:number|null;coverUrl:string|null;language:string|null;source:string};
 type Detail=Suggestion&{synopsis:string|null;synopsisSource:'Open Library'|'Google Books'|null;
  complete:boolean;missing:string[];format:string;sourceUrl:string};
 type SearchResponse={items:Suggestion[];sources:{google:string;openLibrary:string}};
 type SaveResponse={created:boolean;id:string;status:string;editionId?:string};
+const languageLabel=(code:string|null)=>code==='en'?'English':code==='es'?'Spanish':code==='fr'?'French':code==='de'?'German':code==='it'?'Italian':code==='pt'?'Portuguese':code?code.toUpperCase():'Language unconfirmed';
 const requiredLabels:Record<string,string>={isbn13:'ISBN',publisher:'publisher',
  publishedDate:'release date',pages:'page count',synopsis:'description',author:'author',title:'title'};
 function missingText(items:string[]){return items.map(x=>requiredLabels[x]||x).join(', ')}
@@ -59,7 +60,7 @@ export function CatalogueImportCentre(){
   <div className="cs-simple-import-heading">
    <p className="cs-admin-eyebrow">CHAPTER &amp; SOUND · CATALOGUE</p>
    <h3>Find and add a book</h3>
-   <p>Search by book title, author or ISBN. Choose a result to import its main details and one edition. No JSON, duplicate records or bulk edition setup.</p>
+   <p>Search by book title, author or ISBN. English editions appear first when their language is known. Choose a result to import its details and one ISBN-identified edition.</p>
   </div>
   <form className="cs-simple-import-search" onSubmit={e=>{e.preventDefault();void search()}}>
    <label htmlFor="cs-simple-query">Book title, author or ISBN</label>
@@ -82,7 +83,7 @@ export function CatalogueImportCentre(){
     <div className="cs-simple-import-description">
      <h5>{item.title}</h5><p>{item.author}</p>
      <small>{item.publisher||'Publisher to check'} · {item.publishedDate||'Date to check'} · {item.pages?item.pages+' pages':'Pages to check'}</small>
-     <small>{item.isbn13?'ISBN '+item.isbn13+' · ':''}{item.source}</small>
+     <small>{item.isbn13?'ISBN '+item.isbn13+' · ':''}{languageLabel(item.language)} · {item.source}</small>
     </div>
     <button type="button" disabled={Boolean(importing)} onClick={()=>void selectAndImport(item)}>
      {importing===item.key?'Checking…':'Import book'}
@@ -96,6 +97,7 @@ export function CatalogueImportCentre(){
    </div>
    <dl>
     <div><dt>ISBN</dt><dd>{selected.isbn13||'Missing'}</dd></div>
+    <div><dt>Edition language</dt><dd>{languageLabel(selected.language)}</dd></div>
     <div><dt>Publisher</dt><dd>{selected.publisher||'Missing'}</dd></div>
     <div><dt>Release date</dt><dd>{selected.publishedDate||'Missing'}</dd></div>
     <div><dt>Page count</dt><dd>{selected.pages||'Missing'}</dd></div>
