@@ -2,7 +2,7 @@ import {useCallback,useEffect,useState} from 'react';
 import type {FormEvent} from 'react';
 import {apiGet} from './api';
 
-type Edition={id:string;format:string};
+type Edition={id:string;format:string;language?:string|null;publicationStatus?:string};
 type Identifier={editionId:string;code:string;value:string};
 type Cover={kind:'work'|'edition';entityId:string;assetId:string};
 type Metadata={editions:Edition[];covers:Cover[];identifiers:Identifier[]};
@@ -36,7 +36,12 @@ export function CatalogueCoverEditor({workId,imageStorage}:{workId:string;imageS
   :undefined;
  const displayedCover=current||firstEditionCover;
  const isbnCover=(edition:string)=>data.identifiers.find(x=>x.editionId===edition&&x.code==='ISBN13'&&/^\d{13}$/.test(x.value))?.value||'';
- const sourceIsbn=kind==='edition'?isbnCover(editionId):data.editions.map(e=>isbnCover(e.id)).find(Boolean)||'';
+ const orderedEdtions=[...data.editions].filter(e=>e.publicationStatus==='published').sort((a,b)=>{
+  const lang=(e:Edition)=>e.language==='en'?0:!e.language?1:2;
+  const fmt=(e:Edition)=>e.format==='paperback'?0:e.format==='hardback'?1:e.format==='ebook'?2:3;
+  return lang(a)-lang(b)||fmt(a)-fmt(b);
+ });
+ const sourceIsbn=kind==='edition'?isbnCover(editionId):orderedEdtions.map(e=>isbnCover(e.id)).find(Boolean)||'';
  // This matches the public book page: an uploaded R2 asset takes precedence,
  // otherwise show the ISBN-specific externally hosted cover, not a false "No cover" state.
  const sourceCover=sourceIsbn?'https://covers.openlibrary.org/b/isbn/'+sourceIsbn+'-L.jpg?default=false':'';
