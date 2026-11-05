@@ -24,7 +24,7 @@ export function RoomBookView({data,verified}:{data:BookPayload;verified:boolean}
       <div><p className="eyebrow">The Reading Room / Book profile</p><h1>{book.title}</h1>
       {book.subtitle&&<p>{book.subtitle}</p>}
       <h2>{book.author||'Author unconfirmed'}</h2>
-      {book.year!=null&&<p className="muted small">First published {book.year}</p>}
+      {book.year!=null&&<p className="muted small">Publication year on record: {book.year}</p>}
       <div className="room-book-actions"><a className="room-primary-link" href={verified?'/add-book':'/signin'}>{verified?'Save to my bookshelf':'Sign in to save'} →</a><a href="/reviews" className="room-outline-link">Community reviews</a></div></div>
     </div>
     <aside className="room-book-score"><p className="eyebrow">Community story rating</p><strong>{ratings.story.average!=null?'★ '+ratings.story.average.toFixed(1)+'/5':'Awaiting ratings'}</strong><p>{ratings.story.count} {ratings.story.count===1?'member rating':'member ratings'}</p><p className="muted small">One public story rating per member.</p></aside>
