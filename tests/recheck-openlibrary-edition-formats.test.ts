@@ -72,7 +72,7 @@ test('ambiguous publisher and language arrays cannot create facts',()=>{
 
 test('accepts only documented leading-The variant when exact edition work and ISBN agree',()=>{
  const book={...fixture().candidates[0],title:'The Crime Trade'};
- const ed={...book.editions[0],sourceKey:'/books/OL37397003M',isbn13:'9781466826243'};
+ const ed={...book.editions![0],sourceKey:'/books/OL37397003M',isbn13:'9781466826243'};
  const source={key:ed.sourceKey,title:'Crime Trade',works:[{key:book.workSourceKey}],
   isbn_13:[ed.isbn13],physical_format:''};
  assert.equal(evaluate(book,ed,source).status,'no_explicit_format');
