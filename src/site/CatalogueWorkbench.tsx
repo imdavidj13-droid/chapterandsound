@@ -145,11 +145,11 @@ export function CatalogueWorkbench({path,navigate}:{path:string;navigate:(to:str
 
  async function changePublication(target:'draft'|'published'){
   if(!editingId||saving)return;
-  if(target==='published'&&!window.confirm('Publish this book to the public catalogue? Make sure all details and its first edition are correct.'))return;
+  if(target==='published'&&!window.confirm('Publish this book and its ISBN-identified print/ebook editions to the public catalogue? All editions must have known formats and valid ISBNs. Confirm you have reviewed their identities and metadata. Missing descriptions and covers will remain blank.'))return;
   if(target==='draft'&&!window.confirm('Return this book to draft and remove it from public catalogue results?'))return;
   setSaving(true);setError('');setNotice('');
   try{
-   const result=await apiWrite<{saved:boolean;status:string;revision:number}>('/api/catalogue-admin/works/'+encodeURIComponent(editingId)+'/publication','PATCH',{status:target,expectedRevision:editRevision});
+   const result=await apiWrite<{saved:boolean;status:string;revision:number}>('/api/catalogue-admin/works/'+encodeURIComponent(editingId)+'/publication','PATCH',{status:target,expectedRevision:editRevision,publishReviewedEditions:target==='published'});
    setEditRevision(result.revision);setEditStatus(result.status);setNotice(target==='published'?'Book published to the public catalogue.':'Book returned to draft.');await load();
   }catch(e){setError(e instanceof Error?e.message:'Could not change publication status')}
   finally{setSaving(false)}
