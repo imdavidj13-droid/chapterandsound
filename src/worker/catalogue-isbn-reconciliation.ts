@@ -133,7 +133,7 @@ export async function resolveISBNClaims(codeInput:string,opts:{
   diagnostics['Google Books']=googleResult.value.diagnostic;
   if(googleResult.value.edition)evidence.push(googleResult.value.edition);
  }else {
-  const match=googleResult.reason instanceof Error?/^HTTP_(\\d{3})$/.exec(googleResult.reason.message):null;
+  const match=googleResult.reason instanceof Error?/^HTTP_(\d{3})$/.exec(googleResult.reason.message):null;
   statuses['Google Books']=match?'HTTP_'+match[1]:'request_failed';
   diagnostics['Google Books']=match?'http_'+match[1]:'network_or_invalid_response';
  }
@@ -142,7 +142,7 @@ export async function resolveISBNClaims(codeInput:string,opts:{
   diagnostics['Open Library']=olResult.value?'exact_isbn_matched':'no_matching_edition';
   if(olResult.value)evidence.push(olResult.value);
  }else {
-  const match=olResult.reason instanceof Error?/^HTTP_(\\d{3})$/.exec(olResult.reason.message):null;
+  const match=olResult.reason instanceof Error?/^HTTP_(\d{3})$/.exec(olResult.reason.message):null;
   statuses['Open Library']=match?'HTTP_'+match[1]:'request_failed';
   diagnostics['Open Library']=match?'http_'+match[1]:'network_or_invalid_response';
  }
