@@ -276,7 +276,7 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
    const raw=await response.json() as {isbn_13?:string[];number_of_pages?:number;publishers?:string[];publish_date?:string;title?:string};
    const matched=Array.isArray(raw.isbn_13)&&raw.isbn_13.some(value=>value.replace(/[ -]/g,'')===record.isbn13);
    if(!matched)return fail('Open Library response did not confirm the exact ISBN',409);
-   const pages=Number.isSafeInteger(raw.number_of_pages)&&raw.number_of_pages!>0&&raw.number_of_pages!<=100000?raw.number_of_pages:null;
+   const pages=typeof raw.number_of_pages==='number'&&Number.isSafeInteger(raw.number_of_pages)&&raw.number_of_pages>0&&raw.number_of_pages<=100000?raw.number_of_pages:null;
    return json({found:true,source:'openlibrary',editionId,isbn13:record.isbn13,currentPages:record.currentPages,
     pageCount:pages,title:str(raw.title,300),publisher:str(raw.publishers?.[0],200),publicationDate:str(raw.publish_date,100),
     notice:'External observations are suggestions only. Nothing has been saved.'});
