@@ -55,7 +55,7 @@ const coverUrl=(raw:unknown)=>{
  if(!v)return null;
  try{const u=new URL(v);return u.protocol==='https:'?u.toString():null}catch{return null}
 };
-const empty=(status:Exclude<ISBNdbLookup['status'],'matched'>,message:string,httpStatus?:number):ISBNdbLookup=>
+const empty=(status:Exclude<ISBNdbLookup['status'],'matched'>,message:string,httpStatus?:number):Exclude<ISBNdbLookup,{status:'matched'}>=>
  ({status,message,...(httpStatus?{httpStatus}:{})});
 /**
  * Transport is injected for fixture tests. Only a configured API key enables
