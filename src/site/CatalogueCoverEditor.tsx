@@ -3,9 +3,10 @@ import type {FormEvent} from 'react';
 import {apiGet} from './api';
 
 type Edition={id:string;format:string};
+type Identifier={editionId:string;code:string;value:string};
 type Cover={kind:'work'|'edition';entityId:string;assetId:string};
-type Metadata={editions:Edition[];covers:Cover[]};
-const empty:Metadata={editions:[],covers:[]};
+type Metadata={editions:Edition[];covers:Cover[];identifiers:Identifier[]};
+const empty:Metadata={editions:[],covers:[],identifiers:[]};
 
 export function CatalogueCoverEditor({workId,imageStorage}:{workId:string;imageStorage:boolean}){
  const [data,setData]=useState<Metadata>(empty);
@@ -15,7 +16,7 @@ export function CatalogueCoverEditor({workId,imageStorage}:{workId:string;imageS
  const load=useCallback(async()=>{
   try{
    const response=await apiGet<Metadata>('/api/catalogue-admin/works/'+encodeURIComponent(workId)+'/metadata');
-   setData({editions:response.editions||[],covers:response.covers||[]});
+   setData({editions:response.editions||[],covers:response.covers||[],identifiers:response.identifiers||[]});
    setEditionId(v=>response.editions.some(e=>e.id===v)?v:response.editions[0]?.id||'');
   }catch(e){setError(e instanceof Error?e.message:'Unable to load linked covers')}
  },[workId]);
@@ -34,8 +35,14 @@ export function CatalogueCoverEditor({workId,imageStorage}:{workId:string;imageS
   ?data.editions.map(e=>data.covers.find(cover=>cover.kind==='edition'&&cover.entityId===e.id)).find((cover):cover is Cover=>!!cover)
   :undefined;
  const displayedCover=current||firstEditionCover;
+ const isbnCover=(edition:string)=>data.identifiers.find(x=>x.editionId===edition&&x.code==='ISBN13'&&/^\d{13}$/.test(x.value))?.value||'';
+ const sourceIsbn=kind==='edition'?isbnCover(editionId):data.editions.map(e=>isbnCover(e.id)).find(Boolean)||'';
+ // This matches the public book page: an uploaded R2 asset takes precedence,
+ // otherwise show the ISBN-specific externally hosted cover, not a false "No cover" state.
+ const sourceCover=sourceIsbn?'https://covers.openlibrary.org/b/isbn/'+sourceIsbn+'-L.jpg?default=false':'';
  const [imageFailed,setImageFailed]=useState(false);
- useEffect(()=>{setImageFailed(false)},[displayedCover?.assetId]);
+ const [sourceImageFailed,setSourceImageFailed]=useState(false);
+ useEffect(()=>{setImageFailed(false);setSourceImageFailed(false)},[displayedCover?.assetId,sourceCover]);
  async function submit(event:FormEvent){
   event.preventDefault();
   if(!imageStorage||!file||!entityId)return;
@@ -71,8 +78,8 @@ export function CatalogueCoverEditor({workId,imageStorage}:{workId:string;imageS
      <button type="submit" disabled={saving||!file||!entityId}>{saving?'Uploading…':current?'Replace primary cover':'Upload cover'}</button>
     </div>
     <aside className="cs-book-cover-preview-panel"><h4>Cover preview</h4>
-     <div className="cs-book-cover-preview">{preview?<img src={preview} alt="Cover selected for uploading"/>:displayedCover&&!imageFailed?<img src={'/api/catalogue-media/'+encodeURIComponent(displayedCover.assetId)} alt={firstEditionCover?'Cover linked to this book’s first edition':'Currently linked cover'} onError={()=>setImageFailed(true)}/>:<div className="cs-book-cover-placeholder"><span aria-hidden="true">▤</span><strong>{imageFailed?'Cover could not be loaded':'No cover yet'}</strong></div>}</div>
-     <p>{preview?'Selected local file — not uploaded yet':imageFailed?'The cover link exists, but the image could not be retrieved. Check R2 storage.':firstEditionCover?'Cover from the first edition':current?'Current catalogue cover':'Select a cover to preview it here'}</p>
+     <div className="cs-book-cover-preview">{preview?<img src={preview} alt="Cover selected for uploading"/>:displayedCover&&!imageFailed?<img src={'/api/catalogue-media/'+encodeURIComponent(displayedCover.assetId)} alt={firstEditionCover?'Cover linked to this book’s first edition':'Currently linked cover'} onError={()=>setImageFailed(true)}/>:sourceCover&&!sourceImageFailed?<img src={sourceCover} alt={'Source-hosted cover for ISBN '+sourceIsbn} referrerPolicy="no-referrer" onError={()=>setSourceImageFailed(true)}/>:<div className="cs-book-cover-placeholder"><span aria-hidden="true">▤</span><strong>No cover available</strong></div>}</div>
+     <p>{preview?'Selected local file — not uploaded yet':displayedCover&&!imageFailed?'Uploaded R2 image':sourceCover&&!sourceImageFailed?'Cover displayed from Open Library for ISBN '+sourceIsbn+' (not stored in R2)':sourceCover?'No Open Library cover is available for this ISBN':imageFailed?'The uploaded cover could not be retrieved. Check R2 storage.':'No cover available for the saved ISBN'}</p>
     </aside>
    </form>
   </>}
