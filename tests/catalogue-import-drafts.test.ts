@@ -111,3 +111,29 @@ test('pilot refuses metadata-incomplete drafts rather than creating cleanup work
   assert.equal(db.prepare('SELECT count(*) AS n FROM works').get()?.n,0);
  }finally{db.close()}
 });
+
+test('work-first option imports incomplete but ISBN-identified paperback as private draft only',async()=>{
+ const {db,driver}=fixture();
+ try{
+  const incomplete=draft({description:'',subjects:[],
+   editions:[{sourceKey:'/books/OL100M',isbn13:'9780306406157',format:'paperback'}]});
+  const result=await importCatalogueDrafts(driver,[incomplete],'owner-fixture',{workFirstDraft:true});
+  assert.equal(result.published,false);
+  assert.equal(db.prepare('SELECT status FROM works').get()?.status,'draft');
+  assert.equal(db.prepare('SELECT format FROM editions').get()?.format,'paperback');
+ }finally{db.close()}
+});
+test('work-first option still refuses unknown format, ISBN-less records and audio',async()=>{
+ const {db,driver}=fixture();
+ try{
+  for(const edition of [
+   {sourceKey:'/books/OL100M',isbn13:'9780306406157',format:'unknown'},
+   {sourceKey:'/books/OL100M',format:'paperback'},
+   {sourceKey:'/books/OL100M',isbn13:'9780306406157',format:'audiobook'}
+  ]){
+   await assert.rejects(()=>importCatalogueDrafts(driver,
+    [draft({description:'',editions:[edition]})],'owner-fixture',{workFirstDraft:true}),ImportConflict);
+  }
+  assert.equal(db.prepare('SELECT count(*) AS n FROM works').get()?.n,0);
+ }finally{db.close()}
+});
