@@ -64,3 +64,38 @@ test('groups without working source URLs have no fabricated cover',()=>{
  const group=groupSearchResults([entry('i:1','Relentless','Simon Kernick','9780552156905')])[0]!;
  assert.deepEqual(groupCoverCandidates(group),[]);
 });
+
+test('surname-first and marketing-subtitle variants do not become separate books',()=>{
+ const rows=[
+  entry('g:1','Relentless','Simon Kernick','9780552153126'),
+  entry('i:1','Relentless: A Thriller','Kernick, Simon','9780552156905'),
+  entry('i:2','Relentless: A Thriller','Kernick, Simon','9780552153126')
+ ];
+ const groups=groupSearchResults(rows);
+ assert.equal(groups.length,1);
+ assert.equal(groups[0]?.title,'Relentless');
+ assert.equal(groups[0]?.author,'Simon Kernick');
+ assert.deepEqual(groups[0]?.items.map(item=>item.isbn13),['9780552153126','9780552156905']);
+});
+test('reversed author format alone does not create an edition',()=>{
+ const groups=groupSearchResults([
+  entry('g:1','The Witness','Simon Kernick','9781448136728'),
+  entry('i:1','The Witness','Kernick, Simon','9781448136728')
+ ]);
+ assert.equal(groups.length,1);
+ assert.equal(groups[0]?.items.length,1);
+});
+test('untitled placeholders cannot group with each other',()=>{
+ const groups=groupSearchResults([
+  entry('i:1','Untitled Kernick','Simon Kernick','9780552153126'),
+  entry('i:2','Untitled Kernick','Kernick, Simon','9780552156905')
+ ]);
+ assert.equal(groups.length,2);
+});
+test('material subtitles remain distinct without identity evidence',()=>{
+ const groups=groupSearchResults([
+  entry('g:1','The Witness','Simon Kernick','9780552153126'),
+  entry('i:1','The Witness: Aftermath','Kernick, Simon','9780552156905')
+ ]);
+ assert.equal(groups.length,2);
+});
