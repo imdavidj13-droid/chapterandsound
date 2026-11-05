@@ -1,0 +1,25 @@
+{
+  "mode": "publisher_and_retailer_exact_isbn_evidence",
+  "reviewOnly": true,
+  "importEligible": false,
+  "author": "Simon Kernick",
+  "assembledOn": "2026-11-05",
+  "records": [
+    {
+      "title": "Severed",
+      "isbn13": "9780593054727",
+      "editionSourceKey": "/books/OL26179567M",
+      "format": "paperback",
+      "feature": null,
+      "source": "abebooks_exact_isbn_product_listing",
+      "sourceUrl": "https://www.abebooks.com/9780593054727/Severed-Simon-Kernick-0593054725/plp",
+      "note": "Exact ISBN is labelled Softcover and repeated seller listings identify paperback. Distinct ISBN 9780593054734 identifies a hardcover edition. Existing 'TRANSWORLD HARDBACKS' publisher field must not be treated as this ISBN's binding."
+    }
+  ],
+  "notes": [
+    "Confirmed edition ISBN and given Open Library source key must match before reconciliation.",
+    "Do not infer ebook status for 9781407095301 / 9781407093901 / 9781407095332 from different Penguin ISBNs 9781407095295 / 9781407093895 / 9781407095325.",
+    "Unresolved W. F. Howes titles must not be classified by publisher name; publisher supplies both audio and large print.",
+    "Review only; no production database writes or source text copying."
+  ]
+}
