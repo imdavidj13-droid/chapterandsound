@@ -327,3 +327,23 @@ test('search exposes Google artwork for display without marking it as verified e
   assert.equal(results.items[0]?.coverUrl,'https://covers.openlibrary.org/b/isbn/'+code+'-L.jpg?default=false');
  }finally{globalThis.fetch=original}
 });
+
+test('detail preserves Google cover preview when exact ISBN cover is unavailable',async()=>{
+ const original=globalThis.fetch;
+ globalThis.fetch=async(input:RequestInfo|URL)=>{
+  const address=String(input);
+  if(address.includes('googleapis.com/books/v1/volumes/'))return Response.json({
+   id:'volume-preview',volumeInfo:{title:'One By One: After',authors:['Simon Kernick'],
+    industryIdentifiers:[{type:'ISBN_13',identifier:code}],
+    imageLinks:{thumbnail:'http://books.google.com/books/content?id=volume-preview'}}
+  });
+  return new Response('not found',{status:404,headers:{'Content-Type':'text/plain'}});
+ };
+ try{
+  const detail=await getSimpleBook('g:volume-preview','catalogue-admin');
+  assert.equal(detail.coverUrl,null);
+  assert.equal(detail.previewCoverUrl,'https://books.google.com/books/content?id=volume-preview');
+  assert.equal(detail.coverKind,null);
+  assert.ok(detail.missing.includes('coverUrl'));
+ }finally{globalThis.fetch=original}
+});
