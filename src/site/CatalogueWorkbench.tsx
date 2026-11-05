@@ -5,7 +5,7 @@ import {CatalogueCoverEditor} from './CatalogueCoverEditor';
 import {CatalogueDiagnostics} from './CatalogueDiagnostics';
 import {CatalogueImportCentre} from './CatalogueImportCentre';
 import {CataloguePublicationAudit} from './CataloguePublicationAudit';
-import {useCallback,useEffect,useState} from 'react';
+import {useCallback,useEffect,useRef,useState} from 'react';
 import type {FormEvent} from 'react';
 import {apiGet,apiWrite} from './api';
 
@@ -47,6 +47,8 @@ export function CatalogueWorkbench({path,navigate}:{path:string;navigate:(to:str
  const [editingId,setEditingId]=useState(''),[editRevision,setEditRevision]=useState(0);
  const [editSynopsis,setEditSynopsis]=useState(''),[editCredits,setEditCredits]=useState<WorkDetails['credits']>([]);
  const [editStatus,setEditStatus]=useState('draft');
+ const [publicationConfirmation,setPublicationConfirmation]=useState<'draft'|'published'|null>(null);
+ const confirmationCancelRef=useRef<HTMLButtonElement>(null);
  const [opening,setOpening]=useState(false);
  const [showAdvanced,setShowAdvanced]=useState(false);
  const [listedWorks,setListedWorks]=useState<Work[]>([]);
@@ -145,15 +147,16 @@ export function CatalogueWorkbench({path,navigate}:{path:string;navigate:(to:str
 
  async function changePublication(target:'draft'|'published'){
   if(!editingId||saving)return;
-  if(target==='published'&&!window.confirm('Publish this book and its ISBN-identified print/ebook editions to the public catalogue? All editions must have known formats and valid ISBNs. Confirm you have reviewed their identities and metadata. Missing descriptions and covers will remain blank.'))return;
-  if(target==='draft'&&!window.confirm('Return this book to draft and remove it from public catalogue results?'))return;
   setSaving(true);setError('');setNotice('');
   try{
    const result=await apiWrite<{saved:boolean;status:string;revision:number}>('/api/catalogue-admin/works/'+encodeURIComponent(editingId)+'/publication','PATCH',{status:target,expectedRevision:editRevision,publishReviewedEditions:target==='published'});
    setEditRevision(result.revision);setEditStatus(result.status);setNotice(target==='published'?'Book published to the public catalogue.':'Book returned to draft.');await load();
   }catch(e){setError(e instanceof Error?e.message:'Could not change publication status')}
-  finally{setSaving(false)}
+  finally{setSaving(false);setPublicationConfirmation(null)}
  }
+ useEffect(()=>{
+  if(publicationConfirmation)confirmationCancelRef.current?.focus();
+ },[publicationConfirmation]);
  async function uploadMedia(e:FormEvent){
   e.preventDefault();
   if(!mediaReady||!mediaFile||!mediaId||!rightsConfirmed)return;
@@ -174,6 +177,19 @@ export function CatalogueWorkbench({path,navigate}:{path:string;navigate:(to:str
  if(ready===null)return <section className="cs-admin-form"><h2>Catalogue</h2><p role="status">Checking dedicated Cloudflare catalogue database…</p></section>;
  if(ready===false)return <section className="cs-admin-form"><h2>Catalogue database setup</h2><p>The catalogue editor will become available once the separate BOOK_DB migrations are installed.</p><p role="alert" className="cs-admin-error">{error}</p><p>No member database records have been changed.</p><button type="button" onClick={refresh}>Check again</button></section>;
  return <div className="cs-catalogue">
+  {publicationConfirmation&&editingId&&<div className="cs-publication-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget&&!saving)setPublicationConfirmation(null)}}>
+   <section className="cs-publication-modal" role="alertdialog" aria-modal="true" aria-labelledby="cs-publication-confirm-title" aria-describedby="cs-publication-confirm-detail" onKeyDown={e=>{if(e.key==='Escape'&&!saving){e.preventDefault();setPublicationConfirmation(null)}if(e.key==='Tab'){const items=Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));if(!items.length)return;const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}}}}>
+    <div className="cs-publication-modal-symbol" aria-hidden="true">{publicationConfirmation==='published'?'✦':'↶'}</div>
+    <p className="cs-publication-modal-eyebrow">CHAPTER &amp; SOUND · CATALOGUE</p>
+    <h2 id="cs-publication-confirm-title">{publicationConfirmation==='published'?'Publish this book?':'Return to drafts?'}</h2>
+    <p className="cs-publication-modal-book">{works.find(w=>w.id===editingId)?.title||title}</p>
+    <p id="cs-publication-confirm-detail" className="cs-publication-modal-detail">{publicationConfirmation==='published'?'This makes the book and its reviewed, ISBN-identified print and ebook editions visible to readers. All editions must have a valid ISBN and known format. Missing covers and descriptions will remain blank.':'This removes the book and its editions from public book discovery. The saved records and metadata will remain in your catalogue.'}</p>
+    <div className="cs-publication-modal-actions">
+     <button ref={confirmationCancelRef} type="button" disabled={saving} onClick={()=>setPublicationConfirmation(null)}>Cancel</button>
+     <button type="button" className="cs-publication-modal-confirm" disabled={saving} onClick={()=>void changePublication(publicationConfirmation)}>{saving?'Saving…':publicationConfirmation==='published'?'Publish book':'Return to draft'}</button>
+    </div>
+   </section>
+  </div>}
 
   <div className="cs-catalogue-primary-bar">
    <div><p className="cs-admin-eyebrow">BOOK CATALOGUE</p>
@@ -200,8 +216,8 @@ export function CatalogueWorkbench({path,navigate}:{path:string;navigate:(to:str
     <div><p className="cs-book-eyebrow">CHAPTER & SOUND / BOOK EDITOR</p><h2>Edit book: {works.find(w=>w.id===editingId)?.title||title}</h2>
      <p>Record {short(editingId)} · Revision {editRevision} · {label(editStatus)} · Saved changes update this book.</p></div>
     <div className="cs-book-edit-publish-actions">
-     {editStatus==='draft'&&<button type="button" className="cs-book-publish" disabled={saving} onClick={()=>void changePublication('published')}>Publish book</button>}
-     {editStatus==='published'&&<button type="button" disabled={saving} onClick={()=>void changePublication('draft')}>Return to draft</button>}
+     {editStatus==='draft'&&<button type="button" className="cs-book-publish" disabled={saving} onClick={()=>setPublicationConfirmation('published')}>Publish book</button>}
+     {editStatus==='published'&&<button type="button" disabled={saving} onClick={()=>setPublicationConfirmation('draft')}>Return to draft</button>}
      <button type="button" disabled={saving} onClick={()=>navigate(catalogueUrl(editStatus==='published'?'published':'drafts'))}>Back to {editStatus==='published'?'published books':'drafts'}</button>
     </div>
    </header>
