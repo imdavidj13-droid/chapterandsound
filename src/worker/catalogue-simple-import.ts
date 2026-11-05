@@ -17,7 +17,7 @@ export interface SimpleCatalogueDB {
 }
 export type BookSuggestion={
  key:string;title:string;author:string;isbn13:string|null;publisher:string|null;
- publishedDate:string|null;pages:number|null;coverUrl:string|null;source:'Google Books'|'Open Library';
+ publishedDate:string|null;pages:number|null;coverUrl:string|null;language:string|null;source:'Google Books'|'Open Library';
 };
 export type BookDetail=BookSuggestion&{
  synopsis:string|null;synopsisSource:'Open Library'|'Google Books'|null;
@@ -40,6 +40,18 @@ const isbn13Of=(v:unknown)=>{
 const norm=(v:string)=>v.normalize('NFKC').toLocaleLowerCase('en-GB').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
 const date=(v:unknown)=>{const x=str(v,32);return /^\d{4}(?:-(?:0[1-9]|1[0-2])(?:-(?:0[1-9]|[12]\d|3[01]))?)?$/.test(x)?x:null};
 const pages=(v:unknown)=>typeof v==='number'&&Number.isSafeInteger(v)&&v>0&&v<=100000?v:null;
+/** Leave unknown language unset; never infer language from a title, author or publisher. */
+const language=(v:unknown)=>{
+ const code=str(v,40).toLowerCase().replace(/^\/languages\//,'');
+ if(code==='eng'||code==='en'||code==='en-gb'||code==='en-us')return 'en';
+ if(code==='spa'||code==='es')return 'es';
+ if(code==='fre'||code==='fra'||code==='fr')return 'fr';
+ if(code==='ger'||code==='deu'||code==='de')return 'de';
+ if(code==='ita'||code==='it')return 'it';
+ if(code==='por'||code==='pt')return 'pt';
+ return /^[a-z]{2,3}$/.test(code)?code:null;
+};
+const languageRank=(code:string|null)=>code==='en'?0:code===null?1:2;
 const cleanDescription=(v:unknown)=>{
  const raw=typeof v==='string'?v:typeof v==='object'&&v!==null&&'value' in v?String((v as {value:unknown}).value??''):'';
  return raw.replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/\s+/g,' ').trim().slice(0,8000)||null;
@@ -56,13 +68,13 @@ const metadata=(d:BookDetail)=>{
  return {...d,missing,complete:missing.length===0};
 };
 type GVolume={id?:string;volumeInfo?:{
- title?:string;authors?:string[];publisher?:string;publishedDate?:string;description?:string;
+ title?:string;authors?:string[];publisher?:string;publishedDate?:string;description?:string;language?:string;
  pageCount?:number;industryIdentifiers?:{type?:string;identifier?:string}[];
  imageLinks?:{thumbnail?:string;smallThumbnail?:string};
 }};
-type OSearch={key?:string;title?:string;author_name?:string[];first_publish_year?:number;cover_i?:number};
+type OSearch={key?:string;title?:string;author_name?:string[];first_publish_year?:number;cover_i?:number;language?:string[]};
 type OEdition={key?:string;title?:string;isbn_13?:string[];isbn_10?:string[];publishers?:string[];publish_date?:string;
- number_of_pages?:number;physical_format?:string;description?:unknown;covers?:number[]};
+ number_of_pages?:number;physical_format?:string;description?:unknown;covers?:number[];languages?:{key?:string}[]};
 type OWork={title?:string;description?:unknown;authors?:{author?:{key?:string};key?:string}[]};
 async function fetchJson<T>(address:string,userAgent:string):Promise<T>{
  const res=await fetch(address,{headers:{Accept:'application/json','User-Agent':userAgent},
@@ -88,7 +100,7 @@ function googleSuggestion(v:GVolume):BookSuggestion|null{
   info.industryIdentifiers?.find(x=>x.type==='ISBN_10'&&isbn13Of(x.identifier));
  return {key:'g:'+v.id,title:str(info.title),author:str(info.authors[0]),
   isbn13:code?isbn13Of(code.identifier):null,publisher:str(info.publisher)||null,
-  publishedDate:date(info.publishedDate),pages:pages(info.pageCount),
+  publishedDate:date(info.publishedDate),pages:pages(info.pageCount),language:language(info.language),
   coverUrl:(info.imageLinks?.thumbnail||info.imageLinks?.smallThumbnail||'').replace(/^http:/,'https:')||null,
   source:'Google Books'};
 }
@@ -101,7 +113,7 @@ export async function findSimpleBooks(query:string,contact:string,googleKey?:str
  const ol=new URL('https://openlibrary.org/search.json');
  if(byIsbn)ol.searchParams.set('isbn',numeric);
  else ol.searchParams.set('q',q);
- ol.searchParams.set('fields','key,title,author_name,first_publish_year,cover_i');
+ ol.searchParams.set('fields','key,title,author_name,first_publish_year,cover_i,language');
  ol.searchParams.set('limit','12');
  const sourceAgent=olAgent(contact);
  const [google,open]=await Promise.allSettled([
@@ -117,8 +129,11 @@ export async function findSimpleBooks(query:string,contact:string,googleKey?:str
   if(!/^\/works\/OL\d+W$/.test(item.key||'')||!item.title||!item.author_name?.[0])continue;
   found.push({key:'o:'+item.key!.split('/').pop(),title:str(item.title),author:str(item.author_name[0]),
    isbn13:null,publisher:null,publishedDate:date(item.first_publish_year?String(item.first_publish_year):''),
-   pages:null,coverUrl:item.cover_i?'https://covers.openlibrary.org/b/id/'+item.cover_i+'-M.jpg':null,source:'Open Library'});
+   pages:null,language:item.language?.map(language).find(x=>x==='en')||language(item.language?.[0]),
+   coverUrl:item.cover_i?'https://covers.openlibrary.org/b/id/'+item.cover_i+'-M.jpg':null,source:'Open Library'});
  }
+ // Prefer explicitly identified English results for title/author searches; preserve exact-ISBN search ordering.
+ if(!byIsbn)found.sort((a,b)=>languageRank(a.language)-languageRank(b.language));
  return {items:found.slice(0,24),sources:{
   google:google.status==='fulfilled'?'available':'unavailable',
   openLibrary:open.status==='fulfilled'?'available':'unavailable'
@@ -151,6 +166,7 @@ export async function getSimpleBook(key:string,contact:string,googleKey?:string)
    publishedDate:suggestion.publishedDate||date(edition?.publish_date),
    pages:suggestion.pages||pages(edition?.number_of_pages),
    format:formatOf(edition?.physical_format),
+   language:suggestion.language||language(edition?.languages?.[0]?.key),
    synopsis:desc||googleDesc,
    synopsisSource:desc?'Open Library':googleDesc?'Google Books':null,
    sourceUrl:'https://books.google.com/books?id='+encodeURIComponent(key.slice(2)),complete:false,missing:[]});
@@ -159,8 +175,10 @@ export async function getSimpleBook(key:string,contact:string,googleKey?:string)
   const wkey='/works/'+key.slice(2);
   const work=await fetchJson<OWork>('https://openlibrary.org'+wkey+'.json',agent);
   const data=await fetchJson<{entries?:OEdition[]}>('https://openlibrary.org'+wkey+'/editions.json?limit=20',agent);
-  const candidate=(data.entries||[]).find(e=>[...(e.isbn_13||[]),...(e.isbn_10||[])].some(x=>isbn13Of(x))&&str(e.publishers?.[0])&&date(e.publish_date)&&pages(e.number_of_pages))
-   ||(data.entries||[]).find(e=>e.isbn_13?.some(x=>validIsbn(isbn(x))));
+  const entries=(data.entries||[]).filter(e=>[...(e.isbn_13||[]),...(e.isbn_10||[])].some(x=>isbn13Of(x)));
+  const ranking=(e:OEdition)=>languageRank(language(e.languages?.[0]?.key))*10+
+   (!str(e.publishers?.[0])?2:0)+(!date(e.publish_date)?2:0)+(!pages(e.number_of_pages)?1:0);
+  const candidate=entries.sort((a,b)=>ranking(a)-ranking(b))[0];
   if(!candidate)throw Error('No identified edition found for this title. Search by ISBN instead.');
   const code=[...(candidate.isbn_13||[]),...(candidate.isbn_10||[])].map(isbn13Of).find(Boolean)||null;
   const desc=cleanDescription(work.description)||cleanDescription(candidate.description);
@@ -173,7 +191,8 @@ export async function getSimpleBook(key:string,contact:string,googleKey?:string)
   if(!author)throw Error('This Open Library work has no confirmed author. Search the title in Google Books.');
   return metadata({key,title:str(work.title)||str(candidate.title),author,isbn13:code,
    publisher:str(candidate.publishers?.[0])||null,publishedDate:date(candidate.publish_date),
-   pages:pages(candidate.number_of_pages),coverUrl:candidate.covers?.[0]?'https://covers.openlibrary.org/b/id/'+candidate.covers[0]+'-M.jpg':null,
+   pages:pages(candidate.number_of_pages),language:language(candidate.languages?.[0]?.key),
+   coverUrl:candidate.covers?.[0]?'https://covers.openlibrary.org/b/id/'+candidate.covers[0]+'-M.jpg':null,
    source:'Open Library',format:formatOf(candidate.physical_format),synopsis:desc,
    synopsisSource:desc?'Open Library':null,sourceUrl:'https://openlibrary.org'+wkey,complete:false,missing:[]});
  }
@@ -214,11 +233,11 @@ export async function importSimpleBook(db:SimpleCatalogueDB,key:string,expectedI
  if(!scheme)stmts.push(db.prepare("INSERT INTO identifier_schemes(id,code,entity_scope,uniqueness_scope) VALUES(?,'ISBN13','edition','global')").bind(schemeId));
  stmts.push(db.prepare("INSERT INTO works(id,canonical_title,status) VALUES(?,?,'draft')").bind(workId,book.title));
  stmts.push(db.prepare("INSERT INTO contributions(id,person_id,work_id,role_code) VALUES(?,?,?,'author')").bind(uuid(),authorId,workId));
- stmts.push(db.prepare("INSERT INTO editions(id,work_id,format,page_count,publication_status,verification_status) VALUES(?,?,?,?,'draft','needs_review')").bind(editionId,workId,book.format,book.pages));
+ stmts.push(db.prepare("INSERT INTO editions(id,work_id,format,page_count,language,publication_status,verification_status) VALUES(?,?,?,?,?,'draft','needs_review')").bind(editionId,workId,book.format,book.pages,book.language));
  stmts.push(db.prepare("INSERT INTO entity_identifiers(id,scheme_id,entity_kind,entity_id,value,normalized_value) VALUES(?,?,'edition',?,?,?)").bind(uuid(),schemeId,editionId,code,code));
  stmts.push(db.prepare("INSERT INTO publication_events(id,edition_id,event_type,date_value,publisher_id) VALUES(?,?,'released',?,?)").bind(uuid(),editionId,book.publishedDate,publisherId));
  stmts.push(db.prepare("INSERT INTO text_content(id,entity_kind,entity_id,content_type,body,visibility) VALUES(?,'work',?,'synopsis',?,'private')").bind(uuid(),workId,selectedSynopsis));
- stmts.push(db.prepare("INSERT INTO catalogue_audit_log(id,actor_external_id,action,target_kind,target_id,details_json) VALUES(?,?,'simple_import','work',?,?)").bind(uuid(),actor,workId,JSON.stringify({source:book.source,sourceUrl:book.sourceUrl,synopsisSource:ownSynopsis?'admin_original':book.synopsisSource,isbn13:code,rightsReviewRequired:true})));
+ stmts.push(db.prepare("INSERT INTO catalogue_audit_log(id,actor_external_id,action,target_kind,target_id,details_json) VALUES(?,?,'simple_import','work',?,?)").bind(uuid(),actor,workId,JSON.stringify({source:book.source,sourceUrl:book.sourceUrl,synopsisSource:ownSynopsis?'admin_original':book.synopsisSource,isbn13:code,language:book.language,rightsReviewRequired:true})));
  try{await db.batch(stmts)}catch(e){throw Error('Import could not be completed. The database may already contain this edition; refresh before retrying.')}
  return {created:true,id:workId,editionId,status:'draft'};
 }
