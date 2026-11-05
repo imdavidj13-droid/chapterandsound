@@ -37,3 +37,35 @@ test('request failures do not abort queue or invent results',async()=>{
  assert.equal(output.report.totals.failures,2);
  assert.equal(output.report.totals.formatsResolved,0);
 });
+
+test('collects explicit publisher, date, page and language facts only after identity match',async()=>{
+ const item={...raw,publishers:['Bantam Press'],publish_date:'2006',
+  number_of_pages:368,languages:[{key:'/languages/eng'}]};
+ const result=await enrich(fixture(),async (path: string)=>path==='/books/OL1M.json'?item:null,1);
+ const edition=result.candidates.candidates[0].editions[0];
+ assert.equal(edition.publisher,'Bantam Press');
+ assert.equal(edition.publicationDate,'2006');
+ assert.equal(edition.pageCount,368);
+ assert.equal(edition.language,'eng');
+ assert.equal(result.report.totals.fieldsProposed,5);
+ assert.equal(result.report.totals.formatsResolved,1);
+ assert.equal(result.report.totals.fieldConflicts,0);
+});
+test('never overwrites prior metadata and reports conflicting exact-edition fields',async()=>{
+ const manifest=fixture();
+ Object.assign(manifest.candidates[0]!.editions[0]!,{publisher:'Known publisher',pageCount:200});
+ const item={...raw,publishers:['Other publisher'],number_of_pages:300};
+ const result=await enrich(manifest,async (path: string)=>path==='/books/OL1M.json'?item:null,1);
+ const edition=result.candidates.candidates[0].editions[0];
+ assert.equal(edition.publisher,'Known publisher');
+ assert.equal(edition.pageCount,200);
+ assert.equal(result.report.totals.fieldConflicts,2);
+});
+test('ambiguous publisher and language arrays cannot create facts',()=>{
+ const result=evaluate(fixture().candidates[0],fixture().candidates[0]!.editions[0],{
+  ...raw,publishers:['Publisher A','Publisher B'],
+  languages:[{key:'/languages/eng'},{key:'/languages/fre'}]
+ });
+ assert.equal(result.observed.publisher,undefined);
+ assert.equal(result.observed.language,undefined);
+});
