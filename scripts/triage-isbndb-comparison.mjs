@@ -34,6 +34,8 @@ export function triageComparison(report){
   proposedFormats:proposedFormats.length,stillUnknown:stillUnknown.length,
   unknownWithISBN:stillUnknown.filter(x=>x.isbn13).length,
   unknownWithoutISBN:stillUnknown.filter(x=>!x.isbn13).length,
+  primaryIsbnMissingAmongUnresolved:report.unresolved.filter(x=>!x.isbn13).length,
+  primaryIsbnPresentAmongUnresolved:report.unresolved.filter(x=>Boolean(x.isbn13)).length,
   metadataConflicts:fieldConflicts.length,metadataCandidates:additionalFields.length,
   candidateOnlyISBNs:candidateOnly.length},
   conflictsByField:countBy(fieldConflicts.map(x=>x.field)),
@@ -41,6 +43,7 @@ export function triageComparison(report){
   proposedFormats,stillUnknown,fieldConflicts,additionalFields,candidateOnly,
   rules:['No ISBNdb calls are made by this script.',
    'These are review candidates, not production-ready metadata.',
+   'ISBN count here means primary ISBN only; candidate ISBNs in other reports are a separate count.',
    'A source record ID alone is insufficient to publish an unidentified edition.',
    'A publisher name, binding label or page count cannot be copied across candidate ISBNs.',
    'Keep provider-level provenance and check subscription rights before storing or displaying data.']};
