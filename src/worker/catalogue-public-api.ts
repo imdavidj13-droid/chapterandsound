@@ -18,7 +18,7 @@ function workCover(){
    ${image('work','w.id','representative_cover')},
    (SELECT '/api/catalogue-media/'||l.asset_id FROM editions e
     JOIN media_links l ON l.entity_kind='edition' AND l.entity_id=e.id
-    WHERE e.work_id=w.id AND l.role='front_cover' AND l.is_primary=1
+    WHERE e.work_id=w.id AND e.publication_status='published' AND l.role='front_cover' AND l.is_primary=1
     ORDER BY e.created_at,e.id LIMIT 1)
  )`;
 }
@@ -41,13 +41,13 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
       WHERE c.work_id=w.id AND c.role_code IN ('author','coauthor') ORDER BY c.credit_order,c.id LIMIT 1) AS author,
     (SELECT p.id FROM contributions c JOIN people p ON p.id=c.person_id
       WHERE c.work_id=w.id AND c.role_code IN ('author','coauthor') ORDER BY c.credit_order,c.id LIMIT 1) AS authorId,
-    (SELECT GROUP_CONCAT(DISTINCT e.format) FROM editions e WHERE e.work_id=w.id) AS editions
+    (SELECT GROUP_CONCAT(DISTINCT e.format) FROM editions e WHERE e.work_id=w.id AND e.publication_status='published') AS editions
     FROM works w WHERE w.status IN ('published','verified')
     AND (?='' OR instr(lower(w.canonical_title),lower(?))>0 OR EXISTS(
       SELECT 1 FROM contributions c JOIN people p ON p.id=c.person_id
       WHERE c.work_id=w.id AND c.role_code IN ('author','coauthor')
       AND instr(lower(p.preferred_name),lower(?))>0))
-    AND (?='all' OR EXISTS(SELECT 1 FROM editions e WHERE e.work_id=w.id AND e.format=?))
+    AND (?='all' OR EXISTS(SELECT 1 FROM editions e WHERE e.work_id=w.id AND e.publication_status='published' AND e.format=?))
     ORDER BY w.canonical_title,w.id LIMIT ?`).bind(q,q,q,format,format,l).all<{
      id:string;title:string;subtitle:null;summary:string|null;year:string|null;author:string|null;editions:string|null
     }>();
@@ -83,7 +83,7 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
   const {results:works}=await db.prepare(`SELECT w.id,w.canonical_title AS title,'author' AS contribution,
    ${workCover()} AS coverUrl,
    ${synopsis()} AS summary,
-   (SELECT GROUP_CONCAT(DISTINCT e.format) FROM editions e WHERE e.work_id=w.id) AS formatCodes,
+   (SELECT GROUP_CONCAT(DISTINCT e.format) FROM editions e WHERE e.work_id=w.id AND e.publication_status='published') AS formatCodes,
    w.first_publication_date AS firstPublished
    FROM works w WHERE w.status IN ('published','verified') AND EXISTS(
     SELECT 1 FROM contributions c WHERE c.work_id=w.id AND c.person_id=?
@@ -155,19 +155,19 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
     (SELECT i.normalized_value FROM entity_identifiers i JOIN identifier_schemes s ON s.id=i.scheme_id WHERE i.entity_kind='edition' AND i.entity_id=e.id AND s.code='ISBN13' LIMIT 1) AS isbn13,
     (SELECT i.normalized_value FROM entity_identifiers i JOIN identifier_schemes s ON s.id=i.scheme_id WHERE i.entity_kind='edition' AND i.entity_id=e.id AND s.code='ASIN' LIMIT 1) AS asin,
     e.verification_status AS verificationStatus
-    FROM editions e WHERE e.work_id=? ORDER BY e.created_at LIMIT 200`).bind(id).all<Record<string,unknown>>();
+    FROM editions e WHERE e.work_id=? AND e.publication_status='published' ORDER BY e.created_at LIMIT 200`).bind(id).all<Record<string,unknown>>();
   const {results:credits}=await db.prepare(`SELECT er.edition_id AS editionId,
     p.id,p.preferred_name AS name,c.role_code AS role
     FROM edition_recordings er
     JOIN contributions c ON c.recording_id=er.recording_id
     JOIN people p ON p.id=c.person_id
     JOIN editions e ON e.id=er.edition_id
-    WHERE e.work_id=? AND c.role_code IN ('narrator','cast')
+    WHERE e.work_id=? AND e.publication_status='published' AND c.role_code IN ('narrator','cast')
     UNION ALL
     SELECT c.edition_id AS editionId,p.id,p.preferred_name AS name,c.role_code AS role
     FROM contributions c JOIN people p ON p.id=c.person_id
     JOIN editions e ON e.id=c.edition_id
-    WHERE e.work_id=?
+    WHERE e.work_id=? AND e.publication_status='published'
     ORDER BY name`).bind(id,id).all<{editionId:string;id:string;name:string;role:string}>();
   const byEdition=new Map<string,{id:string;name:string;role:string}[]>();
   for(const item of credits){
