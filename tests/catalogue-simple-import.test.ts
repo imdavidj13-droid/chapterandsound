@@ -30,7 +30,7 @@ function fixture(){
  };
  return {sqlite,conn,close:()=>sqlite.close()};
 }
-function mockSources(withOpenDescription=true){
+function mockSources(withOpenDescription=true,knownFormat=true){
  const original=globalThis.fetch;
  globalThis.fetch=async(input:RequestInfo|URL)=>{
   const url=String(input);
@@ -42,7 +42,7 @@ function mockSources(withOpenDescription=true){
    data={items:[{id:'abc123',volumeInfo:{title:'Relentless',authors:['Simon Kernick'],publisher:'Corgi Books',publishedDate:'2007',pageCount:480,language:'en',
     industryIdentifiers:[{type:'ISBN_13',identifier:code}]}}]};
   else if(url.includes('/isbn/'+code+'.json'))
-   data={key:'/books/OL1M',isbn_13:[code],physical_format:'Paperback',languages:[{key:'/languages/eng'}],works:[{key:'/works/OL1W'}]};
+   data={key:'/books/OL1M',isbn_13:[code],physical_format:knownFormat?'Paperback':undefined,languages:[{key:'/languages/eng'}],works:[{key:'/works/OL1W'}]};
   else if(url.includes('/works/OL1W.json'))
    data={title:'Relentless',description:withOpenDescription?'A short test synopsis prepared for this importer.':undefined};
   else if(url.includes('openlibrary.org/search.json'))data={docs:[]};
@@ -135,7 +135,7 @@ test('Open Library work artwork does not get reused for a different chosen ISBN 
 });
 
 test('unknown edition format cannot be saved without explicit reviewed format; approved correction is publishable',async()=>{
- const f=fixture(),restore=mockSources();
+ const f=fixture(),restore=mockSources(true,false);
  try{
   await assert.rejects(
    importSimpleBook(f.conn,'g:abc123',code,'catalogue-admin','owner'),
