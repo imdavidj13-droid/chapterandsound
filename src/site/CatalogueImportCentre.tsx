@@ -98,10 +98,10 @@ export function CatalogueImportCentre(){
       <span aria-hidden="true">No cover</span>}</div>
      <div className="cs-simple-import-description" style={{flex:1,minWidth:0}}>
       <h5>{group.title}</h5><p>{group.author}</p>
-      <small>{group.items.length} {group.items.length===1?'source record':'possible editions'} · {group.items.some(x=>x.source==='ISBNdb')?'Includes ISBNdb':'Google Books / Open Library'}</small>
-      {group.items.length>1&&<small>Possible editions only — matching titles and authors do not establish a canonical work.</small>}
-      <details style={{marginTop:10}} open={group.items.length===1}>
-       <summary style={{cursor:'pointer',fontWeight:600}}>{group.items.length===1?'Edition details':'View '+group.items.length+' editions / source records'}</summary>
+      <small>{group.items.length} {group.items.length===1?'source record':'possible editions'} · {[...new Set(group.items.map(x=>x.source))].join(' · ')}</small>
+      {group.items.length>1&&<small>Edition grouping is provisional; catalogue identities are not merged.</small>}
+      <details style={{marginTop:10}}>
+       <summary style={{cursor:'pointer',fontWeight:600,color:'#21563e',padding:'4px 0'}}>{group.items.length===1?'View edition details':'View '+group.items.length+' editions'}</summary>
        <div style={{display:'grid',gap:8,marginTop:8}}>
         {group.items.map(item=><div key={item.key} style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap',padding:'10px 0',borderTop:'1px solid #dce5db'}}>
          <div>
@@ -109,7 +109,7 @@ export function CatalogueImportCentre(){
           <small style={{display:'block'}}>{item.publisher||'Publisher unconfirmed'} · {item.publishedDate||'Date unconfirmed'} · {item.pages?item.pages+' pages':'Pages unconfirmed'}</small>
           <small style={{display:'block'}}>{languageLabel(item.language)} · {item.source}</small>
          </div>
-         <button type="button" disabled={Boolean(importing)} onClick={()=>void selectAndImport(item)}>
+         <button type="button" style={{background:'#1c5138',color:'#fff',border:'1px solid #1c5138',borderRadius:8,padding:'10px 16px',fontWeight:600,cursor:'pointer'}} disabled={Boolean(importing)} onClick={()=>void selectAndImport(item)}>
           {importing===item.key?'Checking…':item.source==='ISBNdb'?'Review ISBNdb evidence':item.isbn13?'Review edition':'Choose edition'}
          </button>
         </div>)}
