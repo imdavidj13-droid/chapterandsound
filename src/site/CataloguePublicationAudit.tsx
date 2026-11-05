@@ -7,7 +7,7 @@ type PersonResponse={person:{id:string;name:string};works:{id:string;title:strin
 type SearchBook={id:string;title:string;author?:string|null};
 type SearchPerson={id:string;name:string};
 type AdminBook={work:{id:string;title:string;status:string;synopsis:string};credits:{personId:string;name:string;role:string}[]};
-type SavedMetadata={editions:{id:string;format:string}[];identifiers:{editionId:string;code:string;value:string}[];events:{editionId:string;type:string;publisher:string|null;date:string|null}[];covers:{entityId:string;assetId:string}[]};
+type SavedMetadata={editions:{id:string;format:string;publicationStatus:string}[];identifiers:{editionId:string;code:string;value:string}[];events:{editionId:string;type:string;publisher:string|null;date:string|null}[];covers:{entityId:string;assetId:string}[]};
 type Check={name:string;status:'passed'|'failed'|'warning';detail:string;href?:string};
 
 async function getJson<T>(url:string):Promise<T>{
@@ -40,7 +40,7 @@ export function CataloguePublicationAudit({workId,status}:{workId:string;status:
     add('Saved author relationship',admin.credits.some(c=>c.role==='author'||c.role==='coauthor')?'passed':'failed',
      admin.credits.filter(c=>c.role==='author'||c.role==='coauthor').map(c=>c.name).join(', ')||'No author credit saved.');
     add('Saved edition records',meta.editions.length>0?'passed':'failed',
-     meta.editions.length+' edition(s) · '+meta.identifiers.filter(i=>i.code==='ISBN13').length+' ISBN-13 values · '+meta.events.length+' publication events.');
+     meta.editions.length+' edition(s), '+meta.editions.filter(e=>e.publicationStatus==='published').length+' public · '+meta.identifiers.filter(i=>i.code==='ISBN13').length+' ISBN-13 values · '+meta.events.length+' publication events.');
     add('Saved cover relationship',meta.covers.length>0?'passed':'warning',
      meta.covers.length+' primary cover link(s) found in BOOK_DB.');
    }catch(e){add('Connected BOOK_DB record','failed',e instanceof Error?e.message:'Admin database read unavailable');}
@@ -70,24 +70,24 @@ export function CataloguePublicationAudit({workId,status}:{workId:string;status:
       savedAuthor?.personId===book.book.authorId?'The same canonical author ID is used.':'The saved author and public book author IDs differ.');
     }
     if(metadata){
-     const savedEditionIds=new Set(metadata.editions.map(e=>e.id));
+     const savedEditionIds=new Set(metadata.editions.filter(e=>e.publicationStatus==='published').map(e=>e.id));
      const publicEditionIds=new Set(book.editions.map(e=>e.id));
      add('Saved vs public editions',[...savedEditionIds].every(id=>publicEditionIds.has(id))?'passed':'failed',
       [...savedEditionIds].every(id=>publicEditionIds.has(id))?'All saved editions appear in the public response.':'At least one saved edition is missing publicly.');
-     const isbnMismatch=metadata.identifiers.filter(i=>i.code==='ISBN13').some(i=>{
+     const isbnMismatch=metadata.identifiers.filter(i=>i.code==='ISBN13'&&savedEditionIds.has(i.editionId)).some(i=>{
       const edition=book!.editions.find(e=>e.id===i.editionId);
       return !edition||edition.isbn13?.replace(/[ -]/g,'')!==i.value.replace(/[ -]/g,'');
      });
      add('Saved vs public ISBNs',isbnMismatch?'failed':'passed',
       isbnMismatch?'An edition ISBN differs from the saved identifier.':'All stored ISBN-13 values agree with the public editions.');
-     const publicationMismatch=metadata.events.filter(e=>e.type==='released').some(event=>{
+     const publicationMismatch=metadata.events.filter(e=>e.type==='released'&&savedEditionIds.has(e.editionId)).some(event=>{
       const edition=book!.editions.find(e=>e.id===event.editionId);
       return !edition||Boolean(event.date)&&edition.publishedAt!==event.date;
      });
      add('Saved vs public release dates',publicationMismatch?'failed':'passed',
       publicationMismatch?'A saved release date differs from the public edition details.':'Saved release dates agree with the public editions.');
      const publishers=new Map<string,string>();
-     for(const event of metadata.events)if(event.publisher&&!publishers.has(event.editionId))publishers.set(event.editionId,event.publisher);
+     for(const event of metadata.events)if(event.publisher&&savedEditionIds.has(event.editionId)&&!publishers.has(event.editionId))publishers.set(event.editionId,event.publisher);
      const publisherMismatch=[...publishers].some(([id,name])=>book!.editions.find(e=>e.id===id)?.publisher!==name);
      add('Saved vs public publishers',publisherMismatch?'failed':'passed',
       publisherMismatch?'At least one edition publisher differs from the saved publication history.':'Publisher information matches the saved publication history.');
