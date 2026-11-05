@@ -56,7 +56,7 @@ export function CatalogueImportCentre(){
     key:detail.key,isbn13:detail.isbn13,originalSynopsis:ownSynopsis,reviewedFormat:formatChoice,confirmed:true
    });
    setSaved(response);setSelected(null);
-   setNotice(response.created?'Book imported as a private draft with one ISBN-identified edition.':'This book already exists. No duplicate was created.');
+   setNotice(response.created?'Book saved as a private draft with one ISBN-identified edition. Cover review may still be required.':'This book already exists. No duplicate was created.');
   }catch(e){setError(e instanceof Error?e.message:'Import failed; no save confirmed')}
  }
  async function selectAndImport(item:Suggestion){
@@ -74,8 +74,8 @@ export function CatalogueImportCentre(){
  const synopsisReady=selected&&(selected.synopsisSource==='Open Library'||originalSynopsis.trim().length>=30);
  const formatReady=Boolean(selected&&(['paperback','hardback','ebook'].includes(selected.format)||
   selected.format==='unknown'&&['paperback','hardback','ebook'].includes(reviewedFormat)));
- const missing=selected?.missing.filter(x=>x!=='synopsis'||!synopsisReady)||[];
- const canSave=Boolean(selected&&!selected.researchOnly&&selected.isbn13&&selected.coverUrl&&missing.length===0&&synopsisReady&&formatReady&&!importing);
+ const missing=selected?.missing.filter(x=>x!=='coverUrl'&&(x!=='synopsis'||!synopsisReady))||[];
+ const canSave=Boolean(selected&&!selected.researchOnly&&selected.isbn13&&missing.length===0&&synopsisReady&&formatReady&&!importing);
  return <section className="cs-simple-import" aria-label="Search and import books">
   <div className="cs-simple-import-heading">
    <p className="cs-admin-eyebrow">CHAPTER &amp; SOUND · CATALOGUE</p>
@@ -144,13 +144,13 @@ export function CatalogueImportCentre(){
       selected.coverKind==='edition'?'Open Library supplied an image for this exact ISBN.':
       selected.previewCoverUrl?'Google Books provides the image shown above. It is a preview, not yet verified as artwork for the exact ISBN.':
       'No cover image was supplied by this detail lookup.'}</p>
-     {!selected.coverUrl&&selected.previewCoverUrl&&<p>Cover verification is still required before importing. The image is not automatically added to the catalogue.</p>}
+     {!selected.coverUrl&&selected.previewCoverUrl&&<p>Cover verification is required before publication. You can save the book as a private draft without saving this preview as the official cover.</p>}
     </div>
    </div>
    <dl>
     <div><dt>ISBN</dt><dd>{selected.isbn13||'Missing'}</dd></div>
     <div><dt>Format</dt><dd>{selected.format==='unknown'?'Needs confirmation':selected.format}</dd></div>
-    <div><dt>Cover</dt><dd>{selected.coverUrl?'Verified source cover':selected.previewCoverUrl?'Preview available · verification required':'No usable source cover found'}</dd></div>
+    <div><dt>Cover</dt><dd>{selected.coverUrl?'Verified source cover':selected.previewCoverUrl?'Preview available · verify before publishing':'No cover · add before publishing'}</dd></div>
     <div><dt>Edition language</dt><dd>{languageLabel(selected.language)}</dd></div>
     <div><dt>Publisher</dt><dd>{selected.publisher||'Missing'}</dd></div>
     <div><dt>Release date</dt><dd>{selected.publishedDate||'Missing'}</dd></div>
@@ -169,10 +169,10 @@ export function CatalogueImportCentre(){
      placeholder="Write your own synopsis or enter text you have permission to publish."/>
     <small>Google Books descriptions are shown as a reference, not copied into the permanent catalogue automatically.</small>
    </label>}
-   {(missing.length>0||!synopsisReady||!formatReady)&&<p className="cs-simple-import-warning" role="alert">Cannot import yet: {missing.length?missingText(missing):!synopsisReady?'description':'edition format'}. {selected.coverUrl?'Choose verified details for this ISBN.':selected.previewCoverUrl?'The displayed preview cannot yet be used as a verified edition cover.':'No usable cover was confirmed for this edition.'} Nothing has been saved.</p>}
+   {(missing.length>0||!synopsisReady||!formatReady)&&<p className="cs-simple-import-warning" role="alert">Cannot save draft yet: {missing.length?missingText(missing):!synopsisReady?'description':'edition format'}. Complete the required details first. Nothing has been saved.</p>}
    <div className="cs-simple-import-review-actions">
     <a href={selected.sourceUrl} target="_blank" rel="noopener noreferrer">View source</a>
-    <button type="button" disabled={!canSave||Boolean(importing)} onClick={()=>void save(selected,originalSynopsis,reviewedFormat)}>Import this book</button>
+    <button type="button" disabled={!canSave||Boolean(importing)} onClick={()=>void save(selected,originalSynopsis,reviewedFormat)}>Save private draft</button>
    </div>
   </section>}
  </section>;
