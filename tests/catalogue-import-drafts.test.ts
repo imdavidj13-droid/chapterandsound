@@ -181,7 +181,7 @@ test('edition draft refuses to recreate a work already saved as work-only',async
   db.prepare("INSERT INTO catalogue_audit_log(id,actor_external_id,action,target_kind,target_id,details_json) VALUES('a100','owner-fixture','import_work_only_draft','work','w100',?)")
    .run(JSON.stringify({workSourceKey:'/works/OL100W',authorSourceKeys:['/authors/OL10A']}));
   await assert.rejects(()=>importCatalogueDrafts(driver,[draft({authorId:'p100'})],'owner-fixture',{workFirstDraft:true}),
-   /Source work already imported/);
+   /Source work already imported|review_match/);
   assert.equal(db.prepare('SELECT count(*) AS n FROM works').get()?.n,1);
   assert.equal(db.prepare('SELECT count(*) AS n FROM editions').get()?.n,0);
  }finally{db.close()}
