@@ -4,6 +4,7 @@ import {manualCatalogueAPI,validIsbn13,validIsbn10} from './catalogue-manual-api
 import {catalogueBookMetadataAPI} from './catalogue-book-metadata-api.js';
 import {previewCatalogueImport} from './catalogue-import-preview.js';
 import {importCatalogueDrafts,ImportConflict} from './catalogue-import-drafts.js';
+import {previewWorkOnlyDraft,importWorkOnlyDraft,WorkOnlyConflict} from './catalogue-import-work-only.js';
 import {findSimpleBooks,getSimpleBook,importSimpleBook} from './catalogue-simple-import.js';
 import {lookupISBNdbEdition} from './catalogue-isbndb-resolver.js';
 import {resolveISBNClaims} from './catalogue-isbn-reconciliation.js';
@@ -219,6 +220,30 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
   const record=fields(payload);
   try{return json(await previewCatalogueImport(db,record?.candidates))}
   catch(error){return fail(error instanceof Error?error.message:'Invalid import candidates')}
+ }
+ // Separate work-only path: a work can be a private draft without any editions.
+ // Intentionally limited to one candidate per call; NO bulk auto-execution.
+ if((path==='import/work-only/preview'||path==='import/work-only/drafts')&&request.method==='POST'){
+  const size=Number(request.headers.get('Content-Length')||0);
+  if(size>60000)return fail('Work-only request exceeds the 60 KB limit',413);
+  let payload:Record<string,unknown>|null=null;
+  try{
+   const body=await request.text();
+   if(body.length>60000)return fail('Work-only request exceeds the 60 KB limit',413);
+   payload=fields(JSON.parse(body));
+  }catch{return fail('Provide valid work-only candidate JSON')}
+  if(!payload)return fail('Provide a work-only candidate');
+  if(path==='import/work-only/drafts'&&payload.confirmed!==true)
+   return fail('Explicit work-only draft confirmation is required',409);
+  try{
+   if(path==='import/work-only/preview')
+    return json({dryRun:true,...await previewWorkOnlyDraft(db,payload.candidate)});
+   return json(await importWorkOnlyDraft(db,payload.candidate,session.user.id),201);
+  }catch(e){
+   if(e instanceof WorkOnlyConflict)return fail(e.message,409);
+   console.error('Work-only catalogue request failed',e);
+   return fail('Work-only catalogue request failed; inspect existing drafts before retrying.',500);
+  }
  }
  if(path==='import/drafts'&&request.method==='POST'){
   // Draft writes are always a separate, explicit action after dry-run review.
