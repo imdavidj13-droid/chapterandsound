@@ -204,14 +204,20 @@ export async function getSimpleBook(key:string,contact:string,googleKey?:string)
  throw Error('Unknown book reference');
 }
 export async function importSimpleBook(db:SimpleCatalogueDB,key:string,expectedIsbn:string,contact:string,actor:string,
- googleKey?:string,originalSynopsis?:string):Promise<{created:boolean;id:string;status:string;editionId?:string}>{
+ googleKey?:string,originalSynopsis?:string,reviewedFormat?:string):Promise<{created:boolean;id:string;status:string;editionId?:string}>{
  const book=await getSimpleBook(key,contact,googleKey);
+ const permittedFormats=['paperback','hardback','ebook'] as const;
+ if(reviewedFormat&&(!permittedFormats.includes(reviewedFormat as typeof permittedFormats[number])||book.format!=='unknown'&&reviewedFormat!==book.format))
+  throw Error('Format selection conflicts with the verified edition information.');
+ const selectedFormat=book.format==='unknown'?reviewedFormat:book.format;
  const ownSynopsis=str(originalSynopsis,8000);
  const selectedSynopsis=ownSynopsis||((book.synopsisSource==='Open Library')?book.synopsis:null);
  const code=isbn(expectedIsbn);
  if(!validIsbn(code)||book.isbn13!==code)throw Error('The ISBN changed since your search; refresh the result');
  if(!book.title||!book.author||!book.publisher||!book.publishedDate||!book.pages)
   throw Error('This edition is missing a title, author, publisher, release date or page count. Choose a more complete result.');
+ if(!selectedFormat||!permittedFormats.includes(selectedFormat as typeof permittedFormats[number]))
+  throw Error('Choose a verified paperback, hardback or ebook format before importing.');
  if(!selectedSynopsis)
   throw Error('An original or authorised synopsis is required to import this book. Google Books descriptions are preview only.');
  const match=await db.prepare("SELECT i.entity_id AS editionId,e.work_id AS workId FROM entity_identifiers i JOIN identifier_schemes s ON s.id=i.scheme_id JOIN editions e ON e.id=i.entity_id WHERE s.code='ISBN13' AND i.normalized_value=? AND i.entity_kind='edition' LIMIT 2").bind(code).all<{editionId:string;workId:string}>();
@@ -238,11 +244,11 @@ export async function importSimpleBook(db:SimpleCatalogueDB,key:string,expectedI
  if(!scheme)stmts.push(db.prepare("INSERT INTO identifier_schemes(id,code,entity_scope,uniqueness_scope) VALUES(?,'ISBN13','edition','global')").bind(schemeId));
  stmts.push(db.prepare("INSERT INTO works(id,canonical_title,status) VALUES(?,?,'draft')").bind(workId,book.title));
  stmts.push(db.prepare("INSERT INTO contributions(id,person_id,work_id,role_code) VALUES(?,?,?,'author')").bind(uuid(),authorId,workId));
- stmts.push(db.prepare("INSERT INTO editions(id,work_id,format,page_count,language,publication_status,verification_status) VALUES(?,?,?,?,?,'draft','needs_review')").bind(editionId,workId,book.format,book.pages,book.language));
+ stmts.push(db.prepare("INSERT INTO editions(id,work_id,format,page_count,language,publication_status,verification_status) VALUES(?,?,?,?,?,'draft','needs_review')").bind(editionId,workId,selectedFormat,book.pages,book.language));
  stmts.push(db.prepare("INSERT INTO entity_identifiers(id,scheme_id,entity_kind,entity_id,value,normalized_value) VALUES(?,?,'edition',?,?,?)").bind(uuid(),schemeId,editionId,code,code));
  stmts.push(db.prepare("INSERT INTO publication_events(id,edition_id,event_type,date_value,publisher_id) VALUES(?,?,'released',?,?)").bind(uuid(),editionId,book.publishedDate,publisherId));
  stmts.push(db.prepare("INSERT INTO text_content(id,entity_kind,entity_id,content_type,body,visibility) VALUES(?,'work',?,'synopsis',?,'private')").bind(uuid(),workId,selectedSynopsis));
- stmts.push(db.prepare("INSERT INTO catalogue_audit_log(id,actor_external_id,action,target_kind,target_id,details_json) VALUES(?,?,'simple_import','work',?,?)").bind(uuid(),actor,workId,JSON.stringify({source:book.source,sourceUrl:book.sourceUrl,synopsisSource:ownSynopsis?'admin_original':book.synopsisSource,isbn13:code,language:book.language,rightsReviewRequired:true})));
+ stmts.push(db.prepare("INSERT INTO catalogue_audit_log(id,actor_external_id,action,target_kind,target_id,details_json) VALUES(?,?,'simple_import','work',?,?)").bind(uuid(),actor,workId,JSON.stringify({source:book.source,sourceUrl:book.sourceUrl,synopsisSource:ownSynopsis?'admin_original':book.synopsisSource,isbn13:code,language:book.language,format:selectedFormat,formatReviewed:book.format==='unknown',rightsReviewRequired:true})));
  try{await db.batch(stmts)}catch(e){throw Error('Import could not be completed. The database may already contain this edition; refresh before retrying.')}
  return {created:true,id:workId,editionId,status:'draft'};
 }
