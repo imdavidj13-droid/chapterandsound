@@ -56,7 +56,7 @@ const matchedTitles=new Map();
 const unresolvedTitles=[];
 const candidateAlternatives=new Set();
 const wanted=new Set(opts['--seeds']?readFileSync(opts['--seeds'],'utf8').split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#')):[]);
-if(opts['--seeds']&&(!wanted.size||wanted.size>250||[...wanted].some(x=>!/^\/works\/OL\d+W$/.test(x)))){
+if(opts['--seeds']&&(!wanted.size||wanted.size>5000||[...wanted].some(x=>!/^\/works\/OL\d+W$/.test(x)))){
  throw Error('Seed file must contain 1–5000 unique Open Library work keys, e.g. /works/OL123W.');
 }
 mkdirSync(output,{recursive:true});
