@@ -68,3 +68,12 @@ test('search results use responsive two-column layout without modifying import b
  assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
  assert.match(ui,/setSelected\(detail\)/);
 });
+
+test('collapsed importer cards use equal-height rows and concise metadata',()=>{
+ const css=readFileSync(new URL('../src/site/site.css',import.meta.url),'utf8');
+ assert.match(css,/\.cs-simple-import-grid\s*\{[^}]*align-items:stretch/s);
+ assert.match(css,/\.cs-simple-import-grid \.cs-simple-import-result\s*\{[^}]*min-height:168px/s);
+ assert.match(css,/\.cs-simple-import-grid details\s*\{[^}]*margin-top:auto/s);
+ assert.doesNotMatch(ui,/Edition grouping is provisional; catalogue identities are not merged\./);
+ assert.match(ui,/className="cs-simple-import-grid"/);
+});
