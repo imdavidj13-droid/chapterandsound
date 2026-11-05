@@ -76,6 +76,7 @@ test('does not permanently copy a Google Books description without an independen
  try{
   const detail=await getSimpleBook('g:abc123','catalogue-admin');
   assert.equal(detail.synopsisSource,'Google Books');
+  assert.equal(detail.coverUrl,'https://covers.openlibrary.org/b/isbn/'+code+'-L.jpg?default=false');
   await assert.rejects(importSimpleBook(f.conn,'g:abc123',code,'catalogue-admin','owner'),/authorised synopsis/);
   assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM works').get()?.count,0);
   const saved=await importSimpleBook(f.conn,'g:abc123',code,'catalogue-admin','owner',undefined,
@@ -110,5 +111,25 @@ test('title search prioritises explicitly English editions over unknown and fore
   const result=await findSimpleBooks('Persuader','catalogue-admin');
   assert.deepEqual(result.items.map(item=>item.language),['en',null,'es']);
   assert.deepEqual(result.items.map(item=>item.key),['g:english','g:unknown','g:spanish']);
+ }finally{globalThis.fetch=original}
+});
+
+test('Open Library work artwork does not get reused for a different chosen ISBN edition',async()=>{
+ const original=globalThis.fetch;
+ globalThis.fetch=async(input:RequestInfo|URL)=>{
+  const address=String(input);
+  if(address.includes('/works/OL9W/editions.json'))
+   return Response.json({entries:[{key:'/books/OL9M',isbn_13:[code],covers:[1234],
+    publishers:['Corgi Books'],publish_date:'2007',number_of_pages:480,languages:[{key:'/languages/eng'}],physical_format:'Paperback'}]});
+  if(address.includes('/works/OL9W.json'))
+   return Response.json({title:'Relentless',description:'Verified test synopsis.',authors:[{author:{key:'/authors/OL9A'}}]});
+  if(address.includes('/authors/OL9A.json'))return Response.json({name:'Simon Kernick'});
+  return new Response('not found',{status:404});
+ };
+ try{
+  const book=await getSimpleBook('o:OL9W','catalogue-admin');
+  assert.equal(book.isbn13,code);
+  assert.equal(book.coverUrl,'https://covers.openlibrary.org/b/isbn/'+code+'-L.jpg?default=false');
+  assert.equal(book.language,'en');
  }finally{globalThis.fetch=original}
 });
