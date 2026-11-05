@@ -181,7 +181,7 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
   }catch{return fail('Provide valid reviewed draft JSON')}
   if(data?.confirmed!==true)return fail('Explicit draft import confirmation is required',409);
   try{
-   const result=await importCatalogueDrafts(db,data.candidates,session.user.id);
+   const result=await importCatalogueDrafts(db,data.candidates,session.user.id,{workFirstDraft:data.workFirstDraft===true});
    return json(result,201);
   }catch(error){
    if(error instanceof ImportConflict)return fail(error.message,409);
