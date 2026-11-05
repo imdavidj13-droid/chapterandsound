@@ -4,12 +4,13 @@ import {apiGet,apiWrite} from './api';
 type Suggestion={key:string;title:string;author:string;isbn13:string|null;publisher:string|null;
  publishedDate:string|null;pages:number|null;coverUrl:string|null;language:string|null;source:string};
 type Detail=Suggestion&{synopsis:string|null;synopsisSource:'Open Library'|'Google Books'|null;
- complete:boolean;missing:string[];format:string;sourceUrl:string};
+ complete:boolean;missing:string[];format:string;sourceUrl:string;
+ coverKind:'work'|'edition'|null;coverWorkKey:string|null;coverId:number|null;};
 type SearchResponse={items:Suggestion[];sources:{google:string;openLibrary:string}};
 type SaveResponse={created:boolean;id:string;status:string;editionId?:string};
 const languageLabel=(code:string|null)=>code==='en'?'English':code==='es'?'Spanish':code==='fr'?'French':code==='de'?'German':code==='it'?'Italian':code==='pt'?'Portuguese':code?code.toUpperCase():'Language unconfirmed';
 const requiredLabels:Record<string,string>={isbn13:'ISBN',publisher:'publisher',
- publishedDate:'release date',pages:'page count',synopsis:'description',author:'author',title:'title'};
+ publishedDate:'release date',pages:'page count',synopsis:'description',author:'author',title:'title',coverUrl:'cover image'};
 function missingText(items:string[]){return items.map(x=>requiredLabels[x]||x).join(', ')}
 export function CatalogueImportCentre(){
  const [query,setQuery]=useState('');
@@ -50,7 +51,7 @@ export function CatalogueImportCentre(){
    const detail=await apiGet<Detail>('/api/catalogue-admin/simple-import/detail?key='+encodeURIComponent(item.key));
    // Open Library search returns *works*, not ISBN-specific editions.
    // Always show the actual chosen edition's cover and ISBN before importing.
-   const canImport=item.source!=='Open Library'&&detail.complete&&detail.synopsisSource==='Open Library'&&['paperback','hardback','ebook'].includes(detail.format);
+   const canImport=item.source!=='Open Library'&&detail.complete&&Boolean(detail.coverUrl)&&detail.synopsisSource==='Open Library'&&['paperback','hardback','ebook'].includes(detail.format);
    if(canImport)await save(detail);
    else setSelected(detail);
   }catch(e){setError(e instanceof Error?e.message:'Could not retrieve this book')}
@@ -60,7 +61,7 @@ export function CatalogueImportCentre(){
  const formatReady=Boolean(selected&&(['paperback','hardback','ebook'].includes(selected.format)||
   selected.format==='unknown'&&['paperback','hardback','ebook'].includes(reviewedFormat)));
  const missing=selected?.missing.filter(x=>x!=='synopsis'||!synopsisReady)||[];
- const canSave=Boolean(selected&&selected.isbn13&&missing.length===0&&synopsisReady&&formatReady&&!importing);
+ const canSave=Boolean(selected&&selected.isbn13&&selected.coverUrl&&missing.length===0&&synopsisReady&&formatReady&&!importing);
  return <section className="cs-simple-import" aria-label="Search and import books">
   <div className="cs-simple-import-heading">
    <p className="cs-admin-eyebrow">CHAPTER &amp; SOUND · CATALOGUE</p>
@@ -84,7 +85,7 @@ export function CatalogueImportCentre(){
   {items.length>0&&<div className="cs-simple-import-results">
    <h4>Search results <span>{items.length} found</span></h4>
    {items.map(item=><article className="cs-simple-import-result" key={item.key}>
-    <div className="cs-simple-import-cover">{item.coverUrl?<img src={item.coverUrl} alt="" loading="lazy" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.style.display='none'}}/>:<span aria-hidden="true">C&amp;S</span>}</div>
+    <div className="cs-simple-import-cover">{item.coverUrl?<img src={item.coverUrl} alt="" loading="lazy" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.style.display='none'}}/>:<span aria-hidden="true">No cover</span>}</div>
     <div className="cs-simple-import-description">
      <h5>{item.title}</h5><p>{item.author}</p>
      <small>{item.publisher||'Publisher to check'} · {item.publishedDate||'Date to check'} · {item.pages?item.pages+' pages':'Pages to check'}</small>
@@ -102,13 +103,13 @@ export function CatalogueImportCentre(){
     <button type="button" onClick={()=>setSelected(null)}>Close</button>
    </div>
    <div className="cs-simple-import-chosen-cover">
-    {selected.coverUrl?<img src={selected.coverUrl} alt={'Edition cover for '+selected.title} referrerPolicy="no-referrer" onError={e=>{e.currentTarget.hidden=true}}/>:<span>Cover unavailable for this ISBN</span>}
-    <div><strong>Selected edition cover</strong><p>This is the image source associated with ISBN {selected.isbn13||'not identified'}, not the book-level search thumbnail.</p>
-    <p>If the edition cover is unavailable, a placeholder is displayed rather than silently switching to another edition.</p></div>
+    {selected.coverUrl?<img src={selected.coverUrl} alt={'Verified cover for '+selected.title} referrerPolicy="no-referrer" onError={e=>{e.currentTarget.hidden=true}}/>:<span>No verified cover available</span>}
+    <div><strong>{selected.coverKind==='work'?'Main book cover':'Selected edition cover'}</strong><p>{selected.coverKind==='work'?'This is a verified book-level cover matched to the title and author. Its edition will keep its own ISBN; no unrelated edition artwork will be assigned.':selected.coverKind==='edition'?'The cover image is available for edition ISBN '+selected.isbn13+'.':'The source did not return a usable cover. This book cannot be imported yet.'}</p></div>
    </div>
    <dl>
     <div><dt>ISBN</dt><dd>{selected.isbn13||'Missing'}</dd></div>
     <div><dt>Format</dt><dd>{selected.format==='unknown'?'Needs confirmation':selected.format}</dd></div>
+    <div><dt>Cover</dt><dd>{selected.coverUrl?'Available':'Missing — import blocked'}</dd></div>
     <div><dt>Edition language</dt><dd>{languageLabel(selected.language)}</dd></div>
     <div><dt>Publisher</dt><dd>{selected.publisher||'Missing'}</dd></div>
     <div><dt>Release date</dt><dd>{selected.publishedDate||'Missing'}</dd></div>
@@ -127,7 +128,7 @@ export function CatalogueImportCentre(){
      placeholder="Write your own synopsis or enter text you have permission to publish."/>
     <small>Google Books descriptions are shown as a reference, not copied into the permanent catalogue automatically.</small>
    </label>}
-   {(missing.length>0||!synopsisReady||!formatReady)&&<p className="cs-simple-import-warning">Cannot import yet: {missing.length?missingText(missing):!synopsisReady?'description':'edition format'}. Choose verified details for this ISBN; no incomplete record will be silently saved.</p>}
+   {(missing.length>0||!synopsisReady||!formatReady)&&<p className="cs-simple-import-warning" role="alert">Cannot import yet: {missing.length?missingText(missing):!synopsisReady?'description':'edition format'}. {selected.coverUrl?'Choose verified details for this ISBN.':'The search illustration alone does not prove that a usable cover is available. Try another edition or book result.'} Nothing has been saved.</p>}
    <div className="cs-simple-import-review-actions">
     <a href={selected.sourceUrl} target="_blank" rel="noopener noreferrer">View source</a>
     <button type="button" disabled={!canSave||Boolean(importing)} onClick={()=>void save(selected,originalSynopsis,reviewedFormat)}>Import this book</button>
