@@ -52,7 +52,7 @@ test('keeps valid source-qualified audiobook editions and prevents source-key co
  const input=fixture();
  input.candidates[0]!.editions.push({
   sourceKey:'storytel:isbn13:9781407426464',isbn13:'9781407426464',
-  format:'audiobook',fieldProvenance:{}
+  format:'audiobook',publisher:null,fieldProvenance:{}
  });
  const result=consolidatePilot(input,[batch([fact])]);
  assert.equal(result.report.totals.editions,11);
@@ -61,7 +61,7 @@ test('keeps valid source-qualified audiobook editions and prevents source-key co
  const duplicate=structuredClone(input);
  duplicate.candidates[1]!.editions.push({
   sourceKey:'storytel:isbn13:9781407426464',isbn13:null,
-  format:'audiobook',fieldProvenance:{}
+  format:'audiobook',publisher:null,fieldProvenance:{}
  });
  assert.throws(()=>consolidatePilot(duplicate,[batch([])]),/duplicate edition source key/);
 });
@@ -70,7 +70,7 @@ test('preserves Google Play opaque audio IDs without treating them as Open Libra
  const input=fixture();
  input.candidates[0]!.editions.push({
   sourceKey:'google_play_audiobooks:AQAAAID-mV8ZsM',
-  isbn13:null,format:'audiobook',fieldProvenance:{}
+  isbn13:null,format:'audiobook',publisher:null,fieldProvenance:{}
  });
  const result=consolidatePilot(input,[batch([fact])]);
  assert.equal(result.report.totals.editions,11);
@@ -79,7 +79,7 @@ test('preserves Google Play opaque audio IDs without treating them as Open Libra
  const duplicate=structuredClone(input);
  duplicate.candidates[1]!.editions.push({
   sourceKey:'google_play_audiobooks:AQAAAID-mV8ZsM',
-  isbn13:null,format:'audiobook',fieldProvenance:{}
+  isbn13:null,format:'audiobook',publisher:null,fieldProvenance:{}
  });
  assert.throws(()=>consolidatePilot(duplicate,[batch([])]),/duplicate edition source key/);
 });
