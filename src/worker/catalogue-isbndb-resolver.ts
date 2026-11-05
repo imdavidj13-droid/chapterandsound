@@ -65,7 +65,7 @@ export async function lookupISBNdbEdition(rawIsbn:string,key?:string,fetchImpl:t
  const expected=normalizedIsbn(rawIsbn);
  if(!expected)return empty('invalid_response','Enter a valid ISBN-10 or ISBN-13.');
  if(!key?.trim())return {...empty('unavailable','ISBNdb is not configured on this Worker.'),reason:'not_configured'};
- let response:Response;
+ let response:Response|null=null;
  // One interactive lookup, with at most one bounded retry for a short-term 429.
  // This does NOT provide global 1 req/sec coordination across Cloudflare isolates.
  for(let attempt=0;attempt<2;attempt++){
@@ -88,6 +88,7 @@ export async function lookupISBNdbEdition(rawIsbn:string,key?:string,fetchImpl:t
   if(!Number.isFinite(seconds)||seconds>5||seconds<0)break;
   await new Promise<void>(resolve=>setTimeout(resolve,Math.max(1250,seconds*1000)));
  }
+ if(!response)return {...empty('unavailable','ISBNdb lookup did not produce a response.'),reason:'request_rejected'};
  if(response.status>=300&&response.status<400)return {...empty('provider_error','ISBNdb endpoint redirected; verify the API hostname.',response.status),reason:'redirect_blocked'};
  if(response.status===404)return empty('not_found','No ISBNdb edition found for this ISBN.',404);
  if(response.status===429)return empty('rate_limited','ISBNdb rate limit or daily quota reached.',429);
