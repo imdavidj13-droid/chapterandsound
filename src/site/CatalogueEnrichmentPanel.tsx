@@ -6,6 +6,7 @@ type Identifier={editionId:string;code:string;value:string};
 type Meta={editions:Edition[];identifiers:Identifier[]};
 type Finding={title?:string;isbn13?:string;field?:string;value?:unknown;source?:string;decision?:string};
 type Proposal={editionId:string;isbn13:string;revision:number;format:string;pages:number;title:string};
+type Lookup={found:boolean;editionId:string;isbn13:string;pageCount?:number|null;publisher?:string;publicationDate?:string;title?:string};
 const isbn=(s:string)=>s.replace(/[ -]/g,'');
 const norm=(s:string)=>s.normalize('NFKC').toLocaleLowerCase('en-GB').replace(/[^a-z0-9]+/gi,' ').trim();
 
@@ -16,10 +17,21 @@ export function CatalogueEnrichmentPanel({workId,title}:{workId:string;title:str
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState(''),[notice,setNotice]=useState('');
  const [approved,setApproved]=useState(false);
- useEffect(()=>{setMeta(null);setItems([]);setFileName('');setApproved(false);
+ const [lookups,setLookups]=useState<Record<string,Lookup>>({});
+ const [lookupBusy,setLookupBusy]=useState('');
+ useEffect(()=>{setMeta(null);setItems([]);setFileName('');setApproved(false);setLookups({});
   void apiGet<Meta>('/api/catalogue-admin/works/'+encodeURIComponent(workId)+'/metadata')
    .then(setMeta).catch(e=>setError(e instanceof Error?e.message:'Unable to read editions'));
  },[workId]);
+ const isbnFor=(editionId:string)=>meta?.identifiers.find(i=>i.editionId===editionId&&i.code==='ISBN13')?.value||'';
+ async function lookupEdition(editionId:string){
+  setLookupBusy(editionId);setError('');setNotice('');setApproved(false);
+  try{
+   const result=await apiGet<Lookup>('/api/catalogue-admin/works/'+encodeURIComponent(workId)+'/enrich/isbn?editionId='+encodeURIComponent(editionId));
+   setLookups(previous=>({...previous,[editionId]:result}));
+  }catch(e){setError(e instanceof Error?e.message:'Open Library lookup failed')}
+  finally{setLookupBusy('')}
+ }
  const proposals=useMemo(()=>{
   if(!meta)return [] as Proposal[];
   const matched:Proposal[]=[];
@@ -34,8 +46,15 @@ export function CatalogueEnrichmentPanel({workId,title}:{workId:string;title:str
    if(!edition||edition.pageCount!==null||matched.some(p=>p.editionId===edition.id))continue;
    matched.push({editionId:edition.id,isbn13:id,revision:edition.revision,format:edition.format,pages,title:candidate.title});
   }
+  for(const lookup of Object.values(lookups)){
+   if(!lookup.found||!lookup.pageCount)continue;
+   const edition=meta.editions.find(e=>e.id===lookup.editionId);
+   if(!edition||edition.pageCount!==null||matched.some(p=>p.editionId===edition.id))continue;
+   if(isbnFor(edition.id).replace(/[ -]/g,'')!==lookup.isbn13)continue;
+   matched.push({editionId:edition.id,isbn13:lookup.isbn13,revision:edition.revision,format:edition.format,pages:lookup.pageCount,title});
+  }
   return matched;
- },[items,meta,title]);
+ },[items,meta,title,lookups]);
  async function loadFile(file:File|undefined){
   if(!file)return;
   setError('');setNotice('');setApproved(false);setItems([]);setFileName('');
@@ -63,7 +82,12 @@ export function CatalogueEnrichmentPanel({workId,title}:{workId:string;title:str
  }
  return <section className="cs-enrichment-panel" aria-label="Enrich existing editions">
   <h3>Enrich existing editions</h3>
-  <p>Load your existing <strong>isbndb-manual-triage.json</strong> file. The review matches the exact ISBN and this book's title. No ISBNdb API calls are made and nothing is saved automatically.</p>
+  <p>Check an edition against Open Library by ISBN, or load your existing <strong>isbndb-manual-triage.json</strong> report. Results are proposals only: the existing catalogue stays unchanged until you approve each individual field.</p>
+  {meta&&<div className="cs-enrichment-proposals">{meta.editions.map(edition=><div className="cs-enrichment-proposal" key={edition.id}>
+   <div><strong>{edition.format.replaceAll('_',' ')}</strong><small>ISBN {isbnFor(edition.id)||'not available'} · Pages {edition.pageCount??'missing'}</small>
+    {lookups[edition.id]&&<small>{lookups[edition.id].found?(lookups[edition.id].pageCount?'Open Library proposes '+lookups[edition.id].pageCount+' pages':'No page count available from Open Library'):'ISBN not found in Open Library'}{lookups[edition.id].publisher?' · '+lookups[edition.id].publisher:''}{lookups[edition.id].publicationDate?' · '+lookups[edition.id].publicationDate:''}</small>}
+   </div><button type="button" disabled={!isbnFor(edition.id)||lookupBusy!==''||edition.pageCount!==null} onClick={()=>void lookupEdition(edition.id)}>{lookupBusy===edition.id?'Looking up…':'Check Open Library'}</button>
+  </div>)}</div>}
   <label>Choose reviewed evidence file
    <input type="file" accept=".json,application/json" onChange={e=>{void loadFile(e.currentTarget.files?.[0]);e.currentTarget.value=''}}/>
   </label>
