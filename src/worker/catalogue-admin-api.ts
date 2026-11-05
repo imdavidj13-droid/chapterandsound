@@ -87,6 +87,18 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
  const segments=path.split('/').filter(Boolean);
  if(!db)return fail('The BOOK_DB catalogue binding is not configured yet',503);
  if(!await catalogueReady(db))return fail('The catalogue database has not had its dedicated migrations applied yet',503);
+ // Owner-only, no-write operational readiness check. Never return secret values.
+ if(path==='simple-import/provider-status'&&request.method==='GET'){
+  const tables=await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('works','editions','entity_identifiers','work_representative_covers') ORDER BY name").all<{name:string}>();
+  const present=new Set(tables.results.map(x=>x.name));
+  return json({
+   isbndbConfigured:Boolean(env.ISBNDB_API_KEY?.trim()),
+   googleBooksConfigured:Boolean(env.GOOGLE_BOOKS_API_KEY?.trim()),
+   catalogueTablesPresent:['works','editions','entity_identifiers'].every(x=>present.has(x)),
+   representativeCoverMigrationApplied:present.has('work_representative_covers'),
+   importsUseISBNdb:false,providerCallsMade:false
+  });
+ }
  // Read-only ISBNdb probe, owner-only. No import, image persistence or paid bulk requests.
  // A request must explicitly supply an exact ISBN: provider data is never trusted for catalogue writes.
  if(path==='simple-import/isbndb-preview'&&request.method==='GET'){
