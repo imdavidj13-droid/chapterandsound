@@ -257,6 +257,31 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
 
  if(path==='upload-image'&&request.method==='POST')return catalogueUploadImage(request,db,env.CATALOGUE_MEDIA,session.user.id);
  if(segments[0]==='manual')return manualCatalogueAPI(request,db,session.user.id,path);
+ if(request.method==='GET'&&segments.length===4&&segments[0]==='works'&&segments[2]==='enrich'&&segments[3]==='isbn'){
+  const workId=segments[1]||'',editionId=str(url.searchParams.get('editionId'),100);
+  if(!safeId(workId)||!safeId(editionId))return fail('Invalid book or edition ID');
+  const record=await db.prepare(`SELECT e.id,e.page_count AS currentPages,
+    (SELECT i.normalized_value FROM entity_identifiers i JOIN identifier_schemes s ON s.id=i.scheme_id
+     WHERE i.entity_kind='edition' AND i.entity_id=e.id AND s.code='ISBN13' LIMIT 1) AS isbn13
+    FROM editions e WHERE e.id=? AND e.work_id=?`).bind(editionId,workId)
+    .first<{id:string;currentPages:number|null;isbn13:string|null}>();
+  if(!record||!record.isbn13||!validIsbn13(record.isbn13))return fail('An existing ISBN-13 edition is required',404);
+  try{
+   const response=await fetch('https://openlibrary.org/isbn/'+encodeURIComponent(record.isbn13)+'.json',{
+    headers:{Accept:'application/json','User-Agent':'ChapterAndSoundCatalogue/0.1 ('+(env.ADMIN_EMAIL||'catalogue-admin')+')'},
+    signal:AbortSignal.timeout(12000)
+   });
+   if(response.status===404)return json({found:false,editionId,isbn13:record.isbn13});
+   if(!response.ok)return fail('Open Library request failed with HTTP '+response.status,502);
+   const raw=await response.json() as {isbn_13?:string[];number_of_pages?:number;publishers?:string[];publish_date?:string;title?:string};
+   const matched=Array.isArray(raw.isbn_13)&&raw.isbn_13.some(value=>value.replace(/[ -]/g,'')===record.isbn13);
+   if(!matched)return fail('Open Library response did not confirm the exact ISBN',409);
+   const pages=Number.isSafeInteger(raw.number_of_pages)&&raw.number_of_pages!>0&&raw.number_of_pages!<=100000?raw.number_of_pages:null;
+   return json({found:true,source:'openlibrary',editionId,isbn13:record.isbn13,currentPages:record.currentPages,
+    pageCount:pages,title:str(raw.title,300),publisher:str(raw.publishers?.[0],200),publicationDate:str(raw.publish_date,100),
+    notice:'External observations are suggestions only. Nothing has been saved.'});
+  }catch(e){console.error('Owner-initiated edition lookup failed',e);return fail('Open Library lookup unavailable',502)}
+ }
  if(segments.length===3&&segments[0]==='works'&&segments[2]==='metadata')
   return catalogueBookMetadataAPI(request,db,session.user.id,segments[1]||'');
  try{
