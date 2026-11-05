@@ -35,6 +35,8 @@ function mockSources(withOpenDescription=true,knownFormat=true){
  globalThis.fetch=async(input:RequestInfo|URL)=>{
   const url=String(input);
   let data:unknown=null;
+  if(url.includes('/b/isbn/'+code+'-L.jpg?default=false'))
+   return new Response(new Uint8Array([255,216,255,217]),{status:200,headers:{'Content-Type':'image/jpeg'}});
   if(url.includes('googleapis.com/books/v1/volumes/abc123'))
    data={id:'abc123',volumeInfo:{title:'Relentless',authors:['Simon Kernick'],publisher:'Corgi Books',
     publishedDate:'2007-01-01',pageCount:480,language:'en',industryIdentifiers:[{type:'ISBN_13',identifier:code}],description:'Publisher text that must not be saved'}};
@@ -118,6 +120,8 @@ test('Open Library work artwork does not get reused for a different chosen ISBN 
  const original=globalThis.fetch;
  globalThis.fetch=async(input:RequestInfo|URL)=>{
   const address=String(input);
+  if(address.includes('/b/isbn/'+code+'-L.jpg?default=false'))
+   return new Response(new Uint8Array([255,216,255,217]),{status:200,headers:{'Content-Type':'image/jpeg'}});
   if(address.includes('/works/OL9W/editions.json'))
    return Response.json({entries:[{key:'/books/OL9M',isbn_13:[code],covers:[1234],
     publishers:['Corgi Books'],publish_date:'2007',number_of_pages:480,languages:[{key:'/languages/eng'}],physical_format:'Paperback'}]});
@@ -154,4 +158,22 @@ test('import rejects arbitrary or conflicting format overrides',async()=>{
    /Format selection conflicts/);
   assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM works').get()?.count,0);
  }finally{restore();f.close()}
+});
+
+test('import rejects missing covers even when the book title and ISBN are complete',async()=>{
+ const f=fixture();
+ const original=globalThis.fetch;
+ const restore=mockSources();
+ const base=globalThis.fetch;
+ globalThis.fetch=async(input:RequestInfo|URL,init?:RequestInit)=>{
+  if(String(input).includes('/b/isbn/'))return new Response('no cover',{status:404,headers:{'Content-Type':'text/plain'}});
+  return base(input,init);
+ };
+ try{
+  const detail=await getSimpleBook('g:abc123','catalogue-admin');
+  assert.equal(detail.coverUrl,null);
+  assert.ok(detail.missing.includes('coverUrl'));
+  await assert.rejects(importSimpleBook(f.conn,'g:abc123',code,'catalogue-admin','owner',undefined,undefined,'paperback'),/No verified cover image/);
+  assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM works').get()?.count,0);
+ }finally{restore();globalThis.fetch=original;f.close()}
 });
