@@ -1,0 +1,198 @@
+/**
+ * Simple, owner-operated catalogue importer.
+ * One work + one ISBN-linked edition per click. No public publishing,
+ * no image persistence, no bulk harvesting and no duplicate catalogue.
+ * Search results are never trusted for writes: import re-fetches the source.
+ */
+type Scalar=string|number|null;
+interface Statement {
+ bind(...args:Scalar[]):Statement;
+ first<T>():Promise<T|null>;
+ all<T>():Promise<{results:T[]}>;
+}
+export interface SimpleCatalogueDB {
+ prepare(sql:string):Statement;
+ batch(statements:Statement[]):Promise<unknown[]>;
+}
+export type BookSuggestion={
+ key:string;title:string;author:string;isbn13:string|null;publisher:string|null;
+ publishedDate:string|null;pages:number|null;coverUrl:string|null;source:'Google Books'|'Open Library';
+};
+export type BookDetail=BookSuggestion&{
+ synopsis:string|null;synopsisSource:'Open Library'|'Google Books'|null;
+ format:string;complete:boolean;missing:string[];sourceUrl:string;
+};
+const str=(v:unknown,max=500)=>typeof v==='string'?v.trim().slice(0,max):'';
+const isbn=(v:unknown)=>str(v,30).replace(/[\s-]/g,'');
+const validIsbn=(v:string)=>/^\d{13}$/.test(v)&&[...v].reduce((n,d,i)=>n+Number(d)*(i%2?3:1),0)%10===0;
+const norm=(v:string)=>v.normalize('NFKC').toLocaleLowerCase('en-GB').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+const date=(v:unknown)=>{const x=str(v,32);return /^\d{4}(?:-(?:0[1-9]|1[0-2])(?:-(?:0[1-9]|[12]\d|3[01]))?)?$/.test(x)?x:null};
+const pages=(v:unknown)=>typeof v==='number'&&Number.isSafeInteger(v)&&v>0&&v<=100000?v:null;
+const cleanDescription=(v:unknown)=>{
+ const raw=typeof v==='string'?v:typeof v==='object'&&v!==null&&'value' in v?String((v as {value:unknown}).value??''):'';
+ return raw.replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/\s+/g,' ').trim().slice(0,8000)||null;
+};
+const formatOf=(v:unknown)=>{
+ const t=str(v,100).toLowerCase();
+ return t.includes('paperback')?'paperback':t.includes('hardcover')||t.includes('hardback')?'hardback':
+  t.includes('ebook')||t.includes('electronic')?'ebook':'unknown';
+};
+const uuid=()=>crypto.randomUUID();
+const metadata=(d:BookDetail)=>{
+ const missing=['title','author','isbn13','publisher','publishedDate','pages','synopsis']
+  .filter(k=>!d[k as keyof BookDetail]);
+ return {...d,missing,complete:missing.length===0};
+};
+type GVolume={id?:string;volumeInfo?:{
+ title?:string;authors?:string[];publisher?:string;publishedDate?:string;description?:string;
+ pageCount?:number;industryIdentifiers?:{type?:string;identifier?:string}[];
+ imageLinks?:{thumbnail?:string;smallThumbnail?:string};
+}};
+type OSearch={key?:string;title?:string;author_name?:string[];first_publish_year?:number;cover_i?:number};
+type OEdition={key?:string;title?:string;isbn_13?:string[];publishers?:string[];publish_date?:string;
+ number_of_pages?:number;physical_format?:string;description?:unknown;covers?:number[]};
+type OWork={title?:string;description?:unknown};
+async function fetchJson<T>(address:string,userAgent:string):Promise<T>{
+ const res=await fetch(address,{headers:{Accept:'application/json','User-Agent':userAgent},
+  signal:AbortSignal.timeout(12000)});
+ if(!res.ok)throw Error('Book source returned HTTP '+res.status);
+ return await res.json() as T;
+}
+const googleUrl=(q:string,key?:string)=>{
+ const url=new URL('https://www.googleapis.com/books/v1/volumes');
+ url.searchParams.set('q',q);url.searchParams.set('maxResults','20');url.searchParams.set('printType','books');
+ if(key)url.searchParams.set('key',key);
+ return url.toString();
+};
+const googleById=(id:string,key?:string)=>{
+ const url=new URL('https://www.googleapis.com/books/v1/volumes/'+encodeURIComponent(id));
+ if(key)url.searchParams.set('key',key);
+ return url.toString();
+};
+function googleSuggestion(v:GVolume):BookSuggestion|null{
+ const info=v.volumeInfo;
+ if(!v.id||!info?.title||!info.authors?.[0])return null;
+ const code=info.industryIdentifiers?.find(x=>x.type==='ISBN_13'&&validIsbn(isbn(x.identifier)));
+ return {key:'g:'+v.id,title:str(info.title),author:str(info.authors[0]),
+  isbn13:code?isbn(code.identifier):null,publisher:str(info.publisher)||null,
+  publishedDate:date(info.publishedDate),pages:pages(info.pageCount),
+  coverUrl:(info.imageLinks?.thumbnail||info.imageLinks?.smallThumbnail||'').replace(/^http:/,'https:')||null,
+  source:'Google Books'};
+}
+const olAgent=(contact:string)=>'ChapterAndSoundCatalogue/0.2 ('+contact+')';
+export async function findSimpleBooks(query:string,contact:string,googleKey?:string){
+ const q=str(query,120);
+ if(q.length<2)throw Error('Enter an author, title or ISBN');
+ const numeric=isbn(q);const byIsbn=/^\d{10}|\d{13}$/.test(numeric);
+ const ol=new URL('https://openlibrary.org/search.json');
+ if(byIsbn)ol.searchParams.set('isbn',numeric);
+ else ol.searchParams.set('q',q);
+ ol.searchParams.set('fields','key,title,author_name,first_publish_year,cover_i');
+ ol.searchParams.set('limit','12');
+ const sourceAgent=olAgent(contact);
+ const [google,open]=await Promise.allSettled([
+  fetchJson<{items?:GVolume[]}>(googleUrl(byIsbn?'isbn:'+numeric:q,googleKey),sourceAgent),
+  fetchJson<{docs?:OSearch[]}>(ol.toString(),sourceAgent)
+ ]);
+ if(google.status==='rejected'&&open.status==='rejected')throw Error('Both book search services are temporarily unavailable');
+ const found:BookSuggestion[]=[];
+ if(google.status==='fulfilled')for(const item of google.value.items||[]){
+  const candidate=googleSuggestion(item);if(candidate&&(!byIsbn||candidate.isbn13===numeric))found.push(candidate);
+ }
+ if(open.status==='fulfilled')for(const item of open.value.docs||[]){
+  if(!/^\/works\/OL\d+W$/.test(item.key||'')||!item.title||!item.author_name?.[0])continue;
+  found.push({key:'o:'+item.key!.split('/').pop(),title:str(item.title),author:str(item.author_name[0]),
+   isbn13:null,publisher:null,publishedDate:date(item.first_publish_year?String(item.first_publish_year):''),
+   pages:null,coverUrl:item.cover_i?'https://covers.openlibrary.org/b/id/'+item.cover_i+'-M.jpg':null,source:'Open Library'});
+ }
+ return {items:found.slice(0,24),sources:{
+  google:google.status==='fulfilled'?'available':'unavailable',
+  openLibrary:open.status==='fulfilled'?'available':'unavailable'
+ }};
+}
+async function olEditionByIsbn(code:string,contact:string):Promise<{edition:OEdition;work:OWork|null}|null>{
+ if(!validIsbn(code))return null;
+ const agent=olAgent(contact);
+ try{
+  const edition=await fetchJson<OEdition>('https://openlibrary.org/isbn/'+code+'.json',agent);
+  const workKey=(edition as OEdition&{works?:{key?:string}[]}).works?.[0]?.key;
+  let work:OWork|null=null;
+  if(workKey&&/^\/works\/OL\d+W$/.test(workKey))
+   try{work=await fetchJson<OWork>('https://openlibrary.org'+workKey+'.json',agent)}catch{}
+  return {edition,work};
+ }catch{return null}
+}
+export async function getSimpleBook(key:string,contact:string,googleKey?:string):Promise<BookDetail>{
+ const agent=olAgent(contact);
+ if(/^g:[a-zA-Z0-9_-]{1,100}$/.test(key)){
+  const volume=await fetchJson<GVolume>(googleById(key.slice(2),googleKey),agent);
+  const suggestion=googleSuggestion(volume);
+  if(!suggestion)throw Error('This Google Books result has no title or author');
+  const ol=suggestion.isbn13?await olEditionByIsbn(suggestion.isbn13,contact):null;
+  const edition=ol?.edition;
+  const desc=cleanDescription(edition?.description)||cleanDescription(ol?.work?.description);
+  const googleDesc=cleanDescription(volume.volumeInfo?.description);
+  return metadata({...suggestion,
+   publisher:suggestion.publisher||str(edition?.publishers?.[0])||null,
+   publishedDate:suggestion.publishedDate||date(edition?.publish_date),
+   pages:suggestion.pages||pages(edition?.number_of_pages),
+   format:formatOf(edition?.physical_format),
+   synopsis:desc||googleDesc,
+   synopsisSource:desc?'Open Library':googleDesc?'Google Books':null,
+   sourceUrl:'https://books.google.com/books?id='+encodeURIComponent(key.slice(2)),complete:false,missing:[]});
+ }
+ if(/^o:OL\d+W$/.test(key)){
+  const wkey='/works/'+key.slice(2);
+  const work=await fetchJson<OWork>('https://openlibrary.org'+wkey+'.json',agent);
+  const data=await fetchJson<{entries?:OEdition[]}>('https://openlibrary.org'+wkey+'/editions.json?limit=20',agent);
+  const candidate=(data.entries||[]).find(e=>e.isbn_13?.some(x=>validIsbn(isbn(x)))&&str(e.publishers?.[0])&&date(e.publish_date)&&pages(e.number_of_pages))
+   ||(data.entries||[]).find(e=>e.isbn_13?.some(x=>validIsbn(isbn(x))));
+  if(!candidate)throw Error('No identified edition found for this title. Search by ISBN instead.');
+  const code=candidate.isbn_13?.map(isbn).find(validIsbn)||null;
+  const desc=cleanDescription(work.description)||cleanDescription(candidate.description);
+  return metadata({key,title:str(work.title)||str(candidate.title),author:'',isbn13:code,
+   publisher:str(candidate.publishers?.[0])||null,publishedDate:date(candidate.publish_date),
+   pages:pages(candidate.number_of_pages),coverUrl:candidate.covers?.[0]?'https://covers.openlibrary.org/b/id/'+candidate.covers[0]+'-M.jpg':null,
+   source:'Open Library',format:formatOf(candidate.physical_format),synopsis:desc,
+   synopsisSource:desc?'Open Library':null,sourceUrl:'https://openlibrary.org'+wkey,complete:false,missing:[]});
+ }
+ throw Error('Unknown book reference');
+}
+export async function importSimpleBook(db:SimpleCatalogueDB,key:string,expectedIsbn:string,contact:string,actor:string,
+ googleKey?:string):Promise<{created:boolean;id:string;status:string;editionId?:string}>{
+ const book=await getSimpleBook(key,contact,googleKey);
+ const code=isbn(expectedIsbn);
+ if(!validIsbn(code)||book.isbn13!==code)throw Error('The ISBN changed since your search; refresh the result');
+ if(!book.title||!book.author||!book.publisher||!book.publishedDate||!book.pages||!book.synopsis)
+  throw Error('This result is missing a required field. Choose a more complete edition.');
+ if(book.synopsisSource!=='Open Library')throw Error('Google Books descriptions may be previewed but cannot be automatically stored. An authorised synopsis is required.');
+ const match=await db.prepare("SELECT i.entity_id AS editionId,e.work_id AS workId FROM entity_identifiers i JOIN identifier_schemes s ON s.id=i.scheme_id JOIN editions e ON e.id=i.entity_id WHERE s.code='ISBN13' AND i.normalized_value=? AND i.entity_kind='edition' LIMIT 2").bind(code).all<{editionId:string;workId:string}>();
+ if(match.results.length>1)throw Error('Multiple editions already use this ISBN. Resolve the catalogue identity first.');
+ if(match.results.length===1)return {created:false,id:match.results[0]!.workId,status:'already_in_catalogue',editionId:match.results[0]!.editionId};
+ const people=await db.prepare("SELECT id,preferred_name AS name FROM people WHERE identity_status NOT IN ('merged','suppressed') AND lower(preferred_name)=lower(?) LIMIT 3").bind(book.author).all<{id:string;name:string}>();
+ if(people.results.length>1)throw Error('Multiple authors share this name; resolve the author identity before importing.');
+ const authorId=people.results[0]?.id||uuid();
+ const existing=await db.prepare("SELECT w.id,w.canonical_title AS title FROM works w JOIN contributions c ON c.work_id=w.id AND c.role_code IN ('author','coauthor') WHERE c.person_id=? AND lower(w.canonical_title)=lower(?) LIMIT 3").bind(authorId,book.title).all<{id:string;title:string}>();
+ if(existing.results.length>1)throw Error('Multiple matching works already exist; resolve these before importing.');
+ if(existing.results.length===1)return {created:false,id:existing.results[0]!.id,status:'already_in_catalogue'};
+ const pub=await db.prepare("SELECT organisation_id AS id FROM publishers p JOIN organisations o ON o.id=p.organisation_id WHERE lower(o.name)=lower(?) LIMIT 2").bind(book.publisher).all<{id:string}>();
+ if(pub.results.length>1)throw Error('Multiple publisher identities matched; review required.');
+ const publisherId=pub.results[0]?.id||uuid(),workId=uuid(),editionId=uuid(),scheme=await db.prepare("SELECT id FROM identifier_schemes WHERE code='ISBN13'").first<{id:string}>();
+ const schemeId=scheme?.id||uuid();
+ const stmts:Statement[]=[];
+ if(!people.results.length)stmts.push(db.prepare('INSERT INTO people(id,preferred_name) VALUES(?,?)').bind(authorId,book.author));
+ if(!pub.results.length){
+  stmts.push(db.prepare("INSERT INTO organisations(id,name,organisation_type) VALUES(?,?,'publisher')").bind(publisherId,book.publisher));
+  stmts.push(db.prepare('INSERT INTO publishers(organisation_id) VALUES(?)').bind(publisherId));
+ }
+ if(!scheme)stmts.push(db.prepare("INSERT INTO identifier_schemes(id,code,entity_scope,uniqueness_scope) VALUES(?,'ISBN13','edition','global')").bind(schemeId));
+ stmts.push(db.prepare("INSERT INTO works(id,canonical_title,first_publication_date,status) VALUES(?,?,?,'draft')").bind(workId,book.title,book.publishedDate));
+ stmts.push(db.prepare("INSERT INTO contributions(id,person_id,work_id,role_code) VALUES(?,?,?,'author')").bind(uuid(),authorId,workId));
+ stmts.push(db.prepare("INSERT INTO editions(id,work_id,format,page_count,publication_status,verification_status) VALUES(?,?,?,?,'draft','needs_review')").bind(editionId,workId,book.format,book.pages));
+ stmts.push(db.prepare("INSERT INTO entity_identifiers(id,scheme_id,entity_kind,entity_id,value,normalized_value) VALUES(?,?,'edition',?,?,?)").bind(uuid(),schemeId,editionId,code,code));
+ stmts.push(db.prepare("INSERT INTO publication_events(id,edition_id,event_type,date_value,publisher_id) VALUES(?,?,'released',?,?)").bind(uuid(),editionId,book.publishedDate,publisherId));
+ stmts.push(db.prepare("INSERT INTO text_content(id,entity_kind,entity_id,content_type,body,visibility) VALUES(?,'work',?,'synopsis',?,'private')").bind(uuid(),workId,book.synopsis));
+ stmts.push(db.prepare("INSERT INTO catalogue_audit_log(id,actor_external_id,action,target_kind,target_id,details_json) VALUES(?,?,'simple_import','work',?,?)").bind(uuid(),actor,workId,JSON.stringify({source:book.source,sourceUrl:book.sourceUrl,synopsisSource:book.synopsisSource,isbn13:code,rightsReviewRequired:true})));
+ try{await db.batch(stmts)}catch(e){throw Error('Import could not be completed. The database may already contain this edition; refresh before retrying.')}
+ return {created:true,id:workId,editionId,status:'draft'};
+}
