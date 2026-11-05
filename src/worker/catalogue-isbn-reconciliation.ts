@@ -106,6 +106,20 @@ function combine<T extends string|number>(rows:EditionEvidence[],property:keyof 
  const chosen=ordered[0]?.[0];
  return {value:chosen?.value??null,source:chosen?.source??null,claims,conflict:groups.size>1};
 }
+/** Partial publication dates are compatible when the known components agree.
+ * Preserve the least precise claim: a year-only source cannot verify a day.
+ * Disagreeing years, months or fully specified days remain real conflicts.
+ */
+function combineDates(rows:EditionEvidence[]):ResolvedField<string>{
+ const claims=rows.filter(r=>r.publishedDate!==null).map(r=>({source:r.source,value:r.publishedDate!}));
+ if(!claims.length)return {value:null,source:null,claims:[],conflict:false};
+ const compatible=claims.every(a=>claims.every(b=>
+  a.value===b.value||a.value.startsWith(b.value+'-')||b.value.startsWith(a.value+'-')
+ ));
+ if(!compatible)return combine<string>(rows,'publishedDate');
+ const leastPrecise=[...claims].sort((a,b)=>a.value.length-b.value.length)[0]!;
+ return {value:leastPrecise.value,source:leastPrecise.source,claims,conflict:false};
+}
 export async function resolveISBNClaims(codeInput:string,opts:{
  isbnDbKey?:string;googleKey?:string;fetchImpl?:typeof fetch;lookupIsbndb?:typeof lookupISBNdbEdition;
 }={}):Promise<ISBNResolution>{
@@ -148,7 +162,7 @@ export async function resolveISBNClaims(codeInput:string,opts:{
  }
  const fields={
   title:combine<string>(evidence,'title'),author:combine<string>(evidence.map(e=>({...e,title:e.authors[0]||null})),'title'),
-  publisher:combine<string>(evidence,'publisher'),publishedDate:combine<string>(evidence,'publishedDate'),
+  publisher:combine<string>(evidence,'publisher'),publishedDate:combineDates(evidence),
   pages:combine<number>(evidence,'pages'),language:combine<string>(evidence,'language'),
   format:combine<string>(evidence,'format')
  };
