@@ -111,7 +111,7 @@ export async function probeIsbndb(input,{key,limit=5,delayMs=1150,fetchImpl=fetc
    records.push({...row,status:'invalid_json'});continue
   }
   const r=interpretBook(payload,row);
-  records.push({...row,...r});
+  records.push({...row,...r,source:'isbndb',sourceRecordUrl:'https://isbndb.com/book/'+row.isbn13,rightsStatus:'verify_subscription_terms_before_persistence'});
   onProgress({checked:records.length,total:Math.min(limit,all.length),status:r.status});
  }
  const fieldCounts={};
