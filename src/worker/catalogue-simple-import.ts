@@ -25,6 +25,17 @@ export type BookDetail=BookSuggestion&{
 const str=(v:unknown,max=500)=>typeof v==='string'?v.trim().slice(0,max):'';
 const isbn=(v:unknown)=>str(v,30).replace(/[\s-]/g,'');
 const validIsbn=(v:string)=>/^\d{13}$/.test(v)&&[...v].reduce((n,d,i)=>n+Number(d)*(i%2?3:1),0)%10===0;
+const isbn13Of=(v:unknown)=>{
+ const value=isbn(v);
+ if(validIsbn(value))return value;
+ if(!/^\d{9}[\dXx]$/.test(value))return null;
+ const clean=value.toUpperCase();
+ const sum=[...clean].reduce((total,d,i)=>total+(10-i)*(d==='X'?10:Number(d)),0);
+ if(sum%11!==0)return null;
+ const prefix='978'+clean.slice(0,9);
+ const check=(10-([...prefix].reduce((n,d,i)=>n+Number(d)*(i%2?3:1),0)%10))%10;
+ return prefix+check;
+};
 const norm=(v:string)=>v.normalize('NFKC').toLocaleLowerCase('en-GB').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
 const date=(v:unknown)=>{const x=str(v,32);return /^\d{4}(?:-(?:0[1-9]|1[0-2])(?:-(?:0[1-9]|[12]\d|3[01]))?)?$/.test(x)?x:null};
 const pages=(v:unknown)=>typeof v==='number'&&Number.isSafeInteger(v)&&v>0&&v<=100000?v:null;
@@ -49,7 +60,7 @@ type GVolume={id?:string;volumeInfo?:{
  imageLinks?:{thumbnail?:string;smallThumbnail?:string};
 }};
 type OSearch={key?:string;title?:string;author_name?:string[];first_publish_year?:number;cover_i?:number};
-type OEdition={key?:string;title?:string;isbn_13?:string[];publishers?:string[];publish_date?:string;
+type OEdition={key?:string;title?:string;isbn_13?:string[];isbn_10?:string[];publishers?:string[];publish_date?:string;
  number_of_pages?:number;physical_format?:string;description?:unknown;covers?:number[]};
 type OWork={title?:string;description?:unknown;authors?:{author?:{key?:string};key?:string}[]};
 async function fetchJson<T>(address:string,userAgent:string):Promise<T>{
@@ -72,9 +83,10 @@ const googleById=(id:string,key?:string)=>{
 function googleSuggestion(v:GVolume):BookSuggestion|null{
  const info=v.volumeInfo;
  if(!v.id||!info?.title||!info.authors?.[0])return null;
- const code=info.industryIdentifiers?.find(x=>x.type==='ISBN_13'&&validIsbn(isbn(x.identifier)));
+ const code=info.industryIdentifiers?.find(x=>x.type==='ISBN_13'&&validIsbn(isbn(x.identifier)))||
+  info.industryIdentifiers?.find(x=>x.type==='ISBN_10'&&isbn13Of(x.identifier));
  return {key:'g:'+v.id,title:str(info.title),author:str(info.authors[0]),
-  isbn13:code?isbn(code.identifier):null,publisher:str(info.publisher)||null,
+  isbn13:code?isbn13Of(code.identifier):null,publisher:str(info.publisher)||null,
   publishedDate:date(info.publishedDate),pages:pages(info.pageCount),
   coverUrl:(info.imageLinks?.thumbnail||info.imageLinks?.smallThumbnail||'').replace(/^http:/,'https:')||null,
   source:'Google Books'};
@@ -83,7 +95,8 @@ const olAgent=(contact:string)=>'ChapterAndSoundCatalogue/0.2 ('+contact+')';
 export async function findSimpleBooks(query:string,contact:string,googleKey?:string){
  const q=str(query,120);
  if(q.length<2)throw Error('Enter an author, title or ISBN');
- const numeric=isbn(q);const byIsbn=/^(?:\d{10}|\d{13})$/.test(numeric);
+ const numeric=isbn(q);const byIsbn=/^(?:\d{9}[\dXx]|\d{13})$/.test(numeric);
+ const expected=byIsbn?isbn13Of(numeric):null;
  const ol=new URL('https://openlibrary.org/search.json');
  if(byIsbn)ol.searchParams.set('isbn',numeric);
  else ol.searchParams.set('q',q);
@@ -97,7 +110,7 @@ export async function findSimpleBooks(query:string,contact:string,googleKey?:str
  if(google.status==='rejected'&&open.status==='rejected')throw Error('Both book search services are temporarily unavailable');
  const found:BookSuggestion[]=[];
  if(google.status==='fulfilled')for(const item of google.value.items||[]){
-  const candidate=googleSuggestion(item);if(candidate&&(!byIsbn||candidate.isbn13===numeric))found.push(candidate);
+  const candidate=googleSuggestion(item);if(candidate&&(!byIsbn||candidate.isbn13===expected))found.push(candidate);
  }
  if(open.status==='fulfilled')for(const item of open.value.docs||[]){
   if(!/^\/works\/OL\d+W$/.test(item.key||'')||!item.title||!item.author_name?.[0])continue;
@@ -145,10 +158,10 @@ export async function getSimpleBook(key:string,contact:string,googleKey?:string)
   const wkey='/works/'+key.slice(2);
   const work=await fetchJson<OWork>('https://openlibrary.org'+wkey+'.json',agent);
   const data=await fetchJson<{entries?:OEdition[]}>('https://openlibrary.org'+wkey+'/editions.json?limit=20',agent);
-  const candidate=(data.entries||[]).find(e=>e.isbn_13?.some(x=>validIsbn(isbn(x)))&&str(e.publishers?.[0])&&date(e.publish_date)&&pages(e.number_of_pages))
+  const candidate=(data.entries||[]).find(e=>[...(e.isbn_13||[]),...(e.isbn_10||[])].some(x=>isbn13Of(x))&&str(e.publishers?.[0])&&date(e.publish_date)&&pages(e.number_of_pages))
    ||(data.entries||[]).find(e=>e.isbn_13?.some(x=>validIsbn(isbn(x))));
   if(!candidate)throw Error('No identified edition found for this title. Search by ISBN instead.');
-  const code=candidate.isbn_13?.map(isbn).find(validIsbn)||null;
+  const code=[...(candidate.isbn_13||[]),...(candidate.isbn_10||[])].map(isbn13Of).find(Boolean)||null;
   const desc=cleanDescription(work.description)||cleanDescription(candidate.description);
   const authorKey=work.authors?.[0]?.author?.key||work.authors?.[0]?.key;
   let author='';
