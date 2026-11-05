@@ -131,6 +131,7 @@ def analyze(prepared, con, out):
                     seen_isbn[isbn(code)].add(key)
 
     ready, review, enrich = [], [], []
+    deferred_editions = []
     distinct_works = set()
     for book in books:
         key = str(book.get("workSourceKey") or book.get("sourceKey") or "")
@@ -169,11 +170,14 @@ def analyze(prepared, con, out):
             continue
 
         editions = []
+        deferred = []
         blocked = None
         local_codes = set()
         local_edition_keys = set()
         for edition in book.get("editions") or []:
             ekey = str(edition.get("sourceKey") or "")
+            # Identifier collisions, including records belonging to another work,
+            # are identity hazards and hold the whole work for review.
             if not EDITION_KEY.fullmatch(ekey):
                 blocked = "invalid_edition_source_key"
                 break
@@ -182,39 +186,46 @@ def analyze(prepared, con, out):
                 break
             local_edition_keys.add(ekey)
             codes = [isbn(v) for v in (edition.get("isbn13"), edition.get("isbn10")) if v]
-            if not codes or any(not valid_isbn(code) for code in codes):
-                blocked = "missing_or_invalid_edition_isbn"
-                break
-            if any(code in local_codes for code in codes):
+            valid_codes = [code for code in codes if valid_isbn(code)]
+            if any(code in local_codes for code in valid_codes):
                 blocked = "duplicate_isbn_across_work_editions"
                 break
-            local_codes.update(codes)
-            if any(code in isbn_existing for code in codes):
+            local_codes.update(valid_codes)
+            if any(code in isbn_existing for code in valid_codes):
                 blocked = "edition_isbn_already_in_book_db"
                 break
-            if any(len(seen_isbn[code]) > 1 for code in codes):
+            if any(len(seen_isbn[code]) > 1 for code in valid_codes):
                 blocked = "edition_isbn_conflict_across_input_works"
                 break
+            # Unusable edition metadata can be deferred while preserving
+            # other safely identified editions belonging to the same work.
+            if not codes or len(valid_codes) != len(codes):
+                deferred.append({"sourceKey": ekey, "reason": "missing_or_invalid_edition_isbn"})
+                continue
             if edition.get("format") not in SUPPORTED:
-                blocked = "unknown_or_audio_edition_format"
-                break
+                deferred.append({"sourceKey": ekey, "reason": "unknown_or_audio_edition_format"})
+                continue
             editions.append(edition)
         if blocked:
-            add(review if "conflict" in blocked or "already" in blocked or "reused" in blocked or "duplicate" in blocked else enrich, blocked, book)
+            add(review, blocked, book)
             continue
         if not editions:
-            add(enrich, "no_identified_editions", book)
+            add(enrich, "no_eligible_editions", book)
             continue
         if len(editions) > 50:
             add(review, "too_many_editions_for_single_draft_batch", book)
             continue
-        # A multi-edition work may need batches of its own to satisfy D1
-        # statement and size limits. The import runner must re-preview.
-        ready.append(book)
+        # Never silently drop excluded editions; preserve a separate
+        # deferred-editions ledger for the follow-on enrichment pipeline.
+        if deferred:
+            deferred_editions.append({"workSourceKey": key, "title": title,
+                                      "excludedEditions": deferred})
+        ready.append({**book, "editions": editions})
 
     out.mkdir(parents=True, exist_ok=True)
     (out / "review.json").write_text(json.dumps(review, indent=2, ensure_ascii=False), encoding="utf-8")
     (out / "needs-enrichment.json").write_text(json.dumps(enrich, indent=2, ensure_ascii=False), encoding="utf-8")
+    (out / "deferred-editions.json").write_text(json.dumps(deferred_editions, indent=2, ensure_ascii=False), encoding="utf-8")
     batches = []
     # Conservative single-work batches avoid cross-work author/subject duplicates
     # in the existing draft writer and keep failures isolated.
@@ -226,7 +237,9 @@ def analyze(prepared, con, out):
 
     counts = {"preparedCandidates": len(books), "readyForFurtherPreview": len(ready),
               "identityOrIsbnReview": len(review), "needsEnrichment": len(enrich),
-              "files": {"review": "review.json", "enrichment": "needs-enrichment.json"},
+              "files": {"review": "review.json", "enrichment": "needs-enrichment.json", "deferredEditions": "deferred-editions.json"},
+              "worksWithDeferredEditions": len(deferred_editions),
+              "deferredEditionCount": sum(len(item["excludedEditions"]) for item in deferred_editions),
               "batchCount": len(batches), "importEnabled": False, "productionWrites": 0,
               "note": "Plans are NOT approved imports. Existing API preview, rights, author matching and backup checks must pass before saving.",
               "reviewReasons": dict(Counter(item["reason"] for item in review)),
