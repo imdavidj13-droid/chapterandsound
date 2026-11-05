@@ -60,7 +60,7 @@ export function CatalogueLinkedEditions({workId,onSaved}:{workId:string;onSaved:
   {notice&&<p role="status" className="cs-admin-success">{notice}</p>}
   {loading?<p role="status">Loading this book’s linked records…</p>:<>
    <div className="cs-linked-entries">
-    {data.editions.map(e=><div key={e.id} className="cs-linked-entry"><div><strong>{label(e.format)}</strong><span>{e.title||'Standard edition'} · {e.pages?e.pages+' pages · ':''}ID {e.id.slice(0,8)}</span></div><button type="button" onClick={()=>editEdition(e)}>Edit edition</button></div>)}
+    {data.editions.map(e=><div key={e.id} className="cs-linked-entry"><div><strong>{label(e.format)}</strong><span>{e.title||'Standard edition'} · {e.pages?e.pages+' pages · ':''}ID {e.id.slice(0,8)}</span>{e.format==='unknown'&&<small className="cs-simple-import-warning">Format not confirmed — this edition cannot be published yet. Edit this edition and choose its verified format.</small>}</div><button type="button" onClick={()=>editEdition(e)}>{e.format==='unknown'?'Fix edition format':'Edit edition'}</button></div>)}
     {!data.editions.length&&<p>No editions linked to this book yet.</p>}
    </div>
    <h4>Audiobook recordings</h4>
@@ -85,6 +85,7 @@ export function CatalogueLinkedEditions({workId,onSaved}:{workId:string;onSaved:
     <label>Runtime (seconds)<input type="number" min="1" value={values.seconds||''} onChange={e=>set('seconds',e.target.value)}/></label>
     <label>Recorded date<input placeholder="YYYY-MM-DD" value={values.recordedDate||''} onChange={e=>set('recordedDate',e.target.value)}/></label>
    </div>}
+   {selected?.kind==='editions'&&values.format==='unknown'&&<p className="cs-simple-import-warning">This edition has an unknown format. Choose Paperback, Hardback or Ebook only if it is correct for the saved ISBN. Save this edition before trying Publish book again.</p>}
    <p className="cs-book-edit-hint">ISBNs, publisher details, narrators and genres can be edited in the metadata panels below.</p>
    <button type="submit" className="primary" disabled={saving}>{saving?'Saving…':adding?'Add edition':'Save changes'}</button>
   </form>}
