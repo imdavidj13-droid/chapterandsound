@@ -67,3 +67,24 @@ test('does not request ISBNdb on invalid ISBN input',async()=>{
  assert.equal(result.status,'invalid_response');
  assert.equal(calls,0);
 });
+
+test('reports redirects explicitly and never follows a new host with the API key',async()=>{
+ const result=await lookupISBNdbEdition(isbn,'SECRET_VALUE',async(_input,init)=>{
+  assert.equal(init?.redirect,'manual');
+  return new Response(null,{status:302,headers:{Location:'https://other.example/book'}});
+ });
+ assert.equal(result.status,'provider_error');
+ if(result.status==='provider_error'){
+  assert.equal(result.reason,'redirect_blocked');
+  assert.equal(result.httpStatus,302);
+ }
+ assert.doesNotMatch(JSON.stringify(result),/SECRET_VALUE|other\\.example/);
+});
+test('classifies transport exceptions without reflecting sensitive messages',async()=>{
+ const result=await lookupISBNdbEdition(isbn,'SECRET_VALUE',async()=>{
+  throw new TypeError('fetch failed: SECRET_VALUE');
+ });
+ assert.equal(result.status,'unavailable');
+ if(result.status==='unavailable')assert.equal(result.reason,'transport_error');
+ assert.doesNotMatch(JSON.stringify(result),/SECRET_VALUE/);
+});
