@@ -184,7 +184,7 @@ export async function findSimpleBooks(query:string,contact:string,googleKey?:str
  }
  // Prefer explicitly identified English results for title/author searches; preserve exact-ISBN search ordering.
  if(!byIsbn)found.sort((a,b)=>languageRank(a.language)-languageRank(b.language));
- return {items:found.slice(0,24),sources:{
+ return {items:found.slice(0,60),sources:{
   google:google.status==='fulfilled'?'available':'unavailable',
   openLibrary:open.status==='fulfilled'?'available':'unavailable',
   isbnDb:isbnDb.status==='fulfilled'?(isbnDb.value?.status||'not_configured'):'unavailable'
