@@ -283,7 +283,15 @@ export async function importSimpleBook(db:SimpleCatalogueDB,key:string,expectedI
  stmts.push(db.prepare("INSERT INTO works(id,canonical_title,status) VALUES(?,?,'draft')").bind(workId,book.title));
  if(book.coverKind==='work'){
   if(!book.coverWorkKey||!book.coverId)throw Error('Representative cover identity missing; nothing was imported.');
-  // Existing canonical work identity is refetched during this import. Never assign a different work's art.
+  // Idempotently provision only the additive cover table when an owner actually imports matching book art.
+  // The canonical 0006 migration uses this exact schema, without modifying existing books.
+  await db.prepare(`CREATE TABLE IF NOT EXISTS work_representative_covers(
+   work_id TEXT PRIMARY KEY REFERENCES works(id) ON DELETE RESTRICT,
+   openlibrary_work_key TEXT NOT NULL CHECK(openlibrary_work_key GLOB '/works/OL*W'),
+   openlibrary_cover_id INTEGER NOT NULL CHECK(openlibrary_cover_id>0),
+   chosen_by TEXT NOT NULL,
+   chosen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`).run();
   stmts.push(db.prepare("INSERT INTO work_representative_covers(work_id,openlibrary_work_key,openlibrary_cover_id,chosen_by) VALUES(?,?,?,?)")
    .bind(workId,book.coverWorkKey,book.coverId,actor));
  }
