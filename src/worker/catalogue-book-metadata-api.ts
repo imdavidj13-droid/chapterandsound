@@ -51,6 +51,27 @@ export async function catalogueBookMetadataAPI(request:Request,db:MetadataDB,act
   if(!raw||typeof raw!=='object'||Array.isArray(raw))return fail('Expected a JSON object');
   const body=raw as Record<string,unknown>;
   const action=clean(body.action,32);
+  if(action==='enrichPageCount'){
+   const editionId=clean(body.editionId,100);
+   const isbn13=clean(body.isbn13,20).replace(/[ -]/g,'');
+   const pages=Number(body.pageCount);
+   const expectedRevision=body.expectedRevision;
+   if(body.confirmed!==true||body.rightsReviewed!==true)return fail('Explicit approval and source rights review required.',409);
+   if(!safe(editionId)||!validIsbn13(isbn13)||!Number.isSafeInteger(pages)||pages<1||pages>100000||!Number.isInteger(expectedRevision))return fail('Invalid edition, ISBN, pages or revision');
+   if(!await ownership(db,workId,'editions',editionId))return fail('Edition does not belong to this book',404);
+   const match=await db.prepare("SELECT i.id FROM entity_identifiers i JOIN identifier_schemes s ON s.id=i.scheme_id WHERE i.entity_kind='edition' AND i.entity_id=? AND s.code='ISBN13' AND i.normalized_value=?")
+    .bind(editionId,isbn13).first();
+   if(!match)return fail('The evidence ISBN does not match the saved edition',409);
+   const current=await db.prepare('SELECT page_count AS pages,revision FROM editions WHERE id=? AND work_id=?')
+    .bind(editionId,workId).first<{pages:number|null;revision:number}>();
+   if(!current||current.revision!==expectedRevision||current.pages!==null)return fail('Edition changed or already has a page count; nothing overwritten',409);
+   const results=await db.batch([
+    db.prepare('UPDATE editions SET page_count=?,revision=revision+1,updated_at=CURRENT_TIMESTAMP WHERE id=? AND work_id=? AND revision=? AND page_count IS NULL').bind(pages,editionId,workId,expectedRevision),
+    details(db,actor,'approved_page_count_enrichment',workId,{editionId,isbn13,pages,source:'reviewed_external_evidence'})
+   ]) as {meta?:{changes?:number}}[];
+   if(!results[0]?.meta?.changes)return fail('Edition was changed concurrently; reload.',409);
+   return json({saved:true,editionId,pageCount:pages});
+  }
   if(action==='identifier'){
    const editionId=clean(body.editionId,100),code=clean(body.code,10).toUpperCase(),value=clean(body.value,100);
    if(!await ownership(db,workId,'editions',editionId))return fail('Edition does not belong to this book',404);
