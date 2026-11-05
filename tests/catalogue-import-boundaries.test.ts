@@ -29,11 +29,13 @@ test('owner lookup is limited, explicit, and does not assign an arbitrary ISBN t
  assert.match(admin,/isbn13:'',format:''/);
  assert.match(admin,/workSourceKey:key/);
  assert.match(admin,/lookupOnly:true/);
- assert.match(ui,/Find candidates/);
- assert.match(ui,/Preview batch/);
- assert.match(ui,/Preview remains read-only/);
- assert.match(ui,/Save reviewed books as drafts/);
- assert.match(ui,/Nothing was published/);
+ // The old manifest UI is replaced, but the legacy internal routes remain read-only.
+ assert.match(ui,/Book title, author or ISBN/);
+ assert.match(ui,/Import book/);
+ assert.match(ui,/simple-import\/search/);
+ assert.match(ui,/simple-import\/detail/);
+ assert.match(ui,/simple-import\/add/);
+ assert.doesNotMatch(ui,/Paste a JSON manifest/);
  assert.match(workbench,/<CatalogueImportCentre\/>/);
 });
 
@@ -52,6 +54,6 @@ test('manual work enrichment fetches limited editions but never writes or treats
  assert.match(route,/editionCountReported:list\.size\?\?editions\.length/);
  assert.match(route,/readOnly:true/);
  assert.doesNotMatch(route,/INSERT INTO|UPDATE |DELETE FROM |\.run\(/);
- assert.match(ui,/Get book & editions/);
- assert.match(ui,/import\/enrich\?workKey=/);
+ assert.match(ui,/simple-import\/detail/);
+ assert.match(ui,/Import book/);
 });
