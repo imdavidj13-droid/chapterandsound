@@ -117,9 +117,10 @@ def verify(plan, rehearsal, snapshot, out):
     out.mkdir(parents=True, exist_ok=True)
     # No user confirmation or credentials can be inferred from this file.
     # Explicitly omit candidate payloads and any automatic write toggle.
-    (out / "eligible.json").write_text(json.dumps({
+    eligible_bytes = json.dumps({
         "dryRun": True, "importEnabled": False, "candidates": approved
-    }, indent=2), encoding="utf-8")
+    }, indent=2).encode("utf-8")
+    (out / "eligible.json").write_bytes(eligible_bytes)
     (out / "withheld.json").write_text(json.dumps(withheld, indent=2), encoding="utf-8")
     summary = {
         "dryRun": True, "productionWrites": 0, "importEnabled": False,
@@ -131,6 +132,7 @@ def verify(plan, rehearsal, snapshot, out):
                       ("preparedCandidates", "readyForFurtherPreview",
                        "workOnlyDraftCandidates", "identityOrIsbnReview")},
         "freshSnapshotSha256": fresh_hash,
+        "eligibleManifestSha256": sha(eligible_bytes),
         "planSha256": plan_hash,
         "rehearsalCheckpointSha256": sha(rehearsal.read_bytes()),
         "notes": "Preparation only. No production import, no secret handling, and no database writes."
