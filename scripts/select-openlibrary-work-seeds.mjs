@@ -18,7 +18,7 @@ export async function selectWorkSeeds({works,out,count=5000}){
  // Stable reservoir sampling, independent of the size/order of eligible records.
  let state=0x1f36c2a1;
  const random=()=>{state^=state<<13;state^=state>>>17;state^=state<<5;return (state>>>0)/4294967296};
- const selected=[],seen=new Set();
+ const selected=[];
  let lines=0,eligible=0,invalid=0;
  const input=createReadStream(resolve(works)).pipe(createGunzip());
  const iterator=createInterface({input,crlfDelay:Infinity});
@@ -33,8 +33,9 @@ export async function selectWorkSeeds({works,out,count=5000}){
    .filter(k=>typeof k==='string'&&/^\/authors\/OL\d+A$/.test(k)):[];
   if(!title||title.length>500||/^untitled\b/i.test(title)||!authors.length)continue;
   const key=chunks[1];
-  if(seen.has(key))continue;
-  seen.add(key);eligible++;
+  // Official monthly work dumps contain one row per work key; do not retain
+  // millions of identifiers in RAM simply to deduplicate the source dump.
+  eligible++;
   if(selected.length<count)selected.push(key);
   else{
    const slot=Math.floor(random()*eligible);
