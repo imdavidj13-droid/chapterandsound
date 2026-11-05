@@ -137,3 +137,37 @@ test('work-first option still refuses unknown format, ISBN-less records and audi
   assert.equal(db.prepare('SELECT count(*) AS n FROM works').get()?.n,0);
  }finally{db.close()}
 });
+
+test('duplicate case-variant subjects create one subject link',async()=>{
+ const {db,driver}=fixture();
+ try{
+  await importCatalogueDrafts(driver,[draft({subjects:['History','history',' HISTORY ','Mystery']})],'owner-fixture');
+  assert.equal(db.prepare('SELECT count(*) AS n FROM work_subjects').get()?.n,2);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM subjects').get()?.n,2);
+ }finally{db.close()}
+});
+test('edition importer reuses known canonical author only through matching Open Library source key',async()=>{
+ const {db,driver}=fixture();
+ try{
+  await importCatalogueDrafts(driver,[draft()],'owner-fixture');
+  const second=draft({workSourceKey:'/works/OL101W',sourceKey:'/works/OL101W',
+    title:'Second Novel',editions:[{sourceKey:'/books/OL101M',isbn13:'9780552156905',
+      format:'hardback'}]});
+  await importCatalogueDrafts(driver,[second],'owner-fixture',{workFirstDraft:true});
+  assert.equal(db.prepare('SELECT count(*) AS n FROM works').get()?.n,2);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM people').get()?.n,1);
+  assert.equal(db.prepare('SELECT count(DISTINCT person_id) AS n FROM contributions').get()?.n,1);
+ }finally{db.close()}
+});
+test('edition importer refuses same-name author with different source key',async()=>{
+ const {db,driver}=fixture();
+ try{
+  await importCatalogueDrafts(driver,[draft()],'owner-fixture');
+  const second=draft({workSourceKey:'/works/OL101W',sourceKey:'/works/OL101W',
+    title:'Second Novel',authorSourceKeys:['/authors/OL987A'],
+    editions:[{sourceKey:'/books/OL101M',isbn13:'9780552156905',format:'hardback'}]});
+  await assert.rejects(()=>importCatalogueDrafts(driver,[second],'owner-fixture',{workFirstDraft:true}),
+    /confirmed canonical authorId/);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM works').get()?.n,1);
+ }finally{db.close()}
+});
