@@ -101,12 +101,11 @@ export function CatalogueImportCentre(){
    <p className="cs-simple-import-muted">Book groups are provisional. Cover images are previews only and may represent another edition; the exact ISBN cover is checked separately before import.</p>
    <div className="cs-simple-import-grid">
    {groupSearchResults(items).map(group=>{
-    return <article className="cs-simple-import-result" key={group.id} style={{alignItems:'flex-start'}}>
+    return <article className="cs-simple-import-result" key={group.id}>
      <SearchCover key={group.id} group={group}/>
      <div className="cs-simple-import-description" style={{flex:1,minWidth:0}}>
       <h5>{group.title}</h5><p>{group.author}</p>
-      <small>{group.items.filter(x=>x.isbn13).length} ISBN-identified {group.items.filter(x=>x.isbn13).length===1?'edition':'editions'} · {group.items.filter(x=>!x.isbn13).length} work references · {[...new Set(group.items.map(x=>x.source))].join(' · ')}</small>
-      {group.items.length>1&&<small>Edition grouping is provisional; catalogue identities are not merged.</small>}
+      <small>{group.items.filter(x=>x.isbn13).length} ISBN {group.items.filter(x=>x.isbn13).length===1?'edition':'editions'} · {[...new Set(group.items.map(x=>x.source))].join(' · ')}</small>
       <details style={{marginTop:10}}>
        <summary style={{cursor:'pointer',fontWeight:600,color:'#21563e',padding:'4px 0'}}>{group.items.length===1?'View source details':'View '+group.items.length+' source records'}</summary>
        <div style={{display:'grid',gap:8,marginTop:8}}>
