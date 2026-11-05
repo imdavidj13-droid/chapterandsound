@@ -19,6 +19,7 @@ export function CatalogueImportCentre(){
  const [enriching,setEnriching]=useState<string|null>(null);
  const [selectedAuthors,setSelectedAuthors]=useState<Record<string,string>>({});
  const [draftConfirmed,setDraftConfirmed]=useState(false);
+ const [workFirstDraft,setWorkFirstDraft]=useState(false);
  const [draftSaving,setDraftSaving]=useState(false);
  const [draftResult,setDraftResult]=useState<{saved:true;imported:{id:string;title:string;editionIds:string[]}[]}|null>(null);
  async function discover(){
@@ -61,7 +62,7 @@ export function CatalogueImportCentre(){
  const draftRows=result?.rows.filter(row=>row.decision==='create_draft')||[];
  const maySave=Boolean(result&&result.rows.length===draftRows.length&&draftRows.length>0&&draftRows.length<=10
   &&draftRows.reduce((n,row)=>n+row.quality.editionCount,0)<=50
-  &&draftRows.every(row=>row.quality.optionalMissing.length===0&&row.quality.editionCount===row.quality.verifiedEditionCount)
+  &&(workFirstDraft||draftRows.every(row=>row.quality.optionalMissing.length===0&&row.quality.editionCount===row.quality.verifiedEditionCount))
   &&draftRows.every(row=>!(row.authorMatches?.length)||(row.authorMatches.length===1&&selectedAuthors[row.author]===row.authorMatches[0]?.id))
   &&draftRows.every(row=>!row.quality.formatCoverage.some(format=>format.includes('audio'))));
  async function saveDrafts(){
@@ -73,7 +74,7 @@ export function CatalogueImportCentre(){
     ...candidate,authorId:selectedAuthors[String(candidate.author)]||candidate.authorId
    }));
    const response=await apiWrite<{saved:true;imported:{id:string;title:string;editionIds:string[]}[]}>(
-    '/api/catalogue-admin/import/drafts','POST',{candidates,confirmed:true});
+    '/api/catalogue-admin/import/drafts','POST',{candidates,confirmed:true,workFirstDraft});
    setDraftResult(response);setResult(null);setDraftConfirmed(false);
   }catch(e){setError(e instanceof Error?e.message:'Draft import failed. Confirm no records were saved before retrying.')}
   finally{setDraftSaving(false)}
@@ -115,8 +116,9 @@ export function CatalogueImportCentre(){
     <tbody>{result.rows.map(row=><tr key={row.index}><td><strong>{row.title||'Missing title'}</strong><small>{row.author||'Missing author'}</small></td><td>{row.quality.editionCount} supplied · {row.quality.verifiedEditionCount} verified</td><td><strong>{row.quality.score}%</strong></td><td><span className={'cs-import-status status-'+row.decision}>{labels[row.decision]}</span></td><td>{row.reason}{row.quality.missing.length>0&&<details className="cs-import-missing"><summary>{row.quality.blocking?.length||0} required · {row.quality.optionalMissing?.length||0} optional gaps</summary><ul>{row.quality.missing.map(field=><li key={field}><strong>{row.quality.blocking?.includes(field)?'Required':'Optional'}</strong> · {field}</li>)}</ul></details>}{row.quality.warnings.length>0&&<p className="cs-import-warning">{row.quality.warnings.join(' ')}</p>}{row.existingWorkId&&<><small>Existing work: {row.existingWorkId}</small><a href={'/admin/catalogue/book/'+encodeURIComponent(row.existingWorkId)}>Open saved book</a></>}</td></tr>)}</tbody>
    </table></div>
    <section className="cs-import-draft-gate" aria-label="Save reviewed books as drafts">
-    <h4>Save complete source records as drafts</h4>
-    <p>Only a fully enriched batch of up to ten books and fifty verified editions can be saved. Missing fields must be resolved before this pilot, so you do not have to edit imports afterwards. Nothing is published automatically.</p>
+    <h4>Save source-identified books as private drafts</h4>
+    <p>Choose complete-metadata mode or work-first mode. Work-first permits missing optional metadata but never accepts ISBN-less editions, unknown formats, audio without recordings, or unverified identities. Maximum ten works and fifty editions. Nothing is published automatically.</p>
+    <label className="cs-import-confirm"><input type="checkbox" checked={workFirstDraft} onChange={e=>{setWorkFirstDraft(e.target.checked);setDraftConfirmed(false)}}/> Work-first private drafts: allow missing optional metadata. I will review missing fields before publishing.</label>
     {draftRows.length>0&&draftRows.map(row=>row.authorMatches?.length?<div className="cs-import-author-match" key={row.index}>
       <strong>{row.author}</strong>
       {row.authorMatches.length===1?<button type="button" className={selectedAuthors[row.author]===row.authorMatches[0]?.id?'selected':''}
@@ -126,7 +128,7 @@ export function CatalogueImportCentre(){
      </div>:null)}
     {result.rows.length>10&&<p className="cs-import-warning">Select a batch of no more than 10 books before saving.</p>}
     {result.rows.some(row=>row.decision!=='create_draft')&&<p className="cs-import-warning">This batch includes incomplete, duplicate or ambiguous records. Resolve these before saving drafts.</p>}
-    {result.rows.some(row=>row.quality.optionalMissing.length>0||row.quality.editionCount!==row.quality.verifiedEditionCount)&&<p className="cs-import-warning">At least one book still has missing metadata. Complete-source pilot imports remain disabled until all listed fields are resolved.</p>}
+    {!workFirstDraft&&result.rows.some(row=>row.quality.optionalMissing.length>0||row.quality.editionCount!==row.quality.verifiedEditionCount)&&<p className="cs-import-warning">At least one book still has missing metadata. Use work-first mode to save private drafts without inventing missing fields.</p>}
     <label className="cs-import-confirm">
      <input type="checkbox" checked={draftConfirmed} disabled={!maySave||draftSaving} onChange={e=>setDraftConfirmed(e.target.checked)}/>
      I have verified the source records, canonical author identities and permitted use of this metadata. Save as private drafts only.
