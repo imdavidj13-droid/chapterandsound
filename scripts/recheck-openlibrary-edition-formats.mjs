@@ -24,7 +24,14 @@ export function evaluate(book,edition,raw){
  const actual=[...(raw.isbn_13||[]),...(raw.isbn_10||[])];
  if(known.length&&!known.some(v=>actual.includes(v)))return {status:'isbn_mismatch'};
  const found=parseFormat(raw.physical_format);
- return found?{status:'explicit_format',format:found}:{status:'no_explicit_format'};
+ const observed={
+  ...(found?{format:found}:{}),
+  ...(Array.isArray(raw.publishers)&&raw.publishers.length===1&&typeof raw.publishers[0]==='string'&&raw.publishers[0].trim()?{publisher:raw.publishers[0].trim()}:{}),
+  ...(typeof raw.publish_date==='string'&&raw.publish_date.trim()?{publicationDate:raw.publish_date.trim()}:{}),
+  ...(Number.isSafeInteger(raw.number_of_pages)&&raw.number_of_pages>0?{pageCount:raw.number_of_pages}:{}),
+  ...(Array.isArray(raw.languages)&&raw.languages.length===1&&/^\\/languages\\/[a-z]{3}$/.test(raw.languages[0]?.key||'')?{language:raw.languages[0].key.split('/').at(-1)}:{})
+ };
+ return {status:found?'explicit_format':'no_explicit_format',...(found?{format:found}:{}),observed};
 }
 export async function enrich(input,fetchJson,max=46){
  if(!Array.isArray(input?.candidates)||input.candidates.length!==10)throw Error('Expected ten work candidates');
@@ -34,20 +41,36 @@ export async function enrich(input,fetchJson,max=46){
   if(!/^\/books\/OL\d+M$/.test(ed.sourceKey))throw Error('Invalid edition source key');
   try{
    const decision=evaluate(book,ed,await fetchJson(ed.sourceKey+'.json'));
-   if(decision.status==='explicit_format'){
-    ed.format=decision.format;ed.fieldProvenance||={};
-    ed.fieldProvenance.format={source:'openlibrary_live_exact_edition',
-     editionSourceKey:ed.sourceKey,url:'https://openlibrary.org'+ed.sourceKey+'.json',
-     status:'source_explicit'};
+   const proposed={},conflicts={};
+   if(decision.observed){
+    for(const [field,value] of Object.entries(decision.observed)){
+     const previous=ed[field];
+     if((previous===null||previous===undefined||previous===''||(field==='format'&&previous==='unknown'))
+       &&!(field==='pageCount'&&['audiobook','audio_cd'].includes(ed.format))){
+      ed[field]=value;ed.fieldProvenance||={};
+      ed.fieldProvenance[field]={source:'openlibrary_live_exact_edition',
+       editionSourceKey:ed.sourceKey,url:'https://openlibrary.org'+ed.sourceKey+'.json',
+       status:'source_explicit'};
+      proposed[field]=value;
+     }else if(previous!==value&&previous!==null&&previous!==undefined&&previous!==''){
+      conflicts[field]={existing:previous,observed:value};
+     }
+    }
    }
-   items.push({title:book.title,editionSourceKey:ed.sourceKey,...decision});
+   items.push({title:book.title,editionSourceKey:ed.sourceKey,...decision,proposed,conflicts});
   }catch(e){failures.push({editionSourceKey:ed.sourceKey,error:String(e)})}
  }
  return {candidates:{candidates:books,mode:'ol_format_recheck_review_only',importEligible:false},
   report:{totals:{attempted:unknown.length,checked:items.length,failures:failures.length,
-   formatsResolved:items.filter(x=>x.status==='explicit_format').length,
+   formatsResolved:items.filter(x=>x.proposed?.format).length,
+   fieldsProposed:items.reduce((n,x)=>n+Object.keys(x.proposed||{}).length,0),
+   fieldConflicts:items.reduce((n,x)=>n+Object.keys(x.conflicts||{}).length,0),
    remainingUnknownFormats:books.reduce((n,b)=>n+b.editions.filter(e=>e.format==='unknown').length,0)},
    items,failures,notes:['Exact edition, work, title, ISBN and explicit format required.',
+   'Only exact edition, work, title and ISBN matches can supply missing fields.',
+   'Existing values are never overwritten; conflicts are reported for review.',
+   'Language requires one explicit ISO-639-3 code; publisher requires one explicit name.',
+   'Page count, dates, and description/media rights still require independent checks.',
    'Unknown remains unknown when no explicit format is available. No D1 writes.']}};
 }
 export async function run(args){
