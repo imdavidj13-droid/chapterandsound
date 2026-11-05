@@ -108,6 +108,7 @@ def analyze(prepared, con, out):
 
     seen_work = set()
     seen_isbn = defaultdict(set)
+    seen_edition_keys = defaultdict(set)
     seen_title_author = defaultdict(set)
     books = []
     for file in input_files:
@@ -123,6 +124,8 @@ def analyze(prepared, con, out):
         signature = (normal(book.get("title")), normal(book.get("author")))
         seen_title_author[signature].add(key)
         for edition in book.get("editions") or []:
+            if edition.get("sourceKey"):
+                seen_edition_keys[str(edition["sourceKey"])].add(key)
             for code in (edition.get("isbn13"), edition.get("isbn10")):
                 if valid_isbn(code):
                     seen_isbn[isbn(code)].add(key)
@@ -167,15 +170,25 @@ def analyze(prepared, con, out):
 
         editions = []
         blocked = None
+        local_codes = set()
+        local_edition_keys = set()
         for edition in book.get("editions") or []:
             ekey = str(edition.get("sourceKey") or "")
             if not EDITION_KEY.fullmatch(ekey):
                 blocked = "invalid_edition_source_key"
                 break
+            if ekey in local_edition_keys or len(seen_edition_keys[ekey]) > 1:
+                blocked = "edition_key_reused_across_candidates"
+                break
+            local_edition_keys.add(ekey)
             codes = [isbn(v) for v in (edition.get("isbn13"), edition.get("isbn10")) if v]
             if not codes or any(not valid_isbn(code) for code in codes):
                 blocked = "missing_or_invalid_edition_isbn"
                 break
+            if any(code in local_codes for code in codes):
+                blocked = "duplicate_isbn_across_work_editions"
+                break
+            local_codes.update(codes)
             if any(code in isbn_existing for code in codes):
                 blocked = "edition_isbn_already_in_book_db"
                 break
@@ -187,7 +200,7 @@ def analyze(prepared, con, out):
                 break
             editions.append(edition)
         if blocked:
-            add(review if "conflict" in blocked or "already" in blocked else enrich, blocked, book)
+            add(review if "conflict" in blocked or "already" in blocked or "reused" in blocked or "duplicate" in blocked else enrich, blocked, book)
             continue
         if not editions:
             add(enrich, "no_identified_editions", book)
