@@ -3,8 +3,8 @@ import {readFileSync,readdirSync} from 'node:fs';
 import assert from 'node:assert/strict';
 const dir=new URL('../catalogue-migrations/',import.meta.url);
 const files=readdirSync(dir).filter(n=>/^[0-9]{4}_[a-z0-9_]+[.]sql$/.test(n)).sort();
-assert.equal(files.length,5,'Expected exactly five dedicated catalogue migrations (0001 through 0005)');
-assert.deepEqual(files.map(f=>f.slice(0,4)),['0001','0002','0003','0004','0005']);
+assert.equal(files.length,6,'Expected six dedicated catalogue migrations (0001 through 0006)');
+assert.deepEqual(files.map(f=>f.slice(0,4)),['0001','0002','0003','0004','0005','0006']);
 const db=new DatabaseSync(':memory:');
 db.exec('PRAGMA foreign_keys=ON');
 try{
@@ -12,7 +12,7 @@ try{
   try{db.exec(readFileSync(new URL(f,dir),'utf8'));}
   catch(e){throw Error(f+' failed: '+String(e))}
   const n=db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").get().n;
-  assert.equal(n,[15,28,38,50,59][index],f+' did not produce the expected additive table count');
+  assert.equal(n,[15,28,38,50,59,60][index],f+' did not produce the expected additive table count');
  }
  const actual=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all().map(x=>x.name);
  const needed=['works','work_titles','work_versions','editions','audio_recordings','edition_recordings','people','person_names',
@@ -27,8 +27,9 @@ try{
  'api_usage_daily','api_access_policies'];
  assert.equal(needed.length,28);
  assert.equal(extended.length,31);
- assert.equal(actual.length,59,'Expected exactly 59 canonical catalogue tables');
+ assert.equal(actual.length,60,'Expected exactly 60 catalogue tables including representative covers');
  for(const name of [...needed,...extended])assert.ok(actual.includes(name),'Missing catalogue table '+name);
+ assert.ok(actual.includes('work_representative_covers'),'Missing curated book cover selection table');
  assert.equal(new Set([...needed,...extended]).size,59,'Catalogue table registry must have no duplicate names');
  assert.ok(!actual.includes('members')&&!actual.includes('reviews')&&!actual.includes('session')&&!actual.includes('reading_experiences'),'Member data found in catalogue DB');
  const p=(sql,...args)=>db.prepare(sql).run(...args);
