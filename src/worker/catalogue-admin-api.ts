@@ -5,6 +5,7 @@ import {catalogueBookMetadataAPI} from './catalogue-book-metadata-api.js';
 import {previewCatalogueImport} from './catalogue-import-preview.js';
 import {importCatalogueDrafts,ImportConflict} from './catalogue-import-drafts.js';
 import {findSimpleBooks,getSimpleBook,importSimpleBook} from './catalogue-simple-import.js';
+import {representativeCoverAPI} from './catalogue-representative-cover.js';
 import {authConfigured,createAuth} from './auth.js';
 import {isVerifiedSiteOwner} from './admin-role.js';
 
@@ -304,6 +305,8 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
     notice:'External observations are suggestions only. Nothing has been saved.'});
   }catch(e){console.error('Owner-initiated edition lookup failed',e);return fail('Open Library lookup unavailable',502)}
  }
+ if(segments.length===3&&segments[0]==='works'&&segments[2]==='representative-cover')
+  return representativeCoverAPI(request,db,session.user.id,segments[1]||'',env.ADMIN_EMAIL||'catalogue-admin');
  if(segments.length===3&&segments[0]==='works'&&segments[2]==='metadata')
   return catalogueBookMetadataAPI(request,db,session.user.id,segments[1]||'');
  try{
