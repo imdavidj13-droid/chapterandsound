@@ -9,7 +9,8 @@ const roomShell=readFileSync(new URL('../src/site/themes/ThemeShell.tsx',import.
 const publicApi=readFileSync(new URL('../src/worker/catalogue-public-api.ts',import.meta.url),'utf8');
 
 test('Reading Room displays the canonical cover rather than a permanent placeholder',()=>{
- assert.match(room,/book\.coverUrl\|\|editions\.find\(e=>e\.coverUrl\)\?\.coverUrl/);
+ assert.match(room,/new Set\(\[book\.coverUrl,\.\.\.editions\.map\(e=>e\.coverUrl\)\]/);
+ assert.match(room,/onError=\{\(\)=>setCoverIndex\(i=>i\+1\)\}/);
  assert.match(room,/<img src=\{/);
 });
 test('member shelf reads canonical cover and author by work ID',()=>{
