@@ -18,7 +18,8 @@ function seededCatalogue(){
  insert("INSERT INTO people(id,preferred_name) VALUES('draft-only-author','Private Author')");
  insert("INSERT INTO contributions(id,person_id,work_id,role_code) VALUES('published-credit','canonical-author','published-work','author')");
  insert("INSERT INTO contributions(id,person_id,work_id,role_code) VALUES('draft-credit','draft-only-author','draft-work','author')");
- insert("INSERT INTO editions(id,work_id,format) VALUES('published-ebook','published-work','ebook')");
+ insert("INSERT INTO editions(id,work_id,format,publication_status) VALUES('published-ebook','published-work','ebook','published')");
+ insert("INSERT INTO editions(id,work_id,format,publication_status) VALUES('unapproved-paperback','published-work','paperback','draft')");
  insert("INSERT INTO editions(id,work_id,format) VALUES('draft-ebook','draft-work','ebook')");
  insert("INSERT INTO text_content(id,entity_kind,entity_id,content_type,body,visibility) VALUES('public-description','work','published-work','synopsis','Public book synopsis','public')");
  insert("INSERT INTO text_content(id,entity_kind,entity_id,content_type,body,visibility) VALUES('private-description','work','draft-work','synopsis','Private draft synopsis','private')");
@@ -53,6 +54,7 @@ test('published book appears in search, detail page, and canonical author biblio
   assert.equal(detail.book.authorId,'canonical-author');
   assert.equal(detail.book.summary,'Public book synopsis');
   assert.deepEqual(detail.editions.map(x=>x.id),['published-ebook']);
+  assert.deepEqual(list.items[0]?.formats,['ebook']);
   const profile=await f.get<{person:{id:string};works:{id:string}[]}>('person/canonical-author');
   assert.equal(profile.person.id,'canonical-author');
   assert.deepEqual(profile.works.map(x=>x.id),['published-work']);
