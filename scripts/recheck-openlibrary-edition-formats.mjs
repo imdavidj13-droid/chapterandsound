@@ -29,7 +29,7 @@ export function evaluate(book,edition,raw){
   ...(Array.isArray(raw.publishers)&&raw.publishers.length===1&&typeof raw.publishers[0]==='string'&&raw.publishers[0].trim()?{publisher:raw.publishers[0].trim()}:{}),
   ...(typeof raw.publish_date==='string'&&raw.publish_date.trim()?{publicationDate:raw.publish_date.trim()}:{}),
   ...(Number.isSafeInteger(raw.number_of_pages)&&raw.number_of_pages>0?{pageCount:raw.number_of_pages}:{}),
-  ...(Array.isArray(raw.languages)&&raw.languages.length===1&&/^\\/languages\\/[a-z]{3}$/.test(raw.languages[0]?.key||'')?{language:raw.languages[0].key.split('/').at(-1)}:{})
+  ...(Array.isArray(raw.languages)&&raw.languages.length===1&&/^\/languages\/[a-z]{3}$/.test(raw.languages[0]?.key||'')?{language:raw.languages[0].key.split('/').at(-1)}:{})
  };
  return {status:found?'explicit_format':'no_explicit_format',...(found?{format:found}:{}),observed};
 }
