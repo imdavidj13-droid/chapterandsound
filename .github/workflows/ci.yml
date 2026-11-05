@@ -20,6 +20,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - name: Test offline catalogue bulk reconciliation
+        run: python -m unittest discover -s tests -p 'test_*catalogue*preflight.py'
+      - name: Test offline catalogue planning
         run: python -m unittest discover -s tests -p 'test_plan_openlibrary_bulk_import.py'
       - run: npm run test:migrations
       - run: npm run test:catalogue-schema
