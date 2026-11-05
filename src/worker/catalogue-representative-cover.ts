@@ -38,8 +38,9 @@ export async function representativeCoverAPI(request:Request,db:CoverDB,actor:st
  if(!work)return fail('Book not found',404);
  if(request.method==='GET'){
   try{
-   const current=await db.prepare('SELECT openlibrary_work_key AS workKey,openlibrary_cover_id AS coverId FROM work_representative_covers WHERE work_id=?')
-    .bind(workId).first<{workKey:string;coverId:number}>();
+   const table=await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='work_representative_covers'").first();
+   const current=table?await db.prepare('SELECT openlibrary_work_key AS workKey,openlibrary_cover_id AS coverId FROM work_representative_covers WHERE work_id=?')
+    .bind(workId).first<{workKey:string;coverId:number}>():null;
    return json({current,candidates:await candidatesFor(work,contact)});
   }catch(e){return fail(e instanceof Error?e.message:'Cover discovery failed',502)}
  }
@@ -54,6 +55,13 @@ export async function representativeCoverAPI(request:Request,db:CoverDB,actor:st
   const choices=await candidatesFor(work,contact);
   if(!choices.some(c=>c.workKey===key&&c.coverId===coverId))
    return fail('Cover source no longer matches the book and author; no change made',409);
+  await db.prepare(`CREATE TABLE IF NOT EXISTS work_representative_covers(
+   work_id TEXT PRIMARY KEY REFERENCES works(id) ON DELETE RESTRICT,
+   openlibrary_work_key TEXT NOT NULL CHECK(openlibrary_work_key GLOB '/works/OL*W'),
+   openlibrary_cover_id INTEGER NOT NULL CHECK(openlibrary_cover_id>0),
+   chosen_by TEXT NOT NULL,
+   chosen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`).run();
   await db.batch([
    db.prepare(`INSERT INTO work_representative_covers(work_id,openlibrary_work_key,openlibrary_cover_id,chosen_by)
     VALUES(?,?,?,?)
