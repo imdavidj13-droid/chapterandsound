@@ -1,9 +1,9 @@
 import {useState} from 'react';
 import {apiGet,apiWrite} from './api';
-import {groupSearchResults} from './catalogue-search-grouping';
+import {groupCoverCandidates,groupSearchResults,type SearchGroup} from './catalogue-search-grouping';
 
 type Suggestion={key:string;title:string;author:string;isbn13:string|null;publisher:string|null;
- publishedDate:string|null;pages:number|null;coverUrl:string|null;language:string|null;source:string};
+ publishedDate:string|null;pages:number|null;coverUrl:string|null;previewCoverUrl?:string|null;language:string|null;source:string};
 type Detail=Suggestion&{synopsis:string|null;synopsisSource:'Open Library'|'Google Books'|null;
  complete:boolean;missing:string[];format:string;sourceUrl:string;
  coverKind:'work'|'edition'|null;coverWorkKey:string|null;coverId:number|null;researchOnly?:boolean;};
@@ -13,6 +13,15 @@ const languageLabel=(code:string|null)=>code==='en'?'English':code==='es'?'Spani
 const requiredLabels:Record<string,string>={isbn13:'ISBN',publisher:'publisher',
  publishedDate:'release date',pages:'page count',synopsis:'description',author:'author',title:'title',coverUrl:'cover image'};
 function missingText(items:string[]){return items.map(x=>requiredLabels[x]||x).join(', ')}
+function SearchCover({group}:{group:SearchGroup}){
+ const options=groupCoverCandidates(group);
+ const [current,setCurrent]=useState(0);
+ const choice=options[current];
+ return <div className="cs-simple-import-cover" title={choice?choice.label+' (preview only)':'No image supplied by the available sources'}>
+  {choice?<img src={choice.url} alt="" loading="lazy" referrerPolicy="no-referrer"
+   onError={()=>setCurrent(index=>index+1)}/>:<span aria-hidden="true">No cover</span>}
+ </div>;
+}
 export function CatalogueImportCentre(){
  const [query,setQuery]=useState('');
  const [items,setItems]=useState<Suggestion[]>([]);
@@ -89,14 +98,11 @@ export function CatalogueImportCentre(){
   </div>}
   {items.length>0&&<div className="cs-simple-import-results">
    <h4>Search results <span>{groupSearchResults(items).length} possible books · {items.length} source records</span></h4>
-   <p className="cs-simple-import-muted">Results are grouped for easier browsing using matching titles and author names. Groups are provisional, not confirmed catalogue identities. Check each edition before saving.</p>
+   <p className="cs-simple-import-muted">Book groups are provisional. Cover images are previews only and may represent another edition; the exact ISBN cover is checked separately before import.</p>
    <div className="cs-simple-import-grid">
    {groupSearchResults(items).map(group=>{
-    const display=group.items.find(entry=>Boolean(entry.coverUrl))||group.items[0]!;
     return <article className="cs-simple-import-result" key={group.id} style={{alignItems:'flex-start'}}>
-     <div className="cs-simple-import-cover">{display.coverUrl?
-      <img src={display.coverUrl} alt="" loading="lazy" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.style.display='none'}}/>:
-      <span aria-hidden="true">No cover</span>}</div>
+     <SearchCover key={group.id} group={group}/>
      <div className="cs-simple-import-description" style={{flex:1,minWidth:0}}>
       <h5>{group.title}</h5><p>{group.author}</p>
       <small>{group.items.length} {group.items.length===1?'source record':'possible editions'} · {[...new Set(group.items.map(x=>x.source))].join(' · ')}</small>
