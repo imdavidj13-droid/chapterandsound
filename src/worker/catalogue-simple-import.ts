@@ -169,6 +169,9 @@ export async function findSimpleBooks(query:string,contact:string,googleKey?:str
    pages:null,language:item.language?.map(language).find(x=>x==='en')||language(item.language?.[0]),
    coverUrl:item.cover_i?'https://covers.openlibrary.org/b/id/'+item.cover_i+'-M.jpg':null,source:'Open Library'});
  }
+ const isbnDbCandidates=isbnDb.status==='fulfilled'&&isbnDb.value?.status==='matched'?
+  ('books' in isbnDb.value?isbnDb.value.books.length:1):0;
+ const resultsBeforeIsbnDb=found.length;
  // ISBNdb search gives up to 20 matching editions in ONE provider request.
  // Do not duplicate another exact ISBN result, and never treat candidates as verified covers.
  if(isbnDb.status==='fulfilled'&&isbnDb.value){
@@ -188,7 +191,10 @@ export async function findSimpleBooks(query:string,contact:string,googleKey?:str
   google:google.status==='fulfilled'?'available':'unavailable',
   openLibrary:open.status==='fulfilled'?'available':'unavailable',
   isbnDb:isbnDb.status==='fulfilled'?(isbnDb.value?.status||'not_configured'):'unavailable'
- }};
+ },diagnostics:{googleCandidates:google.status==='fulfilled'?(google.value.items||[]).length:0,
+  openLibraryCandidates:open.status==='fulfilled'?(open.value.docs||[]).length:0,
+  isbnDbCandidates,isbnDbNewEditions:found.length-resultsBeforeIsbnDb,
+  isbnDbReason:isbnDb.status==='fulfilled'&&isbnDb.value&&'reason' in isbnDb.value?isbnDb.value.reason:null}};
 }
 async function olEditionByIsbn(code:string,contact:string):Promise<{edition:OEdition;work:OWork|null}|null>{
  if(!validIsbn(code))return null;
