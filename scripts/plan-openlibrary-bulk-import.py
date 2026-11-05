@@ -71,7 +71,7 @@ def analyze(prepared, con, out):
 
     source_existing = {}
     for work_id, details in con.execute(
-        "SELECT target_id,details_json FROM catalogue_audit_log WHERE action='import_draft'"
+        "SELECT target_id,details_json FROM catalogue_audit_log WHERE action IN ('import_draft','import_work_only_draft','simple_import')"
     ):
         try:
             key = json.loads(details or "{}").get("workSourceKey")
