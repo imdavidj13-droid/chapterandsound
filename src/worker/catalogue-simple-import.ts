@@ -101,9 +101,13 @@ function googleSuggestion(v:GVolume):BookSuggestion|null{
  return {key:'g:'+v.id,title:str(info.title),author:str(info.authors[0]),
   isbn13:code?isbn13Of(code.identifier):null,publisher:str(info.publisher)||null,
   publishedDate:date(info.publishedDate),pages:pages(info.pageCount),language:language(info.language),
-  coverUrl:(info.imageLinks?.thumbnail||info.imageLinks?.smallThumbnail||'').replace(/^http:/,'https:')||null,
+  coverUrl:editionCover(code?isbn13Of(code.identifier):null),
   source:'Google Books'};
 }
+/** All edition previews use the same ISBN-backed cover URL as the public catalogue.
+ * A work's representative artwork is not evidence for any individual edition.
+ */
+const editionCover=(code:string|null)=>code?'https://covers.openlibrary.org/b/isbn/'+code+'-L.jpg?default=false':null;
 const olAgent=(contact:string)=>'ChapterAndSoundCatalogue/0.2 ('+contact+')';
 export async function findSimpleBooks(query:string,contact:string,googleKey?:string){
  const q=str(query,120);
@@ -162,6 +166,7 @@ export async function getSimpleBook(key:string,contact:string,googleKey?:string)
   const desc=cleanDescription(edition?.description)||cleanDescription(ol?.work?.description);
   const googleDesc=cleanDescription(volume.volumeInfo?.description);
   return metadata({...suggestion,
+   coverUrl:editionCover(suggestion.isbn13),
    publisher:suggestion.publisher||str(edition?.publishers?.[0])||null,
    publishedDate:suggestion.publishedDate||date(edition?.publish_date),
    pages:suggestion.pages||pages(edition?.number_of_pages),
@@ -192,7 +197,7 @@ export async function getSimpleBook(key:string,contact:string,googleKey?:string)
   return metadata({key,title:str(work.title)||str(candidate.title),author,isbn13:code,
    publisher:str(candidate.publishers?.[0])||null,publishedDate:date(candidate.publish_date),
    pages:pages(candidate.number_of_pages),language:language(candidate.languages?.[0]?.key),
-   coverUrl:candidate.covers?.[0]?'https://covers.openlibrary.org/b/id/'+candidate.covers[0]+'-M.jpg':null,
+   coverUrl:editionCover(code),
    source:'Open Library',format:formatOf(candidate.physical_format),synopsis:desc,
    synopsisSource:desc?'Open Library':null,sourceUrl:'https://openlibrary.org'+wkey,complete:false,missing:[]});
  }
