@@ -1,0 +1,106 @@
+{
+  "mode": "publisher_and_retailer_exact_isbn_evidence",
+  "reviewOnly": true,
+  "importEligible": false,
+  "author": "Simon Kernick",
+  "assembledOn": "2026-11-05",
+  "records": [
+    {
+      "title": "Stay Alive",
+      "isbn13": "9781476789583",
+      "editionSourceKey": "/books/OL29695722M",
+      "format": "ebook",
+      "feature": null,
+      "source": "simon_and_schuster_official",
+      "sourceUrl": "https://www.simonandschuster.com/books/Stay-Alive/Simon-Kernick/Bestselling-Fiction/9781476789583",
+      "note": "Publisher labels this exact ISBN eBook."
+    },
+    {
+      "title": "The Crime Trade",
+      "isbn13": "9781466826243",
+      "editionSourceKey": "/books/OL37397003M",
+      "format": "ebook",
+      "feature": null,
+      "source": "fnac_kobo_product_listing",
+      "sourceUrl": "https://www.fnac.com/livre-numerique/a20268952/Simon-Kernick-The-Crime-Trade",
+      "note": "Exact EAN listed as digital Kobo ebook, title variant with or without The."
+    },
+    {
+      "title": "The Murder Exchange",
+      "isbn13": "9780552149716",
+      "editionSourceKey": "/books/OL32127340M",
+      "format": "paperback",
+      "feature": null,
+      "source": "ebay_secondhand_product_listing",
+      "sourceUrl": "https://www.ebay.co.uk/itm/318888678891",
+      "note": "Exact EAN and paperback binding on book-specific seller record."
+    },
+    {
+      "title": "Severed",
+      "isbn13": "9780552164344",
+      "editionSourceKey": "/books/OL28463137M",
+      "format": "paperback",
+      "feature": null,
+      "source": "hatchards_bookshop_product_page",
+      "sourceUrl": "https://www.hatchards.co.uk/book/severed/simon-kernick/9780552164344",
+      "note": "Exact ISBN and Paperback format displayed by bookshop."
+    },
+    {
+      "title": "The Crime Trade",
+      "isbn13": "9780593051351",
+      "editionSourceKey": "/books/OL7544128M",
+      "format": "hardback",
+      "feature": null,
+      "source": "abebooks_bibliographic_listing",
+      "sourceUrl": "https://www.abebooks.co.uk/9780593051351/Crime-Trade-Kernick-Simon-0593051351/plp",
+      "note": "Exact ISBN listed as Hardcover, 2004 Bantam Press."
+    },
+    {
+      "title": "Siege",
+      "isbn13": "9781784754570",
+      "editionSourceKey": "/books/OL43634442M",
+      "format": "paperback",
+      "feature": null,
+      "source": "abebooks_book_seller_listing",
+      "sourceUrl": "https://www.abebooks.co.uk/book-search/title/siege/author/simon-kernick/",
+      "note": "Matching ISBN is explicitly softcover; Gardners is distributor account name not necessarily original publisher."
+    },
+    {
+      "title": "Stay Alive",
+      "isbn13": "9781471266768",
+      "editionSourceKey": "/books/OL28291613M",
+      "format": "paperback",
+      "feature": "large_print",
+      "source": "ebay_world_of_books_listing",
+      "sourceUrl": "https://www.ebay.co.uk/itm/147597234477",
+      "note": "Exact EAN listed Paperback and Large Print Edition; retailer evidence requires review."
+    },
+    {
+      "title": "The Final Minute",
+      "isbn13": "9781510017825",
+      "editionSourceKey": "/books/OL46834952M",
+      "format": null,
+      "feature": "large_print",
+      "source": "open_library_human_readable_edition",
+      "sourceUrl": "https://openlibrary.org/books/OL46834952M",
+      "note": "Explicit large-print edition, 438 pages; does not state physical binding reliably."
+    },
+    {
+      "title": "Severed",
+      "isbn13": "9781407409658",
+      "editionSourceKey": "/books/OL30152593M",
+      "format": null,
+      "feature": "large_print",
+      "source": "open_british_national_bibliography",
+      "sourceUrl": "https://obnb.uk/p14459217-severed",
+      "note": "Explicit 'large print ed.' 376 pages; physical binding not independently confirmed."
+    }
+  ],
+  "notes": [
+    "Every row is tied to a provided ISBN and edition key; the reconciliation script also checks the canonical work title and ISBN.",
+    "Large print is a feature independent of paperback/hardback; never equate W F Howes or Clipper with audiobook.",
+    "Two large-print records deliberately leave format null.",
+    "Retail sources are factual research leads requiring source reuse/legal review before any publication.",
+    "No API text, cover images or production records are copied or changed."
+  ]
+}
