@@ -75,8 +75,11 @@ def verify(plan, rehearsal, snapshot, out):
         raise ValueError("Rehearsal results do not match planned candidates")
     snapshot_bytes = snapshot.read_bytes()
     fresh_hash = sha(snapshot_bytes)
-    if ledger.get("snapshotHash") == fresh_hash:
-        raise ValueError("Fresh production snapshot is identical to the rehearsal snapshot; verify a NEW export was taken")
+    # The database may not have changed since rehearsal, so identical SQL
+    # content is acceptable. Require the fresh export file itself to be newer
+    # than the rehearsal checkpoint, rather than comparing content hashes.
+    if snapshot.stat().st_mtime <= rehearsal.stat().st_mtime:
+        raise ValueError("The production snapshot must be exported after the completed rehearsal checkpoint")
     module_path = Path(__file__).with_name("plan-openlibrary-bulk-import.py")
     spec = importlib.util.spec_from_file_location("bulk_planner", module_path)
     planner = importlib.util.module_from_spec(spec)
