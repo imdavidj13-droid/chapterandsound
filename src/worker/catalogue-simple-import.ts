@@ -4,7 +4,7 @@
  * no image persistence, no bulk harvesting and no duplicate catalogue.
  * Search results are never trusted for writes: import re-fetches the source.
  */
-import {lookupISBNdbEdition} from './catalogue-isbndb-resolver.js';
+import {lookupISBNdbEdition,searchISBNdbBooks} from './catalogue-isbndb-resolver.js';
 type Scalar=string|number|null;
 interface Statement {
  bind(...args:Scalar[]):Statement;
@@ -155,7 +155,7 @@ export async function findSimpleBooks(query:string,contact:string,googleKey?:str
   fetchJson<{items?:GVolume[]}>(googleUrl(byIsbn?'isbn:'+numeric:q,googleKey),sourceAgent),
   fetchJson<{docs?:OSearch[]}>(ol.toString(),sourceAgent),
   // ISBNdb is an exact-ISBN source, never a bulk title-search source.
-  expected&&isbnDbKey?lookupISBNdbEdition(expected,isbnDbKey):Promise.resolve(null)
+  isbnDbKey?(expected?lookupISBNdbEdition(expected,isbnDbKey):searchISBNdbBooks(q,isbnDbKey)):Promise.resolve(null)
  ]);
  if(google.status==='rejected'&&open.status==='rejected'&&!(isbnDb.status==='fulfilled'&&isbnDb.value?.status==='matched'))throw Error('Book search providers are temporarily unavailable');
  const found:BookSuggestion[]=[];
@@ -169,21 +169,25 @@ export async function findSimpleBooks(query:string,contact:string,googleKey?:str
    pages:null,language:item.language?.map(language).find(x=>x==='en')||language(item.language?.[0]),
    coverUrl:item.cover_i?'https://covers.openlibrary.org/b/id/'+item.cover_i+'-M.jpg':null,source:'Open Library'});
  }
- // Show exact-ISBN ISBNdb evidence when other services cannot identify that edition.
- // Never treat its unverified cover candidate as a verified importable image.
- if(expected&&isbnDb.status==='fulfilled'&&isbnDb.value?.status==='matched'&&
-    !found.some(item=>item.isbn13===expected)){
-  const d=isbnDb.value.edition;
-  found.unshift({key:'i:'+expected,title:d.title,author:d.authors[0]||'',isbn13:expected,
-   publisher:d.publisher,publishedDate:d.publishedDate,pages:d.pageCount,
-   coverUrl:null,language:d.language,source:'ISBNdb'});
+ // ISBNdb search gives up to 20 matching editions in ONE provider request.
+ // Do not duplicate another exact ISBN result, and never treat candidates as verified covers.
+ if(isbnDb.status==='fulfilled'&&isbnDb.value){
+  const response=isbnDb.value;
+  const editions=response.status==='matched'?
+   ('books' in response?response.books:[response.edition]):[];
+  for(const d of editions){
+   if(!d?.isbn13||found.some(item=>item.isbn13===d.isbn13))continue;
+   found.push({key:'i:'+d.isbn13,title:d.title,author:d.authors[0]||'',isbn13:d.isbn13,
+    publisher:d.publisher,publishedDate:d.publishedDate,pages:d.pageCount,
+    coverUrl:null,language:d.language,source:'ISBNdb'});
+  }
  }
  // Prefer explicitly identified English results for title/author searches; preserve exact-ISBN search ordering.
  if(!byIsbn)found.sort((a,b)=>languageRank(a.language)-languageRank(b.language));
  return {items:found.slice(0,24),sources:{
   google:google.status==='fulfilled'?'available':'unavailable',
   openLibrary:open.status==='fulfilled'?'available':'unavailable',
-  isbnDb:!expected?'not_checked':isbnDb.status==='fulfilled'?(isbnDb.value?.status||'not_configured'):'unavailable'
+  isbnDb:isbnDb.status==='fulfilled'?(isbnDb.value?.status||'not_configured'):'unavailable'
  }};
 }
 async function olEditionByIsbn(code:string,contact:string):Promise<{edition:OEdition;work:OWork|null}|null>{
