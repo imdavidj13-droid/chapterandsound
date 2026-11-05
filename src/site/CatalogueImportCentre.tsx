@@ -105,10 +105,10 @@ export function CatalogueImportCentre(){
      <SearchCover key={group.id} group={group}/>
      <div className="cs-simple-import-description" style={{flex:1,minWidth:0}}>
       <h5>{group.title}</h5><p>{group.author}</p>
-      <small>{group.items.length} {group.items.length===1?'source record':'possible editions'} · {[...new Set(group.items.map(x=>x.source))].join(' · ')}</small>
+      <small>{group.items.filter(x=>x.isbn13).length} ISBN-identified {group.items.filter(x=>x.isbn13).length===1?'edition':'editions'} · {group.items.filter(x=>!x.isbn13).length} work references · {[...new Set(group.items.map(x=>x.source))].join(' · ')}</small>
       {group.items.length>1&&<small>Edition grouping is provisional; catalogue identities are not merged.</small>}
       <details style={{marginTop:10}}>
-       <summary style={{cursor:'pointer',fontWeight:600,color:'#21563e',padding:'4px 0'}}>{group.items.length===1?'View edition details':'View '+group.items.length+' editions'}</summary>
+       <summary style={{cursor:'pointer',fontWeight:600,color:'#21563e',padding:'4px 0'}}>{group.items.length===1?'View source details':'View '+group.items.length+' source records'}</summary>
        <div style={{display:'grid',gap:8,marginTop:8}}>
         {group.items.map(item=><div key={item.key} style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap',padding:'10px 0',borderTop:'1px solid #dce5db'}}>
          <div>
