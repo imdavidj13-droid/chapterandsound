@@ -50,8 +50,7 @@ export async function previewWorkOnlyDraft(db:WorkOnlyDB,input:unknown):Promise<
   return review('This endpoint is for work-only drafts. Editions must use the existing edition importer.');
  if(item.authorId)
   return review('Work-only imports cannot select an author ID supplied by a client.');
- if(!validDate(str(item.firstPublicationDate,20)))
-  return review('Invalid first publication date.');
+ // First publication date is optional: free-form dates become NULL on import.
  const imported=(await db.prepare(
   "SELECT target_id AS id FROM catalogue_audit_log WHERE action IN ('import_draft','import_work_only_draft','simple_import') AND json_extract(details_json,'$.workSourceKey')=? LIMIT 2"
  ).bind(workSourceKey).all<{id:string}>()).results;
@@ -95,7 +94,8 @@ export async function importWorkOnlyDraft(db:WorkOnlyDB,input:unknown,actor:stri
  if(linked.length>1||linked.length===1&&norm(linked[0]!.name)!==norm(verdict.author))
   throw new WorkOnlyConflict('Canonical author identity changed during import. Review this work.');
  const authorId=linked[0]?.id||crypto.randomUUID(),workId=crypto.randomUUID(),auditId=crypto.randomUUID();
- const date=str(item.firstPublicationDate,10)||null;
+ const rawDate=str(item.firstPublicationDate,100);
+ const date=validDate(rawDate)?(rawDate||null):null;
  const lang=str(item.originalLanguage,20)||null;
  // Source summaries and descriptions are not persisted until rights are assessed.
  const statements=[
@@ -103,7 +103,7 @@ export async function importWorkOnlyDraft(db:WorkOnlyDB,input:unknown,actor:stri
   db.prepare("INSERT INTO works(id,canonical_title,original_language,first_publication_date,status) VALUES(?,?,?,?,'draft')").bind(workId,verdict.title,lang,date),
   db.prepare("INSERT INTO contributions(id,person_id,work_id,role_code) VALUES(?,?,?,'author')").bind(crypto.randomUUID(),authorId,workId),
   db.prepare("INSERT INTO catalogue_audit_log(id,actor_external_id,action,target_kind,target_id,details_json) VALUES(?,?,'import_work_only_draft','work',?,?)")
-   .bind(auditId,actor,workId,JSON.stringify({sourceId:'openlibrary',workSourceKey:verdict.workSourceKey,authorSourceKeys:[authorSourceKey],importMode:'work_only',editionCount:0,requiresEnrichment:true,sourceRightsReviewRequired:true}))
+   .bind(auditId,actor,workId,JSON.stringify({sourceId:'openlibrary',workSourceKey:verdict.workSourceKey,authorSourceKeys:[authorSourceKey],importMode:'work_only',editionCount:0,requiresEnrichment:true,sourceRightsReviewRequired:true,firstPublicationDateDeferred:!!rawDate&&!validDate(rawDate)}))
  ];
  await db.batch(statements);
  return {saved:true,id:workId,status:'draft',published:false,editionCount:0,sourceKey:verdict.workSourceKey};
