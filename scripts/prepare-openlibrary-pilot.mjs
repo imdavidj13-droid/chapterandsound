@@ -44,20 +44,20 @@ if(resolution){
  }
 }
 const max=Number(opts['--max']||10);
-if(!Number.isInteger(max)||max<1||max>250)throw Error('--max must be between 1 and 250.');
+if(!Number.isInteger(max)||max<1||max>5000)throw Error('--max must be between 1 and 5000.');
 const normalize=value=>typeof value==='string'?value.normalize('NFKC').trim().replace(/\s+/g,' '):'';
 const normalizeTitle=value=>normalize(value).normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').replace(/\s+/g,' ').trim();
 const requestedTitles=opts['--titles-file']
  ?readFileSync(opts['--titles-file'],'utf8').split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#')).map(normalizeTitle).filter(Boolean)
  :[];
-if(requestedTitles.length>250||new Set(requestedTitles).size!==requestedTitles.length)
- throw Error('Title list must contain unique titles (maximum 250).');
+if(requestedTitles.length>5000||new Set(requestedTitles).size!==requestedTitles.length)
+ throw Error('Title list must contain unique titles (maximum 5000).');
 const matchedTitles=new Map();
 const unresolvedTitles=[];
 const candidateAlternatives=new Set();
 const wanted=new Set(opts['--seeds']?readFileSync(opts['--seeds'],'utf8').split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith('#')):[]);
 if(opts['--seeds']&&(!wanted.size||wanted.size>250||[...wanted].some(x=>!/^\/works\/OL\d+W$/.test(x)))){
- throw Error('Seed file must contain 1–250 unique Open Library work keys, e.g. /works/OL123W.');
+ throw Error('Seed file must contain 1–5000 unique Open Library work keys, e.g. /works/OL123W.');
 }
 mkdirSync(output,{recursive:true});
 const workRecords=new Map(),authors=new Map(),editions=new Map();
