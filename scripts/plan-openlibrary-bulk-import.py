@@ -220,7 +220,15 @@ def analyze(prepared, con, out):
         if deferred:
             deferred_editions.append({"workSourceKey": key, "title": title,
                                       "excludedEditions": deferred})
-        ready.append({**book, "editions": editions})
+        # The source preprocessor chooses a representative edition before
+        # validation; it may point to one we deferred. Rebase the preview fields
+        # on the first eligible edition to avoid a false invalid-ISBN result.
+        selected = editions[0]
+        planned = {**book, "editions": editions,
+                   "isbn13": selected.get("isbn13") or "",
+                   "isbn10": selected.get("isbn10") or "",
+                   "format": selected.get("format") or ""}
+        ready.append(planned)
 
     out.mkdir(parents=True, exist_ok=True)
     (out / "review.json").write_text(json.dumps(review, indent=2, ensure_ascii=False), encoding="utf-8")
