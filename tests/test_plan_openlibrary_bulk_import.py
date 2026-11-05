@@ -110,6 +110,13 @@ class BulkPlanTests(unittest.TestCase):
         result=self.plan([book])
         self.assertEqual(result["needsEnrichment"],1)
         self.assertEqual(result["readyForFurtherPreview"],0)
+        self.assertEqual(result["workOnlyDraftCandidates"],1)
+        work_only=json.loads((self.root / "out/work-only-001.json").read_text())
+        self.assertFalse(work_only["confirmed"])
+        self.assertFalse(work_only["importEnabled"])
+        self.assertEqual(work_only["mode"],"work_only_future_import")
+        self.assertEqual(work_only["candidates"][0]["editions"],[])
+        self.assertEqual(work_only["candidates"][0]["workSourceKey"],"/works/OL1W")
 
 if __name__=="__main__":
     unittest.main()
