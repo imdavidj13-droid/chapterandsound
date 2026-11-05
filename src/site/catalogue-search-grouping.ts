@@ -32,7 +32,7 @@ export function groupSearchResults(items:SearchEdition[]):SearchGroup[]{
   if(item.isbn13&&group.items.some(existing=>existing.isbn13===item.isbn13))continue;
   group.items.push(item);
   // Prefer a plain title and a forename-first spelling for visible cards.
-  const subtitle=/:\\s*(?:a|an)\\s+(?:thriller|novel)\\s*$/i;
+  const subtitle=/:\s*(?:a|an)\s+(?:thriller|novel)\s*$/i;
   if(!subtitle.test(item.title)&&subtitle.test(group.title))group.title=item.title;
   if(!item.author.includes(',')&&group.author.includes(','))group.author=item.author;
   group.ambiguous=group.items.length>1;
