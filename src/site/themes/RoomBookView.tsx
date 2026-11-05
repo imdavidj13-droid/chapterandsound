@@ -4,9 +4,12 @@ import type {BookPayload} from '../PublicBookPage';
 export function RoomBookView({data,verified}:{data:BookPayload;verified:boolean}){
  const {book,editions,reviews,ratings}=data;
  const [format,setFormat]=useState('all');
- const [coverFailed,setCoverFailed]=useState(false);
- const cover=book.coverUrl||editions.find(e=>e.coverUrl)?.coverUrl;
- useEffect(()=>{setCoverFailed(false)},[book.id,cover]);
+ // Prefer the canonical cover, then try exact-edition image candidates.
+ // Open Library returns HTTP 404 when an ISBN has no image (?default=false).
+ const [coverIndex,setCoverIndex]=useState(0);
+ const candidates=[...new Set([book.coverUrl,...editions.map(e=>e.coverUrl)].filter((url):url is string=>Boolean(url)))];
+ const cover=candidates[coverIndex]||null;
+ useEffect(()=>{setCoverIndex(0)},[book.id]);
  const [shown,setShown]=useState<Record<string,boolean>>({});
  const visible=editions.filter(x=>format==='all'||x.format===format);
  const narrationByEdition=new Map(ratings.narrationByEdition.map(x=>[x.editionId,x]));
@@ -14,8 +17,8 @@ export function RoomBookView({data,verified}:{data:BookPayload;verified:boolean}
   <nav className="room-breadcrumb" aria-label="Breadcrumb"><a href="/books">Books</a><span aria-hidden="true">/</span><span>{book.title}</span></nav>
   <section className="room-book-banner">
     <div className="room-book-identity"><div className="room-book-placeholder room-book-cover">
-      {cover&&!coverFailed
-       ?<img src={cover} alt={`Cover of ${book.title}`} loading="eager" referrerPolicy="no-referrer" onError={()=>setCoverFailed(true)}/>
+      {cover
+       ?<img src={cover} alt={`Cover of ${book.title}`} loading="eager" referrerPolicy="no-referrer" onError={()=>setCoverIndex(i=>i+1)}/>
        :<span>Chapter<br/>&amp; Sound</span>}
      </div>
       <div><p className="eyebrow">The Reading Room / Book profile</p><h1>{book.title}</h1>
