@@ -180,9 +180,11 @@ export async function importSimpleBook(db:SimpleCatalogueDB,key:string,expectedI
  const people=await db.prepare("SELECT id,preferred_name AS name FROM people WHERE identity_status NOT IN ('merged','suppressed') AND lower(preferred_name)=lower(?) LIMIT 3").bind(book.author).all<{id:string;name:string}>();
  if(people.results.length>1)throw Error('Multiple authors share this name; resolve the author identity before importing.');
  const authorId=people.results[0]?.id||uuid();
- const existing=await db.prepare("SELECT w.id,w.canonical_title AS title FROM works w JOIN contributions c ON c.work_id=w.id AND c.role_code IN ('author','coauthor') WHERE c.person_id=? AND lower(w.canonical_title)=lower(?) LIMIT 3").bind(authorId,book.title).all<{id:string;title:string}>();
- if(existing.results.length>1)throw Error('Multiple matching works already exist; resolve these before importing.');
- if(existing.results.length===1)return {created:false,id:existing.results[0]!.id,status:'already_in_catalogue'};
+ const titles=await db.prepare("SELECT w.id,w.canonical_title AS title FROM works w JOIN contributions c ON c.work_id=w.id AND c.role_code IN ('author','coauthor') WHERE c.person_id=? LIMIT 500").bind(authorId).all<{id:string;title:string}>();
+ if(titles.results.length>=500)throw Error('Author catalogue is too large for a safe duplicate check; use the existing book editor.');
+ const existing=titles.results.filter(x=>norm(x.title)===norm(book.title));
+ if(existing.length>1)throw Error('Multiple matching works already exist; resolve these before importing.');
+ if(existing.length===1)return {created:false,id:existing[0]!.id,status:'already_in_catalogue'};
  const pub=await db.prepare("SELECT organisation_id AS id FROM publishers p JOIN organisations o ON o.id=p.organisation_id WHERE lower(o.name)=lower(?) LIMIT 2").bind(book.publisher).all<{id:string}>();
  if(pub.results.length>1)throw Error('Multiple publisher identities matched; review required.');
  const publisherId=pub.results[0]?.id||uuid(),workId=uuid(),editionId=uuid(),scheme=await db.prepare("SELECT id FROM identifier_schemes WHERE code='ISBN13'").first<{id:string}>();
@@ -194,7 +196,7 @@ export async function importSimpleBook(db:SimpleCatalogueDB,key:string,expectedI
   stmts.push(db.prepare('INSERT INTO publishers(organisation_id) VALUES(?)').bind(publisherId));
  }
  if(!scheme)stmts.push(db.prepare("INSERT INTO identifier_schemes(id,code,entity_scope,uniqueness_scope) VALUES(?,'ISBN13','edition','global')").bind(schemeId));
- stmts.push(db.prepare("INSERT INTO works(id,canonical_title,first_publication_date,status) VALUES(?,?,?,'draft')").bind(workId,book.title,book.publishedDate));
+ stmts.push(db.prepare("INSERT INTO works(id,canonical_title,status) VALUES(?,?,'draft')").bind(workId,book.title));
  stmts.push(db.prepare("INSERT INTO contributions(id,person_id,work_id,role_code) VALUES(?,?,?,'author')").bind(uuid(),authorId,workId));
  stmts.push(db.prepare("INSERT INTO editions(id,work_id,format,page_count,publication_status,verification_status) VALUES(?,?,?,?,'draft','needs_review')").bind(editionId,workId,book.format,book.pages));
  stmts.push(db.prepare("INSERT INTO entity_identifiers(id,scheme_id,entity_kind,entity_id,value,normalized_value) VALUES(?,?,'edition',?,?,?)").bind(uuid(),schemeId,editionId,code,code));
