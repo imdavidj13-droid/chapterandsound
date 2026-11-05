@@ -1,5 +1,6 @@
 import {useState} from 'react';
 import {apiGet,apiWrite} from './api';
+import {groupSearchResults} from './catalogue-search-grouping';
 
 type Suggestion={key:string;title:string;author:string;isbn13:string|null;publisher:string|null;
  publishedDate:string|null;pages:number|null;coverUrl:string|null;language:string|null;source:string};
@@ -56,9 +57,8 @@ export function CatalogueImportCentre(){
    const detail=await apiGet<Detail>('/api/catalogue-admin/simple-import/detail?key='+encodeURIComponent(item.key));
    // Open Library search returns *works*, not ISBN-specific editions.
    // Always show the actual chosen edition's cover and ISBN before importing.
-   const canImport=item.source!=='Open Library'&&item.source!=='ISBNdb'&&!detail.researchOnly&&detail.complete&&Boolean(detail.coverUrl)&&detail.synopsisSource==='Open Library'&&['paperback','hardback','ebook'].includes(detail.format);
-   if(canImport)await save(detail);
-   else setSelected(detail);
+   // Reviewing a search result never writes to BOOK_DB. Save requires explicit confirmation.
+   setSelected(detail);
   }catch(e){setError(e instanceof Error?e.message:'Could not retrieve this book')}
   finally{setImporting('')}
  }
@@ -88,19 +88,36 @@ export function CatalogueImportCentre(){
    <a href={'/admin/catalogue/book/'+encodeURIComponent(saved.id)}>Open book in catalogue</a>
   </div>}
   {items.length>0&&<div className="cs-simple-import-results">
-   <h4>Search results <span>{items.length} found</span></h4>
-   {items.map(item=><article className="cs-simple-import-result" key={item.key}>
-    <div className="cs-simple-import-cover">{item.coverUrl?<img src={item.coverUrl} alt="" loading="lazy" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.style.display='none'}}/>:<span aria-hidden="true">No cover</span>}</div>
-    <div className="cs-simple-import-description">
-     <h5>{item.title}</h5><p>{item.author}</p>
-     <small>{item.publisher||'Publisher to check'} · {item.publishedDate||'Date to check'} · {item.pages?item.pages+' pages':'Pages to check'}</small>
-     <small>{item.isbn13?'Edition ISBN '+item.isbn13+' · ':'Book-level search result · '}{languageLabel(item.language)} · {item.source}</small>
-     {!item.isbn13&&<small>The illustration represents the book, not necessarily the edition that will be chosen.</small>}
-    </div>
-    <button type="button" disabled={Boolean(importing)} onClick={()=>void selectAndImport(item)}>
-     {importing===item.key?'Checking…':item.source==='ISBNdb'?'Review ISBNdb evidence':item.isbn13?'Import book':'Choose edition'}
-    </button>
-   </article>)}
+   <h4>Search results <span>{groupSearchResults(items).length} possible books · {items.length} source records</span></h4>
+   <p className="cs-simple-import-muted">Results are grouped for easier browsing using matching titles and author names. Groups are provisional, not confirmed catalogue identities. Check each edition before saving.</p>
+   {groupSearchResults(items).map(group=>{
+    const display=group.items.find(entry=>Boolean(entry.coverUrl))||group.items[0]!;
+    return <article className="cs-simple-import-result" key={group.id} style={{alignItems:'flex-start'}}>
+     <div className="cs-simple-import-cover">{display.coverUrl?
+      <img src={display.coverUrl} alt="" loading="lazy" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.style.display='none'}}/>:
+      <span aria-hidden="true">No cover</span>}</div>
+     <div className="cs-simple-import-description" style={{flex:1,minWidth:0}}>
+      <h5>{group.title}</h5><p>{group.author}</p>
+      <small>{group.items.length} {group.items.length===1?'source record':'possible editions'} · {group.items.some(x=>x.source==='ISBNdb')?'Includes ISBNdb':'Google Books / Open Library'}</small>
+      {group.items.length>1&&<small>Possible editions only — matching titles and authors do not establish a canonical work.</small>}
+      <details style={{marginTop:10}} open={group.items.length===1}>
+       <summary style={{cursor:'pointer',fontWeight:600}}>{group.items.length===1?'Edition details':'View '+group.items.length+' editions / source records'}</summary>
+       <div style={{display:'grid',gap:8,marginTop:8}}>
+        {group.items.map(item=><div key={item.key} style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap',padding:'10px 0',borderTop:'1px solid #dce5db'}}>
+         <div>
+          <strong style={{fontSize:13}}>{item.isbn13?'ISBN '+item.isbn13:'Work-level record (ISBN unconfirmed)'}</strong>
+          <small style={{display:'block'}}>{item.publisher||'Publisher unconfirmed'} · {item.publishedDate||'Date unconfirmed'} · {item.pages?item.pages+' pages':'Pages unconfirmed'}</small>
+          <small style={{display:'block'}}>{languageLabel(item.language)} · {item.source}</small>
+         </div>
+         <button type="button" disabled={Boolean(importing)} onClick={()=>void selectAndImport(item)}>
+          {importing===item.key?'Checking…':item.source==='ISBNdb'?'Review ISBNdb evidence':item.isbn13?'Review edition':'Choose edition'}
+         </button>
+        </div>)}
+       </div>
+      </details>
+     </div>
+    </article>;
+   })}
   </div>}
   {selected&&<section className="cs-simple-import-review" aria-label="Missing details">
    <div className="cs-simple-import-review-heading"><div>
