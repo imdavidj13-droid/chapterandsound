@@ -14,9 +14,11 @@ function RatingSummary({label,rating}:{label:string;rating:Rating}){
  return <div className="book-rating"><p className="eyebrow">{label}</p>{rating.average==null?<strong>Not rated yet</strong>:<strong>★ {rating.average.toFixed(1)} <small>/ 5</small></strong>}<p className="muted small">{rating.count} {rating.count===1?'member rating':'member ratings'}</p></div>;
 }
 function EditionCard({edition,rating}:{edition:Edition;rating?:Rating}){
+ const [imageFailed,setImageFailed]=useState(false);
+ useEffect(()=>{setImageFailed(false)},[edition.coverUrl]);
  const narrators=edition.contributors.filter(p=>p.role==='narrator');
  return <article className="panel edition-card">
-  {edition.coverUrl&&<img src={edition.coverUrl} alt="Edition cover" loading="lazy" style={{width:72,height:108,objectFit:"contain",borderRadius:6,marginBottom:12}}/>}
+  {edition.coverUrl&&!imageFailed&&<img src={edition.coverUrl} alt="Edition cover" loading="lazy" referrerPolicy="no-referrer" onError={()=>setImageFailed(true)} style={{width:72,height:108,objectFit:"contain",borderRadius:6,marginBottom:12}}/>}
   <div className="edition-top"><span className="tag">{fmt[edition.format]??'Unknown edition'}</span><span className="muted small">{edition.language||'Language unknown'}</span></div>
   <h3>{edition.publisher||'Publisher unconfirmed'}</h3>
   <dl className="edition-facts">
@@ -49,6 +51,7 @@ export function PublicBookPage({id,verified,theme='editorial'}:{id:string;verifi
  const [error,setError]=useState('');
  const [tab,setTab]=useState<'overview'|'reviews'|'editions'>('overview');
  const [filter,setFilter]=useState('all');
+ const [heroCoverFailed,setHeroCoverFailed]=useState(false);
  useEffect(()=>{
   let cancelled=false;setLoading(true);setError('');setTab('overview');setFilter('all');
   apiGet<BookPayload>('/api/book/'+encodeURIComponent(id)).then(v=>{if(!cancelled)setData(v)})
@@ -56,6 +59,7 @@ export function PublicBookPage({id,verified,theme='editorial'}:{id:string;verifi
    .finally(()=>{if(!cancelled)setLoading(false)});
   return()=>{cancelled=true};
  },[id]);
+ useEffect(()=>{setHeroCoverFailed(false)},[data?.book.coverUrl]);
  const editions=useMemo(()=>data?.editions.filter(e=>filter==='all'||e.format===filter)??[],[data,filter]);
  if(loading)return <p role="status">Loading book details…</p>;
  if(!data)return <section className="empty"><h1>Book not available</h1><p role="alert">{error||'This book could not be found.'}</p><a className="button secondary" href="/books">Browse books</a></section>;
@@ -63,7 +67,7 @@ export function PublicBookPage({id,verified,theme='editorial'}:{id:string;verifi
  const {book,ratings,reviews}=data;
  const ratingsByEdition=new Map(ratings.narrationByEdition.map(r=>[r.editionId,r]));
  return <div className="public-book-page">
-  <div className="public-book-hero"><div className="book-cover book-detail-cover">{book.coverUrl?<img src={book.coverUrl} alt={`Cover of ${book.title}`} loading="eager"/>:<span className="cover-mark" aria-hidden="true">C<span>&</span>S</span>}</div>
+  <div className="public-book-hero"><div className="book-cover book-detail-cover">{book.coverUrl&&!heroCoverFailed?<img src={book.coverUrl} alt={`Cover of ${book.title}`} loading="eager" referrerPolicy="no-referrer" onError={()=>setHeroCoverFailed(true)}/>:<span className="cover-mark" aria-hidden="true">C<span>&</span>S</span>}</div>
    <div className="public-book-copy">
     <p className="eyebrow">Book overview · Chapter & Sound</p><h1>{book.title}</h1>
     {book.subtitle&&<p className="intro">{book.subtitle}</p>}
