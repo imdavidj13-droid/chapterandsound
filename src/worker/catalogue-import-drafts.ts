@@ -52,7 +52,7 @@ export async function importCatalogueDrafts(db:DraftImportDB,input:unknown,actor
   const sourceId=clean(candidate.sourceId,50),workKey=clean(candidate.workSourceKey||candidate.sourceKey,200);
   if(sourceId!=='openlibrary'||!/^\/works\/OL\d+W$/.test(workKey))
    throw new ImportConflict('Only source-identified Open Library works can enter this pilot.');
-  const previous=await db.prepare("SELECT target_id AS id FROM catalogue_audit_log WHERE action='import_draft' AND json_extract(details_json,'$.workSourceKey')=? LIMIT 1")
+  const previous=await db.prepare("SELECT target_id AS id FROM catalogue_audit_log WHERE action IN ('import_draft','import_work_only_draft') AND json_extract(details_json,'$.workSourceKey')=? LIMIT 1")
    .bind(workKey).first<{id:string}>();
   if(previous)throw new ImportConflict('Source work already imported as draft: '+workKey+' (work '+previous.id+')');
   const title=clean(candidate.title),author=clean(candidate.author),personKey=author.toLowerCase();
