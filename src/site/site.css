@@ -168,3 +168,19 @@
 .cs-publication-modal-actions button:focus-visible{outline:3px solid #a8c8a5;outline-offset:3px}
 .cs-publication-modal-actions button:disabled{opacity:.65;cursor:wait}
 @media(max-width:480px){.cs-publication-modal-actions{flex-direction:column-reverse}.cs-publication-modal-actions button{width:100%}}
+
+/* Existing edition enrichment: review proposals before touching BOOK_DB. */
+.cs-enrichment-panel{margin-top:20px;padding:clamp(18px,3vw,28px);background:#f5f8f2;border:1px solid #d8e5d8;border-radius:16px;color:#203f2d}
+.cs-enrichment-panel h3{font:normal 1.6rem Georgia,serif;margin:0 0 8px}
+.cs-enrichment-panel p{line-height:1.65;max-width:70ch}
+.cs-enrichment-panel>label{display:grid;gap:10px;font-weight:700;margin:18px 0}
+.cs-enrichment-panel input[type=file]{max-width:100%;padding:12px;border:1px dashed #8daa98;border-radius:10px;background:#fff;color:#244631}
+.cs-enrichment-panel .cs-enrichment-rights{display:flex;gap:12px;align-items:flex-start;font-weight:500}
+.cs-enrichment-rights input{margin-top:5px;accent-color:#235d3c}
+.cs-enrichment-proposals{display:grid;gap:10px}
+.cs-enrichment-proposal{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px;background:#fff;border:1px solid #d7e2d4;border-radius:12px}
+.cs-enrichment-proposal>div{display:grid;gap:5px}
+.cs-enrichment-proposal small{color:#506b58}
+.cs-enrichment-proposal button{border:0;border-radius:9px;background:#255a3b;color:white;padding:11px 15px;cursor:pointer;font-weight:700}
+.cs-enrichment-proposal button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:540px){.cs-enrichment-proposal{align-items:stretch;flex-direction:column}.cs-enrichment-proposal button{width:100%}}
