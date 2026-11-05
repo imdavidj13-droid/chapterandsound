@@ -32,6 +32,7 @@ export function pilotIsbns(input){
      if(!row.editionSourceKeys.includes(edition.sourceKey))row.editionSourceKeys.push(edition.sourceKey);
     }
    }
+  }
  }
  return [...seen.values()];
 }
