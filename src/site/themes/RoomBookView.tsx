@@ -1,9 +1,12 @@
-import {useState} from 'react';
+import {useEffect,useState} from 'react';
 import type {BookPayload} from '../PublicBookPage';
 
 export function RoomBookView({data,verified}:{data:BookPayload;verified:boolean}){
  const {book,editions,reviews,ratings}=data;
  const [format,setFormat]=useState('all');
+ const [coverFailed,setCoverFailed]=useState(false);
+ const cover=book.coverUrl||editions.find(e=>e.coverUrl)?.coverUrl;
+ useEffect(()=>{setCoverFailed(false)},[book.id,cover]);
  const [shown,setShown]=useState<Record<string,boolean>>({});
  const visible=editions.filter(x=>format==='all'||x.format===format);
  const narrationByEdition=new Map(ratings.narrationByEdition.map(x=>[x.editionId,x]));
@@ -11,8 +14,8 @@ export function RoomBookView({data,verified}:{data:BookPayload;verified:boolean}
   <nav className="room-breadcrumb" aria-label="Breadcrumb"><a href="/books">Books</a><span aria-hidden="true">/</span><span>{book.title}</span></nav>
   <section className="room-book-banner">
     <div className="room-book-identity"><div className="room-book-placeholder room-book-cover">
-      {(book.coverUrl||editions.find(e=>e.coverUrl)?.coverUrl)
-       ?<img src={(book.coverUrl||editions.find(e=>e.coverUrl)?.coverUrl)||undefined} alt={`Cover of ${book.title}`} loading="eager"/>
+      {cover&&!coverFailed
+       ?<img src={cover} alt={`Cover of ${book.title}`} loading="eager" referrerPolicy="no-referrer" onError={()=>setCoverFailed(true)}/>
        :<span>Chapter<br/>&amp; Sound</span>}
      </div>
       <div><p className="eyebrow">The Reading Room / Book profile</p><h1>{book.title}</h1>
@@ -39,6 +42,8 @@ export function RoomBookView({data,verified}:{data:BookPayload;verified:boolean}
       {visible.length?<div className="room-edition-list">{visible.map(e=><article className="room-edition-row" key={e.id}>
         <div className="room-edition-head"><strong>{e.format.charAt(0).toUpperCase()+e.format.slice(1)}</strong><span>{e.language||'Language unconfirmed'}</span></div>
         <p>{e.publisher||'Publisher unconfirmed'}</p>
+        {e.publishedAt&&<p>Published {e.publishedAt}</p>}
+        {e.isbn13&&<p>ISBN-13 {e.isbn13}</p>}
         {e.pageCount!=null&&<p>{e.pageCount} pages</p>}
         {e.durationMinutes!=null&&<p>{Math.floor(e.durationMinutes/60)} hours {e.durationMinutes%60} minutes</p>}
         {e.format==='audiobook'&&e.contributors.filter(p=>p.role==='narrator').map(p=><p key={p.id}>Read by <a href={'/person/'+encodeURIComponent(p.id)}>{p.name}</a></p>)}
