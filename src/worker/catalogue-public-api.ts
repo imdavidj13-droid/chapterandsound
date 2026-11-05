@@ -25,9 +25,10 @@ function isbnCover(editionIdColumn:string){
  AND i.normalized_value NOT GLOB '*[^0-9]*'
  ORDER BY i.is_primary DESC,i.id LIMIT 1)`;
 }
-function workCover(){
+function workCover(hasRepresentativeCovers=false){
  return `COALESCE(
    ${image('work','w.id','representative_cover')},
+   ${hasRepresentativeCovers?"(SELECT 'https://covers.openlibrary.org/b/id/'||rc.openlibrary_cover_id||'-L.jpg?default=false' FROM work_representative_covers rc WHERE rc.work_id=w.id)"+',':''}
    (SELECT '/api/catalogue-media/'||l.asset_id FROM editions e
     JOIN media_links l ON l.entity_kind='edition' AND l.entity_id=e.id
     WHERE e.work_id=w.id AND e.publication_status='published' AND l.role='front_cover' AND l.is_primary=1
@@ -49,12 +50,13 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
  if(!db)return json({error:'Catalogue is not connected'},503);
  const u=new URL(request.url),path=u.pathname.slice('/api/catalogue-public/'.length);
  const q=str(u.searchParams.get('q')),l=limit(u.searchParams.get('limit'));
+ const hasRepresentativeCovers=!!await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='work_representative_covers'").first();
  try{
  if(path==='books'){
    const format=str(u.searchParams.get('format'))||'all';
    if(!['all','paperback','hardback','ebook','audiobook'].includes(format))return json({error:'Invalid format'},400);
    const {results}=await db.prepare(`SELECT w.id,w.canonical_title AS title,NULL AS subtitle,
-    ${workCover()} AS coverUrl,
+    ${workCover(hasRepresentativeCovers)} AS coverUrl,
     ${synopsis()} AS summary,w.first_publication_date AS year,
     (SELECT p.preferred_name FROM contributions c JOIN people p ON p.id=c.person_id
       WHERE c.work_id=w.id AND c.role_code IN ('author','coauthor') ORDER BY c.credit_order,c.id LIMIT 1) AS author,
@@ -100,7 +102,7 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
      ${image('person','p.id','portrait')} AS portraitUrl FROM people p WHERE p.id=? AND p.identity_status NOT IN ('merged','suppressed')`).bind(id).first();
   if(!person)return json({error:'Person not found'},404);
   const {results:works}=await db.prepare(`SELECT w.id,w.canonical_title AS title,'author' AS contribution,
-   ${workCover()} AS coverUrl,
+   ${workCover(hasRepresentativeCovers)} AS coverUrl,
    ${synopsis()} AS summary,
    (SELECT GROUP_CONCAT(DISTINCT e.format) FROM editions e WHERE e.work_id=w.id AND e.publication_status='published') AS formatCodes,
    w.first_publication_date AS firstPublished
@@ -156,7 +158,7 @@ export async function publicCatalogueAPI(request:Request,db:Database|undefined):
  if(path.startsWith('book/')){
   const id=path.slice(5);if(!idOk(id))return json({error:'Invalid ID'},400);
   const book=await db.prepare(`SELECT w.id,w.canonical_title AS title,NULL AS subtitle,
-    ${workCover()} AS coverUrl,
+    ${workCover(hasRepresentativeCovers)} AS coverUrl,
     ${synopsis()} AS summary,w.first_publication_date AS year,w.status AS verificationStatus,
     (SELECT p.preferred_name FROM contributions c JOIN people p ON p.id=c.person_id
      WHERE c.work_id=w.id AND c.role_code IN ('author','coauthor') ORDER BY c.credit_order LIMIT 1) AS author,
