@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
 import {readFileSync} from 'node:fs';
-import {groupSearchResults,type SearchEdition} from '../src/site/catalogue-search-grouping';
+import {groupCoverCandidates,groupSearchResults,type SearchEdition} from '../src/site/catalogue-search-grouping';
 const entry=(key:string,title:string,author:string,isbn13:string|null):SearchEdition=>({
  key,title,author,isbn13,publisher:null,publishedDate:null,pages:null,coverUrl:null,language:null,source:'ISBNdb'
 });
@@ -47,4 +47,20 @@ test('import review selection does not automatically persist a book',()=>{
  assert.match(handler,/setSelected\(detail\)/);
  assert.doesNotMatch(handler,/await save\(detail\)/);
  assert.match(ui,/groupSearchResults\(items\)/);
+});
+
+test('preview covers prefer work art and then ISBN and Google thumbnails',()=>{
+ const google={...entry('g:1','Relentless','Simon Kernick','9780552156905'),source:'Google Books',
+  coverUrl:'https://covers.openlibrary.org/b/isbn/9780552156905-L.jpg?default=false',
+  previewCoverUrl:'https://books.google.com/books/content?id=example'};
+ const ol={...entry('o:1','Relentless','Simon Kernick',null),source:'Open Library',
+  coverUrl:'https://covers.openlibrary.org/b/id/123-M.jpg'};
+ const group=groupSearchResults([google,ol])[0]!;
+ assert.deepEqual(groupCoverCandidates(group).map(x=>x.label),[
+  'Open Library work artwork','Open Library ISBN cover candidate','Google Books volume thumbnail'
+ ]);
+});
+test('groups without working source URLs have no fabricated cover',()=>{
+ const group=groupSearchResults([entry('i:1','Relentless','Simon Kernick','9780552156905')])[0]!;
+ assert.deepEqual(groupCoverCandidates(group),[]);
 });
