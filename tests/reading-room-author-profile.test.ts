@@ -18,7 +18,7 @@ test('Reading Room author profile uses a standalone editorial author layout',()=
 });
 test('author profiles render only canonical cover and publication data, not illustrative sample titles',()=>{
  assert.match(publicApi,/SELECT w\.id,w\.canonical_title AS title,'author' AS contribution,/);
- assert.match(publicApi,/\$\{workCover\(\)\} AS coverUrl/);
+ assert.match(publicApi,/\$\{workCover\(hasRepresentativeCovers\)\} AS coverUrl/);
  assert.match(publicApi,/\$\{synopsis\(\)\} AS summary/);
  assert.match(publicApi,/w\.status IN \('published','verified'\)/);
  assert.match(profile,/book\.coverUrl&&!failed/);
