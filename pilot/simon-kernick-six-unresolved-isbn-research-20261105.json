@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "createdAt": "2026-11-05",
+  "status": "REVIEW_ONLY_NO_DATABASE_WRITES",
+  "purpose": "Preserve exact-ISBN research and cautionary companion-edition evidence for six unresolved primary ISBNs; no publisher format transfer across ISBNs.",
+  "records": [
+    {
+      "title": "Relentless",
+      "workEditionSourceKey": "/books/OL29054845M",
+      "unresolvedIsbn13": "9781407095301",
+      "exactIsbnBinding": "not_independently_confirmed",
+      "companionEdition": {
+        "isbn13": "9781407095295",
+        "format": "ebook",
+        "source": "Penguin Random House official catalogue",
+        "url": "https://www.penguin.co.uk/books/349671/relentless-by-kernick-simon/9781407095295"
+      },
+      "decision": "keep_unknown; do_not_transfer_companion_format"
+    },
+    {
+      "title": "Relentless",
+      "workEditionSourceKey": "/books/OL29129117M",
+      "unresolvedIsbn13": "9781407414256",
+      "exactIsbnBinding": "not_independently_confirmed",
+      "decision": "keep_unknown; research publisher or national bibliography"
+    },
+    {
+      "title": "Relentless",
+      "workEditionSourceKey": "/books/OL35466644M",
+      "unresolvedIsbn13": "9781407426266",
+      "exactIsbnBinding": "not_independently_confirmed",
+      "decision": "keep_unknown; research publisher or national bibliography"
+    },
+    {
+      "title": "The Crime Trade",
+      "workEditionSourceKey": "/books/OL40380765M",
+      "unresolvedIsbn13": "9781407093901",
+      "exactIsbnBinding": "not_independently_confirmed",
+      "companionEdition": {
+        "isbn13": "9781407093895",
+        "format": "ebook",
+        "source": "Penguin Random House official catalogue",
+        "url": "https://www.penguin.co.uk/books/329753/the-crime-trade-by-kernick-simon/9781407093895"
+      },
+      "decision": "keep_unknown; do_not_transfer_companion_format"
+    },
+    {
+      "title": "Severed",
+      "workEditionSourceKey": "/books/OL35466642M",
+      "unresolvedIsbn13": "9781407426273",
+      "exactIsbnBinding": "not_independently_confirmed",
+      "decision": "keep_unknown; research publisher or national bibliography"
+    },
+    {
+      "title": "Severed",
+      "workEditionSourceKey": "/books/OL40379282M",
+      "unresolvedIsbn13": "9781407095332",
+      "exactIsbnBinding": "not_independently_confirmed",
+      "exactIsbnBibliography": {
+        "source": "Google Books",
+        "url": "https://books.google.com/books?id=UTdbkwEACAAJ",
+        "notes": "Exact ISBN bibliographic page does not explicitly confirm ebook or physical binding."
+      },
+      "companionEdition": {
+        "isbn13": "9781407095325",
+        "format": "ebook",
+        "source": "Penguin Random House official catalogue",
+        "url": "https://www.penguin.co.uk/books/349672/severed-by-kernick-simon/9781407095325"
+      },
+      "decision": "keep_unknown; do_not_transfer_companion_format"
+    }
+  ],
+  "rules": [
+    "ISBN must match edition identity exactly before any binding/format assignment.",
+    "Author/title matches and neighboring ISBNs identify research leads, not identical editions.",
+    "ISBNdb coverage report remains review-only; provider data rights and accuracy are separate checks.",
+    "Keep format unknown until an exact-ISBN source explicitly establishes format."
+  ]
+}
