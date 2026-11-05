@@ -177,3 +177,33 @@ test('import rejects missing covers even when the book title and ISBN are comple
   assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM works').get()?.count,0);
  }finally{restore();globalThis.fetch=original;f.close()}
 });
+
+test('known book-level artwork is retained separately when the selected ISBN has no edition cover',async()=>{
+ const f=fixture(),restore=globalThis.fetch;
+ globalThis.fetch=async(input:RequestInfo|URL)=>{
+  const address=String(input);
+  if(address.includes('/works/OL9W/editions.json'))return Response.json({entries:[{
+   isbn_13:[code],publishers:['Corgi Books'],publish_date:'2007',number_of_pages:480,
+   languages:[{key:'/languages/eng'}],physical_format:'Paperback'
+  }]});
+  if(address.includes('/works/OL9W.json'))return Response.json({
+   title:'Relentless',description:'An authorised sample synopsis.',
+   authors:[{author:{key:'/authors/OL9A'}}]});
+  if(address.includes('/authors/OL9A.json'))return Response.json({name:'Simon Kernick'});
+  if(address.includes('openlibrary.org/search.json'))return Response.json({docs:[
+   {key:'/works/OL9W',title:'Relentless',author_name:['Simon Kernick'],cover_i:4321}
+  ]});
+  if(address.includes('/b/id/4321-L.jpg?default=false'))
+   return new Response(new Uint8Array([255,216,255,217]),{status:200,headers:{'Content-Type':'image/jpeg'}});
+  return new Response('not found',{status:404});
+ };
+ try{
+  const choice=await getSimpleBook('o:OL9W','catalogue-admin');
+  assert.equal(choice.coverKind,'work');
+  assert.equal(choice.coverUrl,'https://covers.openlibrary.org/b/id/4321-L.jpg?default=false');
+  const added=await importSimpleBook(f.conn,'o:OL9W',code,'catalogue-admin','owner');
+  assert.equal(added.created,true);
+  assert.equal(f.sqlite.prepare('SELECT openlibrary_cover_id AS coverId FROM work_representative_covers').get()?.coverId,4321);
+  assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM media_links').get()?.count,0);
+ }finally{globalThis.fetch=restore;f.close()}
+});
