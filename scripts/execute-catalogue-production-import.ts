@@ -74,7 +74,10 @@ async function main(){
  const eligiblePath=join(preflight,'eligible.json');
  const preflightRaw=readFileSync(preflightPath);
  const report=JSON.parse(preflightRaw.toString('utf8')) as Record<string,unknown>;
- const eligible=JSON.parse(readFileSync(eligiblePath,'utf8')) as {
+ const eligibleRaw=readFileSync(eligiblePath);
+ if(report.eligibleManifestSha256!==digest(eligibleRaw))
+  throw Error('Production preflight allowlist digest mismatch. Refusing to proceed.');
+ const eligible=JSON.parse(eligibleRaw.toString('utf8')) as {
   dryRun?:boolean;importEnabled?:boolean;
   candidates?:Array<{kind:Kind;workSourceKey:string;file:string}>
  };
@@ -107,7 +110,7 @@ async function main(){
  if(value('--confirm')!=='IMPORT_PRIVATE_DRAFTS')
   throw Error('Explicit --confirm IMPORT_PRIVATE_DRAFTS is required for production writes.');
  const origin=value('--origin');
- if(!origin||!/^https:\/\/[^/]+$/.test(origin))
+ if(!origin||!/^https:\/\/[^/]+$/.test(origin)||new URL(origin).hostname!=='chapterandsound.imdavidj13.workers.dev')
   throw Error('Provide the exact HTTPS production origin with --origin and no trailing slash.');
  const cookie=process.env.CATALOGUE_ADMIN_COOKIE;
  if(!cookie||cookie.length<20)
