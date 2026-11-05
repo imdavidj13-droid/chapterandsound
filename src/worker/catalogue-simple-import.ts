@@ -4,6 +4,7 @@
  * no image persistence, no bulk harvesting and no duplicate catalogue.
  * Search results are never trusted for writes: import re-fetches the source.
  */
+import {lookupISBNdbEdition} from './catalogue-isbndb-resolver.js';
 type Scalar=string|number|null;
 interface Statement {
  bind(...args:Scalar[]):Statement;
@@ -17,12 +18,13 @@ export interface SimpleCatalogueDB {
 }
 export type BookSuggestion={
  key:string;title:string;author:string;isbn13:string|null;publisher:string|null;
- publishedDate:string|null;pages:number|null;coverUrl:string|null;language:string|null;source:'Google Books'|'Open Library';
+ publishedDate:string|null;pages:number|null;coverUrl:string|null;language:string|null;source:'Google Books'|'Open Library'|'ISBNdb';
 };
 export type BookDetail=BookSuggestion&{
  synopsis:string|null;synopsisSource:'Open Library'|'Google Books'|null;
  format:string;complete:boolean;missing:string[];sourceUrl:string;
  coverKind:'edition'|'work'|null;coverWorkKey:string|null;coverId:number|null;
+ researchOnly?:boolean;
 };
 const str=(v:unknown,max=500)=>typeof v==='string'?v.trim().slice(0,max):'';
 const isbn=(v:unknown)=>str(v,30).replace(/[\s-]/g,'');
@@ -138,7 +140,7 @@ async function representativeFor(workKey:string,title:string,author:string,conta
 }
 
 const olAgent=(contact:string)=>'ChapterAndSoundCatalogue/0.2 ('+contact+')';
-export async function findSimpleBooks(query:string,contact:string,googleKey?:string){
+export async function findSimpleBooks(query:string,contact:string,googleKey?:string,isbnDbKey?:string){
  const q=str(query,120);
  if(q.length<2)throw Error('Enter an author, title or ISBN');
  const numeric=isbn(q);const byIsbn=/^(?:\d{9}[\dXx]|\d{13})$/.test(numeric);
@@ -149,11 +151,13 @@ export async function findSimpleBooks(query:string,contact:string,googleKey?:str
  ol.searchParams.set('fields','key,title,author_name,first_publish_year,cover_i,language');
  ol.searchParams.set('limit','12');
  const sourceAgent=olAgent(contact);
- const [google,open]=await Promise.allSettled([
+ const [google,open,isbnDb]=await Promise.allSettled([
   fetchJson<{items?:GVolume[]}>(googleUrl(byIsbn?'isbn:'+numeric:q,googleKey),sourceAgent),
-  fetchJson<{docs?:OSearch[]}>(ol.toString(),sourceAgent)
+  fetchJson<{docs?:OSearch[]}>(ol.toString(),sourceAgent),
+  // ISBNdb is an exact-ISBN source, never a bulk title-search source.
+  expected&&isbnDbKey?lookupISBNdbEdition(expected,isbnDbKey):Promise.resolve(null)
  ]);
- if(google.status==='rejected'&&open.status==='rejected')throw Error('Both book search services are temporarily unavailable');
+ if(google.status==='rejected'&&open.status==='rejected'&&!(isbnDb.status==='fulfilled'&&isbnDb.value?.status==='matched'))throw Error('Book search providers are temporarily unavailable');
  const found:BookSuggestion[]=[];
  if(google.status==='fulfilled')for(const item of google.value.items||[]){
   const candidate=googleSuggestion(item);if(candidate&&(!byIsbn||candidate.isbn13===expected))found.push(candidate);
@@ -165,11 +169,21 @@ export async function findSimpleBooks(query:string,contact:string,googleKey?:str
    pages:null,language:item.language?.map(language).find(x=>x==='en')||language(item.language?.[0]),
    coverUrl:item.cover_i?'https://covers.openlibrary.org/b/id/'+item.cover_i+'-M.jpg':null,source:'Open Library'});
  }
+ // Show exact-ISBN ISBNdb evidence when other services cannot identify that edition.
+ // Never treat its unverified cover candidate as a verified importable image.
+ if(expected&&isbnDb.status==='fulfilled'&&isbnDb.value?.status==='matched'&&
+    !found.some(item=>item.isbn13===expected)){
+  const d=isbnDb.value.edition;
+  found.unshift({key:'i:'+expected,title:d.title,author:d.authors[0]||'',isbn13:expected,
+   publisher:d.publisher,publishedDate:d.publishedDate,pages:d.pageCount,
+   coverUrl:null,language:d.language,source:'ISBNdb'});
+ }
  // Prefer explicitly identified English results for title/author searches; preserve exact-ISBN search ordering.
  if(!byIsbn)found.sort((a,b)=>languageRank(a.language)-languageRank(b.language));
  return {items:found.slice(0,24),sources:{
   google:google.status==='fulfilled'?'available':'unavailable',
-  openLibrary:open.status==='fulfilled'?'available':'unavailable'
+  openLibrary:open.status==='fulfilled'?'available':'unavailable',
+  isbnDb:!expected?'not_checked':isbnDb.status==='fulfilled'?(isbnDb.value?.status||'not_configured'):'unavailable'
  }};
 }
 async function olEditionByIsbn(code:string,contact:string):Promise<{edition:OEdition;work:OWork|null}|null>{
@@ -184,8 +198,18 @@ async function olEditionByIsbn(code:string,contact:string):Promise<{edition:OEdi
   return {edition,work};
  }catch{return null}
 }
-export async function getSimpleBook(key:string,contact:string,googleKey?:string):Promise<BookDetail>{
+export async function getSimpleBook(key:string,contact:string,googleKey?:string,isbnDbKey?:string):Promise<BookDetail>{
  const agent=olAgent(contact);
+ if(/^i:97[89]\\d{10}$/.test(key)){
+  const result=await lookupISBNdbEdition(key.slice(2),isbnDbKey);
+  if(result.status!=='matched')throw Error('ISBNdb edition research is unavailable. Search again later.');
+  const d=result.edition;
+  return metadata({key,title:d.title,author:d.authors[0]||'',isbn13:d.isbn13,
+   publisher:d.publisher,publishedDate:d.publishedDate,pages:d.pageCount,
+   coverUrl:null,language:d.language,source:'ISBNdb',synopsis:null,synopsisSource:null,
+   format:d.format||'unknown',complete:false,missing:[],sourceUrl:'https://isbndb.com',
+   coverKind:null,coverWorkKey:null,coverId:null,researchOnly:true});
+ }
  if(/^g:[a-zA-Z0-9_-]{1,100}$/.test(key)){
   const volume=await fetchJson<GVolume>(googleById(key.slice(2),googleKey),agent);
   const suggestion=googleSuggestion(volume);
@@ -241,6 +265,7 @@ export async function getSimpleBook(key:string,contact:string,googleKey?:string)
 }
 export async function importSimpleBook(db:SimpleCatalogueDB,key:string,expectedIsbn:string,contact:string,actor:string,
  googleKey?:string,originalSynopsis?:string,reviewedFormat?:string):Promise<{created:boolean;id:string;status:string;editionId?:string}>{
+ if(key.startsWith('i:'))throw Error('ISBNdb matches are research-only until provider storage and cover rights have been reviewed. No catalogue records were written.');
  const book=await getSimpleBook(key,contact,googleKey);
  const permittedFormats=['paperback','hardback','ebook'] as const;
  if(reviewedFormat&&(!permittedFormats.includes(reviewedFormat as typeof permittedFormats[number])||book.format!=='unknown'&&reviewedFormat!==book.format))
