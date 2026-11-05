@@ -10,17 +10,22 @@ type RepresentativeCandidate={workKey:string;coverId:number;title:string;author:
 type RepresentativeResponse={current:{workKey:string;coverId:number}|null;candidates:RepresentativeCandidate[]};
 const empty:Metadata={editions:[],covers:[],identifiers:[]};
 
-function RepresentativeCoverChooser({workId}:{workId:string}){
+function RepresentativeCoverChooser({workId,onCurrentChange}:{workId:string;onCurrentChange:(candidate:RepresentativeCandidate|null)=>void}){
  const [data,setData]=useState<RepresentativeResponse|null>(null);
  const [loading,setLoading]=useState(false);
  const [saving,setSaving]=useState(false);
  const [error,setError]=useState(''),[notice,setNotice]=useState('');
  const load=useCallback(async()=>{
   setLoading(true);setError('');
-  try{setData(await apiGet<RepresentativeResponse>('/api/catalogue-admin/works/'+encodeURIComponent(workId)+'/representative-cover'))}
+  try{
+   const next=await apiGet<RepresentativeResponse>('/api/catalogue-admin/works/'+encodeURIComponent(workId)+'/representative-cover');
+   setData(next);
+   const selected=next.candidates.find(x=>x.workKey===next.current?.workKey&&x.coverId===next.current?.coverId)||null;
+   onCurrentChange(selected);
+  }
   catch(e){setError(e instanceof Error?e.message:'Cover choices unavailable')}
   finally{setLoading(false)}
- },[workId]);
+ },[workId,onCurrentChange]);
  useEffect(()=>{setData(null);void load()},[load]);
  async function choose(item:RepresentativeCandidate){
   if(saving)return;
@@ -28,7 +33,7 @@ function RepresentativeCoverChooser({workId}:{workId:string}){
   try{
    await apiWrite('/api/catalogue-admin/works/'+encodeURIComponent(workId)+'/representative-cover','POST',
     {workKey:item.workKey,coverId:item.coverId,confirmed:true});
-   await load();setNotice('Representative cover saved. The public book page will show this book artwork; edition covers stay unchanged.');
+   onCurrentChange(item);await load();setNotice('Representative cover saved. The public book page will show this book artwork; edition covers stay unchanged.');
   }catch(e){setError(e instanceof Error?e.message:'Could not save cover')}
   finally{setSaving(false)}
  }
@@ -55,6 +60,12 @@ export function CatalogueCoverEditor({workId,imageStorage}:{workId:string;imageS
  const [data,setData]=useState<Metadata>(empty);
  const [kind,setKind]=useState<'work'|'edition'>('work'),[editionId,setEditionId]=useState('');
  const [file,setFile]=useState<File|null>(null),[preview,setPreview]=useState('');
+ const [selectedRepresentative,setSelectedRepresentative]=useState<RepresentativeCandidate|null>(null);
+ const [coverChoice,setCoverChoice]=useState<'representative'|'upload'>('representative');
+ const onRepresentativeChange=useCallback((candidate:RepresentativeCandidate|null)=>{
+  setSelectedRepresentative(candidate);
+  setCoverChoice('representative');
+ },[]);
  const [saving,setSaving]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const load=useCallback(async()=>{
   try{
@@ -105,6 +116,7 @@ export function CatalogueCoverEditor({workId,imageStorage}:{workId:string;imageS
    const result=await response.json() as {error?:string;uploaded?:boolean};
    if(!response.ok||!result.uploaded)throw Error(result.error||'The upload was not confirmed.');
    setFile(null);
+   setCoverChoice('upload');
    setNotice('Cover uploaded and linked to the selected catalogue record.');
    await load();
   }catch(e){setError(e instanceof Error?e.message:'Cover upload failed')}
@@ -112,7 +124,7 @@ export function CatalogueCoverEditor({workId,imageStorage}:{workId:string;imageS
  }
  return <section className="cs-book-cover-editor">
   <h3>Book and edition covers</h3>
-  <RepresentativeCoverChooser workId={workId}/>
+  <RepresentativeCoverChooser workId={workId} onCurrentChange={onRepresentativeChange}/>
   <p>Manage the representative cover of this book, or the front cover of any of its editions. Replacements retain the previous asset and rights records for audit purposes.</p>
   {!imageStorage?<p className="cs-book-storage-warning" role="status">Cloudflare R2 image storage is not connected. Cover uploads are unavailable.</p>:<>
    {error&&<p className="cs-admin-error" role="alert">{error}</p>}
@@ -128,8 +140,25 @@ export function CatalogueCoverEditor({workId,imageStorage}:{workId:string;imageS
      <button type="submit" disabled={saving||!file||!entityId}>{saving?'Uploading…':current?'Replace primary cover':'Upload cover'}</button>
     </div>
     <aside className="cs-book-cover-preview-panel"><h4>Cover preview</h4>
-     <div className="cs-book-cover-preview">{preview?<img src={preview} alt="Cover selected for uploading"/>:displayedCover&&!imageFailed?<img src={'/api/catalogue-media/'+encodeURIComponent(displayedCover.assetId)} alt={firstEditionCover?'Cover linked to this book’s first edition':'Currently linked cover'} onError={()=>setImageFailed(true)}/>:sourceCover&&!sourceImageFailed?<img src={sourceCover} alt={'Source-hosted cover for ISBN '+sourceIsbn} referrerPolicy="no-referrer" onError={()=>setSourceImageFailed(true)}/>:<div className="cs-book-cover-placeholder"><span aria-hidden="true">▤</span><strong>No cover available</strong></div>}</div>
-     <p>{preview?'Selected local file — not uploaded yet':displayedCover&&!imageFailed?'Uploaded R2 image':sourceCover&&!sourceImageFailed?'Cover displayed from Open Library for ISBN '+sourceIsbn+' (not stored in R2)':sourceCover?'No Open Library cover is available for this ISBN':imageFailed?'The uploaded cover could not be retrieved. Check R2 storage.':'No cover available for the saved ISBN'}</p>
+     {kind==='work'&&selectedRepresentative&&<p>Selected main book cover</p>}
+     <div className="cs-book-cover-preview">{preview?
+      <img src={preview} alt="Cover selected for uploading"/>:
+      kind==='work'&&coverChoice==='representative'&&selectedRepresentative?
+       <img src={selectedRepresentative.url} alt={'Selected main cover for '+selectedRepresentative.title} referrerPolicy="no-referrer"/>:
+      displayedCover&&!imageFailed?
+       <img src={'/api/catalogue-media/'+encodeURIComponent(displayedCover.assetId)} alt={firstEditionCover?'Cover linked to this book’s first edition':'Currently linked cover'} onError={()=>setImageFailed(true)}/>:
+      kind==='work'&&selectedRepresentative?
+       <img src={selectedRepresentative.url} alt={'Selected main cover for '+selectedRepresentative.title} referrerPolicy="no-referrer"/>:
+      sourceCover&&!sourceImageFailed?
+       <img src={sourceCover} alt={'Source-hosted cover for ISBN '+sourceIsbn} referrerPolicy="no-referrer" onError={()=>setSourceImageFailed(true)}/>:
+       <div className="cs-book-cover-placeholder"><span aria-hidden="true">▤</span><strong>No cover available</strong></div>}</div>
+     <p>{preview?'Selected local file — not uploaded yet':
+      kind==='work'&&coverChoice==='representative'&&selectedRepresentative?'Currently selected main book cover':
+      displayedCover&&!imageFailed?'Uploaded R2 image':
+      kind==='work'&&selectedRepresentative?'Currently selected main book cover':
+      sourceCover&&!sourceImageFailed?'Cover displayed from Open Library for ISBN '+sourceIsbn+' (not stored in R2)':
+      sourceCover?'No Open Library cover is available for this ISBN':
+      imageFailed?'The uploaded cover could not be retrieved. Check R2 storage.':'No cover available for the saved ISBN'}</p>
     </aside>
    </form>
   </>}
