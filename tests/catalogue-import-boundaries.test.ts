@@ -59,3 +59,12 @@ test('manual work enrichment fetches limited editions but never writes or treats
  assert.match(ui,/Review edition/);
  assert.match(ui,/setSelected\(detail\)/);
 });
+
+test('search results use responsive two-column layout without modifying import behaviour',()=>{
+ const css=readFileSync(new URL('../src/site/site.css',import.meta.url),'utf8');
+ assert.match(ui,/className="cs-simple-import-grid"/);
+ assert.match(css,/\.cs-simple-import-grid\s*\{/);
+ assert.match(css,/@media\(min-width:1050px\)/);
+ assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+ assert.match(ui,/setSelected\(detail\)/);
+});
