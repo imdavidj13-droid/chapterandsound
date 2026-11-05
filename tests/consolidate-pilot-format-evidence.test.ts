@@ -65,3 +65,29 @@ test('keeps valid source-qualified audiobook editions and prevents source-key co
  });
  assert.throws(()=>consolidatePilot(duplicate,[batch([])]),/duplicate edition source key/);
 });
+
+test('preserves Google Play opaque audio IDs without treating them as Open Library IDs',()=>{
+ const input=fixture();
+ input.candidates[0]!.editions.push({
+  sourceKey:'google_play_audiobooks:AQAAAID-mV8ZsM',
+  isbn13:null,format:'audiobook',fieldProvenance:{}
+ });
+ const result=consolidatePilot(input,[batch([fact])]);
+ assert.equal(result.report.totals.editions,11);
+ assert.equal(result.report.totals.knownFormats,2);
+ assert.equal(result.manifest.candidates[0].editions[1].sourceKey,'google_play_audiobooks:AQAAAID-mV8ZsM');
+ const duplicate=structuredClone(input);
+ duplicate.candidates[1]!.editions.push({
+  sourceKey:'google_play_audiobooks:AQAAAID-mV8ZsM',
+  isbn13:null,format:'audiobook',fieldProvenance:{}
+ });
+ assert.throws(()=>consolidatePilot(duplicate,[batch([])]),/duplicate edition source key/);
+});
+test('rejects invalid provider identifiers instead of silently normalizing them',()=>{
+ for(const bad of ['google_play_audiobooks:','google_play_audiobooks:https://example.org/book',
+  'provider:../../secrets','provider:bad id']){
+  const input=fixture();
+  input.candidates[0]!.editions[0]!.sourceKey=bad;
+  assert.throws(()=>consolidatePilot(input,[batch([])]),/Invalid or duplicate edition source key/);
+ }
+});
