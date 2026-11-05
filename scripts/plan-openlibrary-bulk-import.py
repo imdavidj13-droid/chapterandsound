@@ -131,6 +131,7 @@ def analyze(prepared, con, out):
                     seen_isbn[isbn(code)].add(key)
 
     ready, review, enrich = [], [], []
+    work_only = []
     deferred_editions = []
     distinct_works = set()
     for book in books:
@@ -210,6 +211,9 @@ def analyze(prepared, con, out):
             add(review, blocked, book)
             continue
         if not editions:
+            # Keep unresolved editions in the original prepared files.
+            # This queue is for future WORK-only drafts, without invented ISBNs.
+            work_only.append({**book, "editions": []})
             add(enrich, "no_eligible_editions", book)
             continue
         if len(editions) > 50:
@@ -243,13 +247,26 @@ def analyze(prepared, con, out):
             "workFirstDraft": True}, ensure_ascii=False), encoding="utf-8")
         batches.append(name)
 
+    work_only_files = []
+    for offset in range(0, len(work_only), 100):
+        name = f"work-only-{offset // 100 + 1:03d}.json"
+        (out / name).write_text(json.dumps({
+            "candidates": work_only[offset:offset + 100],
+            "confirmed": False,
+            "mode": "work_only_future_import",
+            "importEnabled": False
+        }, ensure_ascii=False), encoding="utf-8")
+        work_only_files.append(name)
+
     counts = {"preparedCandidates": len(books), "readyForFurtherPreview": len(ready),
+              "workOnlyDraftCandidates": len(work_only),
+              "workOnlyPlanningFiles": len(work_only_files),
               "identityOrIsbnReview": len(review), "needsEnrichment": len(enrich),
               "files": {"review": "review.json", "enrichment": "needs-enrichment.json", "deferredEditions": "deferred-editions.json"},
               "worksWithDeferredEditions": len(deferred_editions),
               "deferredEditionCount": sum(len(item["excludedEditions"]) for item in deferred_editions),
               "batchCount": len(batches), "importEnabled": False, "productionWrites": 0,
-              "note": "Plans are NOT approved imports. Existing API preview, rights, author matching and backup checks must pass before saving.",
+              "note": "Work-only candidates are NOT importable by the current API. Plans are NOT approved imports. Identity, rights, author matching and backup checks must pass before saving.",
               "reviewReasons": dict(Counter(item["reason"] for item in review)),
               "enrichmentReasons": dict(Counter(item["reason"] for item in enrich))}
     (out / "report.json").write_text(json.dumps(counts, indent=2), encoding="utf-8")
