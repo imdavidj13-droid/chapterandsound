@@ -5,6 +5,7 @@ import {CatalogueCoverEditor} from './CatalogueCoverEditor';
 import {CatalogueDiagnostics} from './CatalogueDiagnostics';
 import {CatalogueImportCentre} from './CatalogueImportCentre';
 import {CataloguePublicationAudit} from './CataloguePublicationAudit';
+import {CatalogueEnrichmentPanel} from './CatalogueEnrichmentPanel';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import type {FormEvent} from 'react';
 import {apiGet,apiWrite} from './api';
@@ -246,6 +247,7 @@ export function CatalogueWorkbench({path,navigate}:{path:string;navigate:(to:str
     <footer className="cs-book-edit-footer"><button type="submit" className="primary" disabled={saving||!title.trim()}>{saving?'Saving…':'Save book changes'}</button></footer>
    </form>}
    {editView==='editions'&&<div className="cs-book-edit-body"><CatalogueLinkedEditions workId={editingId} onSaved={()=>void load()}/></div>}
+   {editView==='editions'&&<div className="cs-book-edit-body"><CatalogueEnrichmentPanel workId={editingId} title={title}/></div>}
    {editView==='images'&&<div className="cs-book-edit-body"><CatalogueCoverEditor workId={editingId} imageStorage={mediaReady}/></div>}
    {editView==='preview'&&<div className="cs-book-edit-body"><div className="cs-book-edit-panel">
     <p className="cs-book-eyebrow">CATALOGUE RECORD PREVIEW</p><h3>{title||'Untitled book'}</h3>
