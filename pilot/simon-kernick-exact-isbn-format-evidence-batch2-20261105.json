@@ -1,0 +1,65 @@
+{
+  "mode": "publisher_and_retailer_exact_isbn_evidence",
+  "reviewOnly": true,
+  "importEligible": false,
+  "author": "Simon Kernick",
+  "assembledOn": "2026-11-05",
+  "records": [
+    {
+      "title": "Relentless",
+      "isbn13": "9781846324994",
+      "editionSourceKey": "/books/OL29230675M",
+      "format": "hardback",
+      "feature": "large_print",
+      "source": "goodreads_edition_listing",
+      "sourceUrl": "https://www.goodreads.com/work/editions/1322839-relentless?expanded=true",
+      "note": "Exact ISBN listed as Hardcover and Large Print; secondhand listing may contain contradictory auto-populated author fields."
+    },
+    {
+      "title": "The Payback",
+      "isbn13": "9781407473192",
+      "editionSourceKey": "/books/OL28343100M",
+      "format": "paperback",
+      "feature": "large_print",
+      "source": "secondhand_listing_plus_openlibrary_edition",
+      "sourceUrl": "https://www.ebay.de/itm/298616551836",
+      "note": "Exact ISBN labelled paperback by seller; Open Library edition OL28343100M explicitly notes large print: https://openlibrary.org/books/OL28343100M/The_payback"
+    },
+    {
+      "title": "Ultimatum",
+      "isbn13": "9781471232312",
+      "editionSourceKey": "/books/OL32150324M",
+      "format": "paperback",
+      "feature": "large_print",
+      "source": "goodreads_edition_listing",
+      "sourceUrl": "https://www.goodreads.com/work/editions/23803578-ultimatum-tina-boyd-6",
+      "note": "Exact ISBN listed as Large Print Paperback."
+    },
+    {
+      "title": "A Good Day to Die",
+      "isbn13": "9780593051467",
+      "editionSourceKey": "/books/OL7544134M",
+      "format": "hardback",
+      "feature": null,
+      "source": "abebooks_bibliographic_listing",
+      "sourceUrl": "https://www.abebooks.com/9780593051467/Good-Day-Kernick-Simon-0593051467/plp",
+      "note": "Exact ISBN listed as Hardcover by bibliographic listing and multiple sellers."
+    },
+    {
+      "title": "The Payback",
+      "isbn13": "9780593062890",
+      "editionSourceKey": "/books/OL26815574M",
+      "format": "paperback",
+      "feature": null,
+      "source": "abebooks_edition_listing",
+      "sourceUrl": "https://www.abebooks.com/book-search/title/payback/author/simon-kernick/",
+      "note": "Exact ISBN listed as Softcover; distinct from 9780593062883 Hardcover."
+    }
+  ],
+  "notes": [
+    "All facts are review-only and are assigned only after existing reconciliation script verifies ISBN and exact Open Library edition key.",
+    "Some references are seller or community listings: independent bibliographic confirmation and usage rights review remain appropriate.",
+    "Large print is separate from binding; never use a publisher name alone to infer a book format.",
+    "No database writes or automatic merges."
+  ]
+}
