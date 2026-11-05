@@ -83,3 +83,28 @@ test('unknown edition, multi-author, or unverified work source are blocked',asyn
   assert.equal(db.prepare('SELECT count(*) AS n FROM works').get()?.n,0);
  }finally{db.close()}
 });
+
+test('same Open Library author identity is reused for another work',async()=>{
+ const {db,driver}=fixture();
+ try{
+  await importWorkOnlyDraft(driver,work(),'owner-test');
+  const second=await importWorkOnlyDraft(driver,work({
+   workSourceKey:'/works/OL124W',title:'Second Novel'
+  }),'owner-test');
+  assert.equal(second.saved,true);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM works').get()?.n,2);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM people').get()?.n,1);
+  assert.equal(db.prepare('SELECT count(DISTINCT person_id) AS n FROM contributions').get()?.n,1);
+ }finally{db.close()}
+});
+test('same author name from a different Open Library source key needs review',async()=>{
+ const {db,driver}=fixture();
+ try{
+  await importWorkOnlyDraft(driver,work(),'owner-test');
+  const second=work({workSourceKey:'/works/OL124W',title:'Second Novel',
+   authorSourceKeys:['/authors/OL999A']});
+  assert.equal((await previewWorkOnlyDraft(driver,second)).decision,'review');
+  await assert.rejects(()=>importWorkOnlyDraft(driver,second,'owner-test'),WorkOnlyConflict);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM works').get()?.n,1);
+ }finally{db.close()}
+});
