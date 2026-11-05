@@ -4,6 +4,7 @@ import {manualCatalogueAPI,validIsbn13,validIsbn10} from './catalogue-manual-api
 import {catalogueBookMetadataAPI} from './catalogue-book-metadata-api.js';
 import {previewCatalogueImport} from './catalogue-import-preview.js';
 import {importCatalogueDrafts,ImportConflict} from './catalogue-import-drafts.js';
+import {findSimpleBooks,getSimpleBook,importSimpleBook} from './catalogue-simple-import.js';
 import {authConfigured,createAuth} from './auth.js';
 import {isVerifiedSiteOwner} from './admin-role.js';
 
@@ -31,6 +32,7 @@ interface Env {
   MAIL_API_KEY?:string;
   MAIL_FROM?:string;
   ADMIN_EMAIL?:string;
+  GOOGLE_BOOKS_API_KEY?:string;
   SIGNUP_MODE?:string;
 }
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
@@ -82,6 +84,26 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
  const segments=path.split('/').filter(Boolean);
  if(!db)return fail('The BOOK_DB catalogue binding is not configured yet',503);
  if(!await catalogueReady(db))return fail('The catalogue database has not had its dedicated migrations applied yet',503);
+ // New one-book workflow. Legacy manifest routes remain behind the scenes only.
+ if(path==='simple-import/search'&&request.method==='GET'){
+  try{return json(await findSimpleBooks(url.searchParams.get('q')||'',env.ADMIN_EMAIL||'catalogue-admin',env.GOOGLE_BOOKS_API_KEY))}
+  catch(e){return fail(e instanceof Error?e.message:'Search is unavailable',502)}
+ }
+ if(path==='simple-import/detail'&&request.method==='GET'){
+  try{return json(await getSimpleBook(url.searchParams.get('key')||'',env.ADMIN_EMAIL||'catalogue-admin',env.GOOGLE_BOOKS_API_KEY))}
+  catch(e){return fail(e instanceof Error?e.message:'Book details unavailable',502)}
+ }
+ if(path==='simple-import/add'&&request.method==='POST'){
+  try{
+   const raw=await request.text();
+   if(raw.length>3000)return fail('Request too large',413);
+   const data=fields(JSON.parse(raw));
+   if(!data||data.confirmed!==true)return fail('Choose a book to import',400);
+   const result=await importSimpleBook(db,str(data.key,120),str(data.isbn13,30),
+    env.ADMIN_EMAIL||'catalogue-admin',session.user.id,env.GOOGLE_BOOKS_API_KEY);
+   return json(result,result.created?201:200);
+  }catch(e){return fail(e instanceof Error?e.message:'Book import unavailable',409)}
+ }
  if(path==='import/discover'&&request.method==='GET'){
   const q=str(url.searchParams.get('q'),100);
   if(q.length<3)return fail('Search needs at least three characters');
