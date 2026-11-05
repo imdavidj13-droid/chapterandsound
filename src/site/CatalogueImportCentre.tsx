@@ -18,6 +18,7 @@ export function CatalogueImportCentre(){
  const [busy,setBusy]=useState(false),[importing,setImporting]=useState('');
  const [selected,setSelected]=useState<Detail|null>(null);
  const [originalSynopsis,setOriginalSynopsis]=useState('');
+ const [reviewedFormat,setReviewedFormat]=useState('');
  const [error,setError]=useState(''),[notice,setNotice]=useState('');
  const [saved,setSaved]=useState<SaveResponse|null>(null);
  async function search(){
@@ -32,11 +33,11 @@ export function CatalogueImportCentre(){
   }catch(e){setError(e instanceof Error?e.message:'Book search failed')}
   finally{setBusy(false)}
  }
- async function save(detail:Detail,ownSynopsis=''){
+ async function save(detail:Detail,ownSynopsis='',formatChoice=''){
   setError('');setNotice('');setSaved(null);
   try{
    const response=await apiWrite<SaveResponse>('/api/catalogue-admin/simple-import/add','POST',{
-    key:detail.key,isbn13:detail.isbn13,originalSynopsis:ownSynopsis,confirmed:true
+    key:detail.key,isbn13:detail.isbn13,originalSynopsis:ownSynopsis,reviewedFormat:formatChoice,confirmed:true
    });
    setSaved(response);setSelected(null);
    setNotice(response.created?'Book imported as a private draft with one ISBN-identified edition.':'This book already exists. No duplicate was created.');
@@ -44,20 +45,22 @@ export function CatalogueImportCentre(){
  }
  async function selectAndImport(item:Suggestion){
   if(importing)return;
-  setImporting(item.key);setError('');setNotice('');setSaved(null);setSelected(null);setOriginalSynopsis('');
+  setImporting(item.key);setError('');setNotice('');setSaved(null);setSelected(null);setOriginalSynopsis('');setReviewedFormat('');
   try{
    const detail=await apiGet<Detail>('/api/catalogue-admin/simple-import/detail?key='+encodeURIComponent(item.key));
    // Open Library search returns *works*, not ISBN-specific editions.
    // Always show the actual chosen edition's cover and ISBN before importing.
-   const canImport=item.source!=='Open Library'&&detail.complete&&detail.synopsisSource==='Open Library';
+   const canImport=item.source!=='Open Library'&&detail.complete&&detail.synopsisSource==='Open Library'&&['paperback','hardback','ebook'].includes(detail.format);
    if(canImport)await save(detail);
    else setSelected(detail);
   }catch(e){setError(e instanceof Error?e.message:'Could not retrieve this book')}
   finally{setImporting('')}
  }
  const synopsisReady=selected&&(selected.synopsisSource==='Open Library'||originalSynopsis.trim().length>=30);
+ const formatReady=Boolean(selected&&(['paperback','hardback','ebook'].includes(selected.format)||
+  selected.format==='unknown'&&['paperback','hardback','ebook'].includes(reviewedFormat)));
  const missing=selected?.missing.filter(x=>x!=='synopsis'||!synopsisReady)||[];
- const canSave=Boolean(selected&&selected.isbn13&&missing.length===0&&synopsisReady&&!importing);
+ const canSave=Boolean(selected&&selected.isbn13&&missing.length===0&&synopsisReady&&formatReady&&!importing);
  return <section className="cs-simple-import" aria-label="Search and import books">
   <div className="cs-simple-import-heading">
    <p className="cs-admin-eyebrow">CHAPTER &amp; SOUND · CATALOGUE</p>
@@ -105,21 +108,29 @@ export function CatalogueImportCentre(){
    </div>
    <dl>
     <div><dt>ISBN</dt><dd>{selected.isbn13||'Missing'}</dd></div>
+    <div><dt>Format</dt><dd>{selected.format==='unknown'?'Needs confirmation':selected.format}</dd></div>
     <div><dt>Edition language</dt><dd>{languageLabel(selected.language)}</dd></div>
     <div><dt>Publisher</dt><dd>{selected.publisher||'Missing'}</dd></div>
     <div><dt>Release date</dt><dd>{selected.publishedDate||'Missing'}</dd></div>
     <div><dt>Page count</dt><dd>{selected.pages||'Missing'}</dd></div>
    </dl>
+   {selected.format==='unknown'&&<label className="cs-simple-import-original">Confirm this ISBN edition's format
+    <select value={reviewedFormat} onChange={e=>setReviewedFormat(e.target.value)} required>
+     <option value="">Choose the correct format</option>
+     <option value="paperback">Paperback</option><option value="hardback">Hardback</option><option value="ebook">Ebook</option>
+    </select>
+    <small>Only choose a format you have checked for this exact ISBN. The importer will not save an unknown format.</small>
+   </label>}
    {selected.synopsis&&<div className="cs-simple-import-synopsis"><strong>Source description ({selected.synopsisSource})</strong><p>{selected.synopsis}</p></div>}
    {selected.synopsisSource!=='Open Library'&&<label className="cs-simple-import-original">Original or authorised synopsis
     <textarea rows={5} value={originalSynopsis} onChange={e=>setOriginalSynopsis(e.target.value)}
      placeholder="Write your own synopsis or enter text you have permission to publish."/>
     <small>Google Books descriptions are shown as a reference, not copied into the permanent catalogue automatically.</small>
    </label>}
-   {(missing.length>0||!synopsisReady)&&<p className="cs-simple-import-warning">Cannot complete one-click import: {missingText(missing.length?missing:['synopsis'])}. Try a different search result or ISBN. No incomplete record will be silently saved.</p>}
+   {(missing.length>0||!synopsisReady||!formatReady)&&<p className="cs-simple-import-warning">Cannot import yet: {missing.length?missingText(missing):!synopsisReady?'description':'edition format'}. Choose verified details for this ISBN; no incomplete record will be silently saved.</p>}
    <div className="cs-simple-import-review-actions">
     <a href={selected.sourceUrl} target="_blank" rel="noopener noreferrer">View source</a>
-    <button type="button" disabled={!canSave||Boolean(importing)} onClick={()=>void save(selected,originalSynopsis)}>Import this book</button>
+    <button type="button" disabled={!canSave||Boolean(importing)} onClick={()=>void save(selected,originalSynopsis,reviewedFormat)}>Import this book</button>
    </div>
   </section>}
  </section>;
