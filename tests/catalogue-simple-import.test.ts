@@ -160,7 +160,7 @@ test('import rejects arbitrary or conflicting format overrides',async()=>{
  }finally{restore();f.close()}
 });
 
-test('import rejects missing covers even when the book title and ISBN are complete',async()=>{
+test('missing covers permit private draft but do not create media links',async()=>{
  const f=fixture();
  const original=globalThis.fetch;
  const restore=mockSources();
@@ -173,8 +173,13 @@ test('import rejects missing covers even when the book title and ISBN are comple
   const detail=await getSimpleBook('g:abc123','catalogue-admin');
   assert.equal(detail.coverUrl,null);
   assert.ok(detail.missing.includes('coverUrl'));
-  await assert.rejects(importSimpleBook(f.conn,'g:abc123',code,'catalogue-admin','owner',undefined,undefined,'paperback'),/No verified cover image/);
-  assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM works').get()?.count,0);
+  const result=await importSimpleBook(f.conn,'g:abc123',code,'catalogue-admin','owner',undefined,
+   'An original synopsis written for this test with enough detail to store.','paperback');
+  assert.equal(result.created,true);
+  assert.equal(result.status,'draft');
+  assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM works').get()?.count,1);
+  assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM media_links').get()?.count,0);
+  assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM work_representative_covers').get()?.count,0);
  }finally{restore();globalThis.fetch=original;f.close()}
 });
 
