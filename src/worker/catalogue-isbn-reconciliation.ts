@@ -17,6 +17,7 @@ export type ISBNResolution={
  publishedDate:ResolvedField<string>;pages:ResolvedField<number>;language:ResolvedField<string>;format:ResolvedField<string>};
  coverCandidates:{source:EvidenceSource;url:string;isbn13:string;verifiedImage:false}[];
  sourceStatus:Record<EvidenceSource,string>;
+ sourceDiagnostics:Record<EvidenceSource,string>;
  missing:string[];conflicts:string[];evidence:EditionEvidence[];
  canImport:false;
 };
@@ -71,14 +72,15 @@ async function fromGoogle(code:string,key:string|undefined,fetchImpl:typeof fetc
   publisher?:string;publishedDate?:string;pageCount?:number;language?:string;
   description?:string;imageLinks?:{thumbnail?:string}
  }}>};
- const exact=(data.items||[]).find(x=>x.volumeInfo?.industryIdentifiers?.some(y=>isbn13(y.identifier)===code));
- if(!exact?.volumeInfo)return null;
+ const items=data.items||[];
+ const exact=items.find(x=>x.volumeInfo?.industryIdentifiers?.some(y=>isbn13(y.identifier)===code));
+ if(!exact?.volumeInfo)return {edition:null,diagnostic:items.length?'results_without_exact_isbn':'no_results'} as const;
  const x=exact.volumeInfo;
- return {source:'Google Books',isbn13:code,title:text(x.title)||null,authors:(x.authors||[]).map(x=>text(x)).filter(Boolean),
+ return {edition:{source:'Google Books',isbn13:code,title:text(x.title)||null,authors:(x.authors||[]).map(x=>text(x)).filter(Boolean),
   publisher:text(x.publisher)||null,publishedDate:date(x.publishedDate),pages:pages(x.pageCount),
   language:language(x.language),format:null,
   // Google volume art can represent a different ISBN within a grouped volume. Do not treat it as verified edition art.
-  coverCandidateUrl:null,descriptionAvailable:Boolean(text(x.description))} as EditionEvidence;
+  coverCandidateUrl:null,descriptionAvailable:Boolean(text(x.description))} as EditionEvidence,diagnostic:'exact_isbn_matched'};
 }
 async function fromOL(code:string,fetchImpl:typeof fetch){
  const data=await json('https://openlibrary.org/isbn/'+code+'.json',fetchImpl) as {
@@ -112,23 +114,38 @@ export async function resolveISBNClaims(codeInput:string,opts:{
  const fetchImpl=opts.fetchImpl||fetch;
  const probe=opts.lookupIsbndb||lookupISBNdbEdition;
  const statuses:Record<EvidenceSource,string>={'ISBNdb':'unavailable','Google Books':'unavailable','Open Library':'unavailable'};
+ const diagnostics:Record<EvidenceSource,string>={'ISBNdb':'not_checked','Google Books':'not_checked','Open Library':'not_checked'};
  const [isbnResult,googleResult,olResult]=await Promise.allSettled([
   probe(code,opts.isbnDbKey,fetchImpl),fromGoogle(code,opts.googleKey,fetchImpl),fromOL(code,fetchImpl)
  ]);
  const evidence:EditionEvidence[]=[];
  if(isbnResult.status==='fulfilled'){
   const result:ISBNdbLookup=isbnResult.value;statuses.ISBNdb=result.status;
+  diagnostics.ISBNdb=result.status==='matched'?'exact_isbn_matched':result.status==='unavailable'?(result.reason||'request_unavailable'):
+   result.status+(result.httpStatus?'_http_'+result.httpStatus:'');
   if(result.status==='matched')evidence.push({source:'ISBNdb',isbn13:code,title:result.edition.title,
    authors:result.edition.authors,publisher:result.edition.publisher,publishedDate:result.edition.publishedDate,
    pages:result.edition.pageCount,language:result.edition.language,format:result.edition.format,
    coverCandidateUrl:result.edition.coverCandidateUrl,descriptionAvailable:result.edition.descriptionAvailable});
- }else statuses.ISBNdb='request_failed';
+ }else {statuses.ISBNdb='request_failed';diagnostics.ISBNdb='unexpected_error';}
  if(googleResult.status==='fulfilled'){
-  statuses['Google Books']=googleResult.value?'matched':'not_found';if(googleResult.value)evidence.push(googleResult.value);
- }else statuses['Google Books']=String(googleResult.reason instanceof Error?googleResult.reason.message:'request_failed').slice(0,50);
+  statuses['Google Books']=googleResult.value.edition?'matched':'not_found';
+  diagnostics['Google Books']=googleResult.value.diagnostic;
+  if(googleResult.value.edition)evidence.push(googleResult.value.edition);
+ }else {
+  const match=googleResult.reason instanceof Error?/^HTTP_(\\d{3})$/.exec(googleResult.reason.message):null;
+  statuses['Google Books']=match?'HTTP_'+match[1]:'request_failed';
+  diagnostics['Google Books']=match?'http_'+match[1]:'network_or_invalid_response';
+ }
  if(olResult.status==='fulfilled'){
-  statuses['Open Library']=olResult.value?'matched':'not_found';if(olResult.value)evidence.push(olResult.value);
- }else statuses['Open Library']=String(olResult.reason instanceof Error?olResult.reason.message:'request_failed').slice(0,50);
+  statuses['Open Library']=olResult.value?'matched':'not_found';
+  diagnostics['Open Library']=olResult.value?'exact_isbn_matched':'no_matching_edition';
+  if(olResult.value)evidence.push(olResult.value);
+ }else {
+  const match=olResult.reason instanceof Error?/^HTTP_(\\d{3})$/.exec(olResult.reason.message):null;
+  statuses['Open Library']=match?'HTTP_'+match[1]:'request_failed';
+  diagnostics['Open Library']=match?'http_'+match[1]:'network_or_invalid_response';
+ }
  const fields={
   title:combine<string>(evidence,'title'),author:combine<string>(evidence.map(e=>({...e,title:e.authors[0]||null})),'title'),
   publisher:combine<string>(evidence,'publisher'),publishedDate:combine<string>(evidence,'publishedDate'),
@@ -143,5 +160,5 @@ export async function resolveISBNClaims(codeInput:string,opts:{
  }));
  if(!coverCandidates.length)missing.push('edition cover');
  const status=conflicts.length?'conflict':missing.length?'incomplete':evidence.length?'ready_for_review':'unavailable';
- return {isbn13:code,status,fields,coverCandidates,sourceStatus:statuses,missing,conflicts,evidence,canImport:false};
+ return {isbn13:code,status,fields,coverCandidates,sourceStatus:statuses,sourceDiagnostics:diagnostics,missing,conflicts,evidence,canImport:false};
 }
