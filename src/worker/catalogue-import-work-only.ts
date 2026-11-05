@@ -61,27 +61,45 @@ export async function previewWorkOnlyDraft(db:WorkOnlyDB,input:unknown):Promise<
   "SELECT sr.id FROM source_records sr JOIN metadata_sources ms ON ms.id=sr.source_id WHERE lower(ms.name)='openlibrary' AND sr.external_key=? LIMIT 2"
  ).bind(workSourceKey).all<{id:string}>()).results;
  if(sourced.length)return review('Open Library source key already exists; verify its canonical work link.');
+ // Resolve existing people by their *recorded* Open Library source author key,
+ // never by a matching name alone. This permits multiple works by one author
+ // without creating a second canonical person.
+ const authorKey=authorKeys[0] as string;
+ const bySource=(await db.prepare(
+  "SELECT DISTINCT p.id,p.preferred_name AS name FROM catalogue_audit_log a JOIN contributions c ON c.work_id=a.target_id AND c.role_code='author' JOIN people p ON p.id=c.person_id WHERE a.action IN ('import_draft','import_work_only_draft') AND a.target_kind='work' AND EXISTS (SELECT 1 FROM json_each(a.details_json,'$.authorSourceKeys') WHERE value=?) AND p.identity_status NOT IN ('merged','suppressed') LIMIT 3"
+ ).bind(authorKey).all<{id:string;name:string}>()).results;
+ if(bySource.length>1)return review('The author source key maps to multiple canonical people. Resolve the conflict.');
+ if(bySource.length===1&&norm(bySource[0]!.name)!==norm(author))
+  return review('The source author key has a different existing canonical name; verify the identity.');
  const nameMatches=(await db.prepare(
   "SELECT id FROM people WHERE lower(trim(preferred_name))=lower(?) AND identity_status NOT IN ('merged','suppressed') LIMIT 3"
  ).bind(author).all<{id:string}>()).results;
- if(nameMatches.length)return review('An author with this name already exists. Match their source identity before linking.');
+ if(nameMatches.length&&(bySource.length!==1||nameMatches.length!==1||nameMatches[0]!.id!==bySource[0]!.id))
+  return review('An author with this name already exists without an unambiguous matching source identity.');
  const workMatches=(await db.prepare(
   "SELECT DISTINCT w.id FROM works w JOIN contributions c ON c.work_id=w.id AND c.role_code IN ('author','coauthor') JOIN people p ON p.id=c.person_id WHERE lower(trim(w.canonical_title))=lower(?) AND lower(trim(p.preferred_name))=lower(?) LIMIT 3"
  ).bind(title,author).all<{id:string}>()).results;
  if(workMatches.length)return review('A work with the same title and author is already in the catalogue.');
- return {decision:'create_work_draft',reason:'No direct source, author-name or work-title collision detected. Further review required before publication.',title,author,workSourceKey};
+ return {decision:'create_work_draft',reason:'No work collision detected; author links use recorded Open Library source identity. Further review required before publication.',title,author,workSourceKey};
 }
 export async function importWorkOnlyDraft(db:WorkOnlyDB,input:unknown,actor:string){
  const verdict=await previewWorkOnlyDraft(db,input);
  if(verdict.decision!=='create_work_draft')throw new WorkOnlyConflict(verdict.reason);
  const item=input as Candidate;
  const authorSourceKey=(item.authorSourceKeys as string[])[0]!;
- const authorId=crypto.randomUUID(),workId=crypto.randomUUID(),auditId=crypto.randomUUID();
+ // Repeat the source-author lookup for the transaction plan, so the saved
+ // contribution targets the canonical person already associated with that key.
+ const linked=(await db.prepare(
+  "SELECT DISTINCT p.id,p.preferred_name AS name FROM catalogue_audit_log a JOIN contributions c ON c.work_id=a.target_id AND c.role_code='author' JOIN people p ON p.id=c.person_id WHERE a.action IN ('import_draft','import_work_only_draft') AND a.target_kind='work' AND EXISTS (SELECT 1 FROM json_each(a.details_json,'$.authorSourceKeys') WHERE value=?) AND p.identity_status NOT IN ('merged','suppressed') LIMIT 3"
+ ).bind(authorSourceKey).all<{id:string;name:string}>()).results;
+ if(linked.length>1||linked.length===1&&norm(linked[0]!.name)!==norm(verdict.author))
+  throw new WorkOnlyConflict('Canonical author identity changed during import. Review this work.');
+ const authorId=linked[0]?.id||crypto.randomUUID(),workId=crypto.randomUUID(),auditId=crypto.randomUUID();
  const date=str(item.firstPublicationDate,10)||null;
  const lang=str(item.originalLanguage,20)||null;
  // Source summaries and descriptions are not persisted until rights are assessed.
  const statements=[
-  db.prepare("INSERT INTO people(id,preferred_name) VALUES(?,?)").bind(authorId,verdict.author),
+  ...(!linked.length?[db.prepare("INSERT INTO people(id,preferred_name) VALUES(?,?)").bind(authorId,verdict.author)]:[]),
   db.prepare("INSERT INTO works(id,canonical_title,original_language,first_publication_date,status) VALUES(?,?,?,?,'draft')").bind(workId,verdict.title,lang,date),
   db.prepare("INSERT INTO contributions(id,person_id,work_id,role_code) VALUES(?,?,?,'author')").bind(crypto.randomUUID(),authorId,workId),
   db.prepare("INSERT INTO catalogue_audit_log(id,actor_external_id,action,target_kind,target_id,details_json) VALUES(?,?,'import_work_only_draft','work',?,?)")
