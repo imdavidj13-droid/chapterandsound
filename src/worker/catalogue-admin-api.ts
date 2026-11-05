@@ -117,11 +117,11 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
  }
  // New one-book workflow. Legacy manifest routes remain behind the scenes only.
  if(path==='simple-import/search'&&request.method==='GET'){
-  try{return json(await findSimpleBooks(url.searchParams.get('q')||'',env.ADMIN_EMAIL||'catalogue-admin',env.GOOGLE_BOOKS_API_KEY))}
+  try{return json(await findSimpleBooks(url.searchParams.get('q')||'',env.ADMIN_EMAIL||'catalogue-admin',env.GOOGLE_BOOKS_API_KEY,env.ISBNDB_API_KEY))}
   catch(e){return fail(e instanceof Error?e.message:'Search is unavailable',502)}
  }
  if(path==='simple-import/detail'&&request.method==='GET'){
-  try{return json(await getSimpleBook(url.searchParams.get('key')||'',env.ADMIN_EMAIL||'catalogue-admin',env.GOOGLE_BOOKS_API_KEY))}
+  try{return json(await getSimpleBook(url.searchParams.get('key')||'',env.ADMIN_EMAIL||'catalogue-admin',env.GOOGLE_BOOKS_API_KEY,env.ISBNDB_API_KEY))}
   catch(e){return fail(e instanceof Error?e.message:'Book details unavailable',502)}
  }
  if(path==='simple-import/add'&&request.method==='POST'){
