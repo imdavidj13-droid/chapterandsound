@@ -51,7 +51,7 @@ type GVolume={id?:string;volumeInfo?:{
 type OSearch={key?:string;title?:string;author_name?:string[];first_publish_year?:number;cover_i?:number};
 type OEdition={key?:string;title?:string;isbn_13?:string[];publishers?:string[];publish_date?:string;
  number_of_pages?:number;physical_format?:string;description?:unknown;covers?:number[]};
-type OWork={title?:string;description?:unknown};
+type OWork={title?:string;description?:unknown;authors?:{author?:{key?:string};key?:string}[]};
 async function fetchJson<T>(address:string,userAgent:string):Promise<T>{
  const res=await fetch(address,{headers:{Accept:'application/json','User-Agent':userAgent},
   signal:AbortSignal.timeout(12000)});
@@ -83,7 +83,7 @@ const olAgent=(contact:string)=>'ChapterAndSoundCatalogue/0.2 ('+contact+')';
 export async function findSimpleBooks(query:string,contact:string,googleKey?:string){
  const q=str(query,120);
  if(q.length<2)throw Error('Enter an author, title or ISBN');
- const numeric=isbn(q);const byIsbn=/^\d{10}|\d{13}$/.test(numeric);
+ const numeric=isbn(q);const byIsbn=/^(?:\d{10}|\d{13})$/.test(numeric);
  const ol=new URL('https://openlibrary.org/search.json');
  if(byIsbn)ol.searchParams.set('isbn',numeric);
  else ol.searchParams.set('q',q);
@@ -150,7 +150,14 @@ export async function getSimpleBook(key:string,contact:string,googleKey?:string)
   if(!candidate)throw Error('No identified edition found for this title. Search by ISBN instead.');
   const code=candidate.isbn_13?.map(isbn).find(validIsbn)||null;
   const desc=cleanDescription(work.description)||cleanDescription(candidate.description);
-  return metadata({key,title:str(work.title)||str(candidate.title),author:'',isbn13:code,
+  const authorKey=work.authors?.[0]?.author?.key||work.authors?.[0]?.key;
+  let author='';
+  if(authorKey&&/^\/authors\/OL\d+A$/.test(authorKey)){
+   try{const person=await fetchJson<{name?:string}>('https://openlibrary.org'+authorKey+'.json',agent);author=str(person.name)}
+   catch{}
+  }
+  if(!author)throw Error('This Open Library work has no confirmed author. Search the title in Google Books.');
+  return metadata({key,title:str(work.title)||str(candidate.title),author,isbn13:code,
    publisher:str(candidate.publishers?.[0])||null,publishedDate:date(candidate.publish_date),
    pages:pages(candidate.number_of_pages),coverUrl:candidate.covers?.[0]?'https://covers.openlibrary.org/b/id/'+candidate.covers[0]+'-M.jpg':null,
    source:'Open Library',format:formatOf(candidate.physical_format),synopsis:desc,
