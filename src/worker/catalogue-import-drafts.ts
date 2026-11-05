@@ -165,7 +165,9 @@ export async function importCatalogueDrafts(db:DraftImportDB,input:unknown,actor
   }
   const provenance={sourceId,workSourceKey:workKey,authorSourceKeys:candidate.authorSourceKeys,
    editionSourceKeys:(candidate.editions||[]).map(e=>e.sourceKey),subjects:candidate.subjects||[],
-   deferredCovers:true,importMode:'draft',snapshot:'owner-reviewed'};
+   deferredCovers:true,importMode:options.workFirstDraft?'work_first_draft':'complete_draft',
+   metadataCompleteness:options.workFirstDraft?'incomplete_pending_enrichment':'complete_source_review',
+   sourceRightsReviewRequired:true,snapshot:'owner-reviewed'};
   statements.push(db.prepare("INSERT INTO catalogue_audit_log(id,actor_external_id,action,target_kind,target_id,details_json) VALUES(?,?,'import_draft','work',?,?)")
    .bind(id(),actor,workId,JSON.stringify(provenance)));
   imported.push({id:workId,title,editionIds});
