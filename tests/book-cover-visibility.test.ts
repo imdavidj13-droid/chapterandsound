@@ -30,7 +30,7 @@ test('add-book edition selection focuses on artwork and format, not ISBN or publ
  assert.doesNotMatch(section,/e\.isbn13|e\.publisher/);
 });
 test('public catalogue uses linked first-edition image when book has no representative cover',()=>{
- assert.match(publicApi,/function workCover\(\)/);
+ assert.match(publicApi,/function workCover\(hasRepresentativeCovers=false\)/);
  assert.match(publicApi,/l\.role='front_cover'/);
  assert.match(publicApi,/l\.is_primary=1/);
 });
