@@ -281,3 +281,26 @@ test('ISBNdb failure does not block Google Books search',async()=>{
   assert.equal(result.items[0]?.source,'Google Books');
  }finally{globalThis.fetch=original}
 });
+
+test('safe search diagnostics expose ISBNdb counts and deduplicated editions',async()=>{
+ const original=globalThis.fetch;
+ globalThis.fetch=async(input:RequestInfo|URL)=>{
+  const address=String(input);
+  if(address.includes('api2.isbndb.com/books/'))return Response.json({total:2,books:[
+   {isbn13:code,title:'Relentless',authors:['Simon Kernick']},
+   {isbn13:'9781408855652',title:'Another title',authors:['Simon Kernick']}
+  ]});
+  if(address.includes('googleapis.com'))return Response.json({items:[{
+   id:'abc123',volumeInfo:{title:'Relentless',authors:['Simon Kernick'],industryIdentifiers:[{type:'ISBN_13',identifier:code}]}
+  }]});
+  return Response.json({docs:[]});
+ };
+ try{
+  const result=await findSimpleBooks('Simon Kernick','catalogue-admin',undefined,'TEST_KEY');
+  assert.equal(result.diagnostics.isbnDbCandidates,2);
+  assert.equal(result.diagnostics.isbnDbNewEditions,1);
+  assert.equal(result.diagnostics.googleCandidates,1);
+  assert.equal(result.diagnostics.openLibraryCandidates,0);
+  assert.equal(result.items.filter(x=>x.isbn13===code).length,1);
+ }finally{globalThis.fetch=original}
+});
