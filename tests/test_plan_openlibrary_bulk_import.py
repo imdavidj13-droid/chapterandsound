@@ -78,6 +78,32 @@ class BulkPlanTests(unittest.TestCase):
         result=self.plan([left,right])
         self.assertEqual(result["readyForFurtherPreview"],0)
         self.assertEqual(result["identityOrIsbnReview"],2)
+    def test_one_incomplete_edition_does_not_block_valid_edition(self):
+        book=self.candidate()
+        book["editions"].insert(0,{"sourceKey":"/books/OL2M","format":""})
+        book["isbn13"]=""
+        book["format"]=""
+        result=self.plan([book])
+        self.assertEqual(result["readyForFurtherPreview"],1)
+        self.assertEqual(result["worksWithDeferredEditions"],1)
+        self.assertEqual(result["deferredEditionCount"],1)
+        batch=json.loads((self.root / "out/batch-00001.json").read_text())
+        planned=batch["candidates"][0]
+        self.assertEqual(planned["isbn13"],"9780552156905")
+        self.assertEqual(planned["format"],"paperback")
+        self.assertEqual(len(planned["editions"]),1)
+        self.assertEqual(planned["editions"][0]["sourceKey"],"/books/OL1M")
+        deferred=json.loads((self.root / "out/deferred-editions.json").read_text())
+        self.assertEqual(deferred[0]["excludedEditions"][0]["sourceKey"],"/books/OL2M")
+        self.assertFalse(batch["confirmed"])
+    def test_shared_isbn_keeps_all_works_in_review_even_if_some_editions_valid(self):
+        left=self.candidate()
+        right=self.candidate("/works/OL2W","Other Book","Other Writer")
+        right["editions"][0]["sourceKey"]="/books/OL2M"
+        right["editions"].append({"sourceKey":"/books/OL3M","isbn13":"9781408855652","format":"hardback"})
+        result=self.plan([left,right])
+        self.assertEqual(result["readyForFurtherPreview"],0)
+        self.assertEqual(result["identityOrIsbnReview"],2)
     def test_unknown_format_is_deferred_for_enrichment(self):
         book=self.candidate()
         book["editions"][0]["format"]=""
