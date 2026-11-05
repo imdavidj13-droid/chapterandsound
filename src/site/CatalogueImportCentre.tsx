@@ -5,8 +5,8 @@ type Suggestion={key:string;title:string;author:string;isbn13:string|null;publis
  publishedDate:string|null;pages:number|null;coverUrl:string|null;language:string|null;source:string};
 type Detail=Suggestion&{synopsis:string|null;synopsisSource:'Open Library'|'Google Books'|null;
  complete:boolean;missing:string[];format:string;sourceUrl:string;
- coverKind:'work'|'edition'|null;coverWorkKey:string|null;coverId:number|null;};
-type SearchResponse={items:Suggestion[];sources:{google:string;openLibrary:string}};
+ coverKind:'work'|'edition'|null;coverWorkKey:string|null;coverId:number|null;researchOnly?:boolean;};
+type SearchResponse={items:Suggestion[];sources:{google:string;openLibrary:string;isbnDb?:string}};
 type SaveResponse={created:boolean;id:string;status:string;editionId?:string};
 const languageLabel=(code:string|null)=>code==='en'?'English':code==='es'?'Spanish':code==='fr'?'French':code==='de'?'German':code==='it'?'Italian':code==='pt'?'Portuguese':code?code.toUpperCase():'Language unconfirmed';
 const requiredLabels:Record<string,string>={isbn13:'ISBN',publisher:'publisher',
@@ -29,7 +29,8 @@ export function CatalogueImportCentre(){
    const found=await apiGet<SearchResponse>('/api/catalogue-admin/simple-import/search?q='+encodeURIComponent(query.trim()));
    setItems(found.items);
    setSourceStatus([found.sources.google==='unavailable'?'Google Books unavailable':'',
-    found.sources.openLibrary==='unavailable'?'Open Library unavailable':''].filter(Boolean).join(' · '));
+    found.sources.openLibrary==='unavailable'?'Open Library unavailable':'',
+    found.sources.isbnDb==='unavailable'?'ISBNdb unavailable':''].filter(Boolean).join(' · '));
    if(found.items.length===0)setNotice('No matching titles were found. Try an exact ISBN or a more specific book title.');
   }catch(e){setError(e instanceof Error?e.message:'Book search failed')}
   finally{setBusy(false)}
@@ -51,7 +52,7 @@ export function CatalogueImportCentre(){
    const detail=await apiGet<Detail>('/api/catalogue-admin/simple-import/detail?key='+encodeURIComponent(item.key));
    // Open Library search returns *works*, not ISBN-specific editions.
    // Always show the actual chosen edition's cover and ISBN before importing.
-   const canImport=item.source!=='Open Library'&&detail.complete&&Boolean(detail.coverUrl)&&detail.synopsisSource==='Open Library'&&['paperback','hardback','ebook'].includes(detail.format);
+   const canImport=item.source!=='Open Library'&&item.source!=='ISBNdb'&&!detail.researchOnly&&detail.complete&&Boolean(detail.coverUrl)&&detail.synopsisSource==='Open Library'&&['paperback','hardback','ebook'].includes(detail.format);
    if(canImport)await save(detail);
    else setSelected(detail);
   }catch(e){setError(e instanceof Error?e.message:'Could not retrieve this book')}
@@ -61,7 +62,7 @@ export function CatalogueImportCentre(){
  const formatReady=Boolean(selected&&(['paperback','hardback','ebook'].includes(selected.format)||
   selected.format==='unknown'&&['paperback','hardback','ebook'].includes(reviewedFormat)));
  const missing=selected?.missing.filter(x=>x!=='synopsis'||!synopsisReady)||[];
- const canSave=Boolean(selected&&selected.isbn13&&selected.coverUrl&&missing.length===0&&synopsisReady&&formatReady&&!importing);
+ const canSave=Boolean(selected&&!selected.researchOnly&&selected.isbn13&&selected.coverUrl&&missing.length===0&&synopsisReady&&formatReady&&!importing);
  return <section className="cs-simple-import" aria-label="Search and import books">
   <div className="cs-simple-import-heading">
    <p className="cs-admin-eyebrow">CHAPTER &amp; SOUND · CATALOGUE</p>
@@ -93,7 +94,7 @@ export function CatalogueImportCentre(){
      {!item.isbn13&&<small>The illustration represents the book, not necessarily the edition that will be chosen.</small>}
     </div>
     <button type="button" disabled={Boolean(importing)} onClick={()=>void selectAndImport(item)}>
-     {importing===item.key?'Checking…':item.isbn13?'Import book':'Choose edition'}
+     {importing===item.key?'Checking…':item.source==='ISBNdb'?'Review ISBNdb evidence':item.isbn13?'Import book':'Choose edition'}
     </button>
    </article>)}
   </div>}
@@ -102,6 +103,7 @@ export function CatalogueImportCentre(){
     <p className="cs-admin-eyebrow">BOOK DETAILS</p><h4>{selected.title}</h4><p>{selected.author}</p></div>
     <button type="button" onClick={()=>setSelected(null)}>Close</button>
    </div>
+   {selected.researchOnly&&<p className="cs-simple-import-warning" role="status">ISBNdb matched this exact ISBN. Its metadata is for research only until the provider’s storage and image-use rights are reviewed. No catalogue record or cover will be saved from this result.</p>}
    <div className="cs-simple-import-chosen-cover">
     {selected.coverUrl?<img src={selected.coverUrl} alt={'Verified cover for '+selected.title} referrerPolicy="no-referrer" onError={e=>{e.currentTarget.hidden=true}}/>:<span>No verified cover available</span>}
     <div><strong>{selected.coverKind==='work'?'Main book cover':'Selected edition cover'}</strong><p>{selected.coverKind==='work'?'This is a verified book-level cover matched to the title and author. Its edition will keep its own ISBN; no unrelated edition artwork will be assigned.':selected.coverKind==='edition'?'The cover image is available for edition ISBN '+selected.isbn13+'.':'The source did not return a usable cover. This book cannot be imported yet.'}</p></div>
