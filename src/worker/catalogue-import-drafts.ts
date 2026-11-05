@@ -20,7 +20,7 @@ const normalized=(s:string)=>s.replace(/[\s-]/g,'').toUpperCase();
 const isoDate=(s:unknown)=>{const v=clean(s,10);return /^\d{4}(?:-(?:0[1-9]|1[0-2])(?:-(?:0[1-9]|[12]\d|3[01]))?)?$/.test(v)?v:null};
 const id=()=>crypto.randomUUID();
 export class ImportConflict extends Error{constructor(message:string){super(message);this.name='ImportConflict'}}
-export async function importCatalogueDrafts(db:DraftImportDB,input:unknown,actor:string){
+export async function importCatalogueDrafts(db:DraftImportDB,input:unknown,actor:string,options:{workFirstDraft?:boolean}={}){
  if(!Array.isArray(input)||input.length<1||input.length>10)throw new ImportConflict('Draft batches are limited to 1–10 books.');
  const items=input as Candidate[];
  const editionCount=items.reduce((n,item)=>n+(Array.isArray(item.editions)?item.editions.length:0),0);
@@ -30,8 +30,15 @@ export async function importCatalogueDrafts(db:DraftImportDB,input:unknown,actor
  if(blocker)throw new ImportConflict('Batch held for review: '+blocker.title+' — '+blocker.decision+'. '+blocker.reason);
  const incomplete=preview.rows.find(row=>row.quality.optionalMissing.length>0
   ||row.quality.editionCount!==row.quality.verifiedEditionCount);
- if(incomplete)throw new ImportConflict('The pilot imports complete metadata only. '+incomplete.title+
+ if(incomplete&&!options.workFirstDraft)throw new ImportConflict('The pilot imports complete metadata only. '+incomplete.title+
   ' still has '+incomplete.quality.optionalMissing.length+' unresolved field(s); enrich from approved sources before saving.');
+ if(options.workFirstDraft){
+  for(const candidate of items){
+   if(!(candidate.editions||[]).length)throw new ImportConflict('Work-first draft requires at least one identified edition.');
+   if((candidate.editions||[]).some(e=>!e.isbn13&&!e.isbn10||!e.format||e.format==='unknown'))
+    throw new ImportConflict('Work-first draft excludes unknown formats and ISBN-less editions.');
+  }
+ }
  const statements:Statement[]=[];
  const personIds=new Map<string,string>();
  const authorKeysByName=new Map<string,string>();
