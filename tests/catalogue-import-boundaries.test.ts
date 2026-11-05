@@ -31,7 +31,8 @@ test('owner lookup is limited, explicit, and does not assign an arbitrary ISBN t
  assert.match(admin,/lookupOnly:true/);
  // The old manifest UI is replaced, but the legacy internal routes remain read-only.
  assert.match(ui,/Book title, author or ISBN/);
- assert.match(ui,/Import book/);
+ assert.match(ui,/Review edition/);
+ assert.match(ui,/setSelected\(detail\)/);
  assert.match(ui,/simple-import\/search/);
  assert.match(ui,/simple-import\/detail/);
  assert.match(ui,/simple-import\/add/);
@@ -55,5 +56,6 @@ test('manual work enrichment fetches limited editions but never writes or treats
  assert.match(route,/readOnly:true/);
  assert.doesNotMatch(route,/INSERT INTO|UPDATE |DELETE FROM |\.run\(/);
  assert.match(ui,/simple-import\/detail/);
- assert.match(ui,/Import book/);
+ assert.match(ui,/Review edition/);
+ assert.match(ui,/setSelected\(detail\)/);
 });
