@@ -6,6 +6,7 @@ import {previewCatalogueImport} from './catalogue-import-preview.js';
 import {importCatalogueDrafts,ImportConflict} from './catalogue-import-drafts.js';
 import {findSimpleBooks,getSimpleBook,importSimpleBook} from './catalogue-simple-import.js';
 import {lookupISBNdbEdition} from './catalogue-isbndb-resolver.js';
+import {resolveISBNClaims} from './catalogue-isbn-reconciliation.js';
 import {representativeCoverAPI} from './catalogue-representative-cover.js';
 import {authConfigured,createAuth} from './auth.js';
 import {isVerifiedSiteOwner} from './admin-role.js';
@@ -98,6 +99,13 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
    representativeCoverMigrationApplied:present.has('work_representative_covers'),
    importsUseISBNdb:false,providerCallsMade:false
   });
+ }
+ // Read-only exact-ISBN evidence comparison. Never authorises import or persists third-party content.
+ if(path==='simple-import/resolve-isbn'&&request.method==='GET'){
+  const isbn=str(url.searchParams.get('isbn'),30);
+  if(!/^[0-9Xx -]{10,22}$/.test(isbn))return fail('Provide an ISBN-10 or ISBN-13.',400);
+  try{return json(await resolveISBNClaims(isbn,{isbnDbKey:env.ISBNDB_API_KEY,googleKey:env.GOOGLE_BOOKS_API_KEY}))}
+  catch(e){return fail(e instanceof Error?e.message:'Unable to resolve this ISBN',400)}
  }
  // Read-only ISBNdb probe, owner-only. No import, image persistence or paid bulk requests.
  // A request must explicitly supply an exact ISBN: provider data is never trusted for catalogue writes.
