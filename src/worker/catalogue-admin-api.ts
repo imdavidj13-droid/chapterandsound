@@ -5,6 +5,7 @@ import {catalogueBookMetadataAPI} from './catalogue-book-metadata-api.js';
 import {previewCatalogueImport} from './catalogue-import-preview.js';
 import {importCatalogueDrafts,ImportConflict} from './catalogue-import-drafts.js';
 import {findSimpleBooks,getSimpleBook,importSimpleBook} from './catalogue-simple-import.js';
+import {lookupISBNdbEdition} from './catalogue-isbndb-resolver.js';
 import {representativeCoverAPI} from './catalogue-representative-cover.js';
 import {authConfigured,createAuth} from './auth.js';
 import {isVerifiedSiteOwner} from './admin-role.js';
@@ -34,6 +35,7 @@ interface Env {
   MAIL_FROM?:string;
   ADMIN_EMAIL?:string;
   GOOGLE_BOOKS_API_KEY?:string;
+  ISBNDB_API_KEY?:string;
   SIGNUP_MODE?:string;
 }
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
@@ -85,6 +87,14 @@ export async function catalogueAdminAPI(request:Request,env:Env):Promise<Respons
  const segments=path.split('/').filter(Boolean);
  if(!db)return fail('The BOOK_DB catalogue binding is not configured yet',503);
  if(!await catalogueReady(db))return fail('The catalogue database has not had its dedicated migrations applied yet',503);
+ // Read-only ISBNdb probe, owner-only. No import, image persistence or paid bulk requests.
+ // A request must explicitly supply an exact ISBN: provider data is never trusted for catalogue writes.
+ if(path==='simple-import/isbndb-preview'&&request.method==='GET'){
+  const isbn=str(url.searchParams.get('isbn'),30);
+  if(!/^[0-9Xx -]{10,22}$/.test(isbn))return fail('Provide an ISBN-10 or ISBN-13.',400);
+  const result=await lookupISBNdbEdition(isbn,env.ISBNDB_API_KEY);
+  return json(result,result.status==='matched'||result.status==='not_found'?200:result.status==='unavailable'?503:result.status==='rate_limited'?429:result.status==='authentication_error'?502:result.status==='invalid_response'||result.status==='isbn_mismatch'?422:502);
+ }
  // New one-book workflow. Legacy manifest routes remain behind the scenes only.
  if(path==='simple-import/search'&&request.method==='GET'){
   try{return json(await findSimpleBooks(url.searchParams.get('q')||'',env.ADMIN_EMAIL||'catalogue-admin',env.GOOGLE_BOOKS_API_KEY))}
