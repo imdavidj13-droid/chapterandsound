@@ -36,7 +36,8 @@ export function CatalogueCoverEditor({workId,imageStorage}:{workId:string;imageS
   :undefined;
  const displayedCover=current||firstEditionCover;
  const isbnCover=(edition:string)=>data.identifiers.find(x=>x.editionId===edition&&x.code==='ISBN13'&&/^\d{13}$/.test(x.value))?.value||'';
- const orderedEdtions=[...data.editions].filter(e=>e.publicationStatus==='published').sort((a,b)=>{
+ const published=data.editions.filter(e=>e.publicationStatus==='published');
+ const orderedEdtions=[...(published.length?published:data.editions)].sort((a,b)=>{
   const lang=(e:Edition)=>e.language==='en'?0:!e.language?1:2;
   const fmt=(e:Edition)=>e.format==='paperback'?0:e.format==='hardback'?1:e.format==='ebook'?2:3;
   return lang(a)-lang(b)||fmt(a)-fmt(b);
