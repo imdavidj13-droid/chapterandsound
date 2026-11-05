@@ -12,7 +12,7 @@ export type ISBNdbEdition={
 };
 export type ISBNdbLookup=
  |{status:'matched';edition:ISBNdbEdition;rights:'not_reviewed';coverStatus:'not_verified'}
- |{status:'not_found'|'unavailable'|'rate_limited'|'authentication_error'|'provider_error'|'invalid_response'|'isbn_mismatch';httpStatus?:number;message:string};
+ |{status:'not_found'|'unavailable'|'rate_limited'|'authentication_error'|'provider_error'|'invalid_response'|'isbn_mismatch';httpStatus?:number;message:string;reason?:'not_configured'|'timeout'|'transport_error'|'request_rejected'};
 const str=(x:unknown,max=500)=>typeof x==='string'?x.trim().slice(0,max):'';
 const isbn13=(v:string)=>/^97[89]\d{10}$/.test(v)&&[...v].reduce((t,d,i)=>t+Number(d)*(i%2?3:1),0)%10===0;
 const isbn10To13=(value:string)=>{
@@ -64,14 +64,20 @@ const empty=(status:Exclude<ISBNdbLookup['status'],'matched'>,message:string,htt
 export async function lookupISBNdbEdition(rawIsbn:string,key?:string,fetchImpl:typeof fetch=fetch):Promise<ISBNdbLookup>{
  const expected=normalizedIsbn(rawIsbn);
  if(!expected)return empty('invalid_response','Enter a valid ISBN-10 or ISBN-13.');
- if(!key?.trim())return empty('unavailable','ISBNdb is not configured on this Worker.');
+ if(!key?.trim())return {...empty('unavailable','ISBNdb is not configured on this Worker.'),reason:'not_configured'};
  let response:Response;
  try{
   response=await fetchImpl('https://api2.isbndb.com/book/'+expected,{
    method:'GET',headers:{Authorization:key,Accept:'application/json'},
    signal:AbortSignal.timeout(15000),redirect:'error'
   });
- }catch{return empty('unavailable','ISBNdb could not be reached. Check provider connectivity.')}
+ }catch(error){
+  // Never echo provider URLs or exception messages: runtimes may include sensitive headers.
+  const name=error instanceof Error?error.name:'';
+  const reason=name==='TimeoutError'||name==='AbortError'?'timeout':
+   name==='TypeError'?'transport_error':'request_rejected';
+  return {...empty('unavailable',reason==='timeout'?'ISBNdb lookup timed out.':'ISBNdb request did not reach the provider.'),reason};
+ }
  if(response.status===404)return empty('not_found','No ISBNdb edition found for this ISBN.',404);
  if(response.status===429)return empty('rate_limited','ISBNdb rate limit or daily quota reached.',429);
  if(response.status===401||response.status===403)return empty('authentication_error','ISBNdb rejected the configured API key or subscription.',response.status);
