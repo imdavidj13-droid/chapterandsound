@@ -115,3 +115,57 @@ export async function lookupISBNdbEdition(rawIsbn:string,key?:string,fetchImpl:t
   descriptionAvailable:Boolean(str(row.synopsis,8000)||str(row.overview,8000))
  }};
 }
+
+/** A single paginated title/author search request, never one request per result.
+ * Search records are unverified and MUST NOT be imported as canonical entities.
+ * The caller handles a non-matched status independently of other providers.
+ */
+export type ISBNdbSearch=
+ |{status:'matched';books:ISBNdbEdition[];total:number;page:number}
+ |{status:'unavailable'|'rate_limited'|'authentication_error'|'provider_error'|'invalid_response';books:[];reason?:string;httpStatus?:number};
+export async function searchISBNdbBooks(query:string,key?:string,fetchImpl:typeof fetch=fetch):Promise<ISBNdbSearch>{
+ const q=query.trim().slice(0,120);
+ if(q.length<2||!key?.trim())return {status:'unavailable',books:[],reason:q.length<2?'invalid_query':'not_configured'};
+ const url=new URL('https://api2.isbndb.com/books/'+encodeURIComponent(q));
+ url.searchParams.set('page','1');
+ url.searchParams.set('pageSize','20');
+ let response:Response;
+ try{
+  response=await fetchImpl(url.toString(),{
+   method:'GET',headers:{Authorization:key.trim(),Accept:'application/json'},
+   signal:AbortSignal.timeout(15000),redirect:'manual'
+  });
+ }catch(error){
+  const name=error instanceof Error?error.name:'';
+  return {status:'unavailable',books:[],reason:name==='TimeoutError'||name==='AbortError'?'timeout':'transport_error'};
+ }
+ if(response.status===429)return {status:'rate_limited',books:[],httpStatus:429};
+ if(response.status===401||response.status===403)return {status:'authentication_error',books:[],httpStatus:response.status};
+ if(!response.ok)return {status:'provider_error',books:[],httpStatus:response.status};
+ let data:unknown;
+ try{data=await response.json()}catch{return {status:'invalid_response',books:[]}}
+ if(!data||typeof data!=='object'||Array.isArray(data))return {status:'invalid_response',books:[]};
+ const payload=data as {books?:unknown;total?:unknown};
+ if(!Array.isArray(payload.books))return {status:'invalid_response',books:[]};
+ const seen=new Set<string>();
+ const books:ISBNdbEdition[]=[];
+ for(const item of payload.books.slice(0,20)){
+  if(!item||typeof item!=='object'||Array.isArray(item))continue;
+  const row=item as Record<string,unknown>;
+  const code=normalizedIsbn(row.isbn13)||normalizedIsbn(row.isbn);
+  const title=str(row.title),authors=Array.isArray(row.authors)?row.authors.map(a=>str(a,300)).filter(Boolean).slice(0,10):[];
+  if(!code||seen.has(code)||!title||!authors.length)continue;
+  seen.add(code);
+  const bindingLabel=str(row.binding,150)||null;
+  const n=row.pages;
+  books.push({
+   source:'ISBNdb',isbn13:code,title,authors,publisher:str(row.publisher)||null,
+   publishedDate:date(row.date_published),
+   pageCount:typeof n==='number'&&Number.isSafeInteger(n)&&n>0&&n<100000?n:null,
+   language:language(row.language),format:bindingFormat(bindingLabel),bindingLabel,
+   coverCandidateUrl:coverUrl(row.image),
+   descriptionAvailable:Boolean(str(row.synopsis,8000)||str(row.overview,8000))
+  });
+ }
+ return {status:'matched',books,total:typeof payload.total==='number'&&Number.isSafeInteger(payload.total)&&payload.total>=0?payload.total:books.length,page:1};
+}
