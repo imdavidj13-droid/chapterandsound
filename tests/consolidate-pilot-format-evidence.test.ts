@@ -1,0 +1,49 @@
+import {test} from 'node:test';
+import {strict as assert} from 'node:assert';
+// @ts-expect-error JS CLI does not have declarations.
+import {consolidatePilot} from '../scripts/consolidate-pilot-format-evidence.mjs';
+
+const fixture=()=>({candidates:Array.from({length:10},(_,i)=>({
+ title:i===0?'Relentless':'Work '+i,
+ author:'Simon Kernick',workSourceKey:'/works/OL'+(i+1)+'W',
+ editions:[{sourceKey:'/books/OL'+(i+1)+'M',
+  isbn13:i===0?'9781407095301':null,
+  publisher:i===0?'Penguin Random House':null,
+  format:'unknown',fieldProvenance:{}}]
+}))});
+const fact={title:'Relentless',editionSourceKey:'/books/OL1M',
+ isbn13:'9781407095301',format:'ebook',feature:null,
+ source:'official_publisher',sourceUrl:'https://example.org/book/9781407095301'};
+const batch=(records:unknown[])=>({records,reviewOnly:true,importEligible:false});
+test('consolidates evidence without mutating input; queues ISBN and ISBN-less separately',()=>{
+ const input=fixture(),result=consolidatePilot(input,[batch([fact])]);
+ assert.equal(result.report.delta.formatsResolved,1);
+ assert.equal(result.report.totals.knownFormats,1);
+ assert.equal(result.report.totals.unknownFormats,9);
+ assert.equal(result.report.remaining.withoutISBN,9);
+ assert.equal(result.report.remaining.withISBN,0);
+ assert.equal(result.evidence.records[0].evidenceTier,'publisher_observation');
+ assert.equal(input.candidates[0]!.editions[0]!.format,'unknown');
+});
+test('rerun on already consolidated manifest adds no changes and retains provenance',()=>{
+ const first=consolidatePilot(fixture(),[batch([fact])]);
+ const next=consolidatePilot(first.manifest,[batch([fact])]);
+ assert.equal(next.report.delta.formatsResolved,0);
+ assert.equal(next.report.totals.unknownFormats,9);
+ assert.equal(next.manifest.candidates[0].editions[0].fieldProvenance.format.isbn13,fact.isbn13);
+});
+test('conflicting edition data fails before any output',()=>{
+ const input=fixture();
+ input.candidates[0]!.editions[0]!.format='hardback';
+ assert.throws(()=>consolidatePilot(input,[batch([fact])]),/conflicts and 0 unmatched/);
+});
+test('mismatched ISBN and contradictory batches fail closed',()=>{
+ assert.throws(()=>consolidatePilot(fixture(),[batch([{...fact,isbn13:'9781407093901'}])]),/unmatched/);
+ assert.throws(()=>consolidatePilot(fixture(),[batch([fact]),batch([{...fact,format:'paperback'}])]),/Contradictory evidence/);
+});
+test('publisher field cannot imply format, even when ISBN is missing',()=>{
+ const result=consolidatePilot(fixture(),[batch([])]);
+ assert.equal(result.report.totals.unknownFormats,10);
+ assert.equal(result.queue.queue[0].researchRoute,'exact_isbn_publisher_or_national_bibliography');
+ assert.equal(result.queue.queue[1].researchRoute,'edition_identity_no_isbn');
+});
