@@ -133,13 +133,24 @@ export function CatalogueImportCentre(){
    </div>
    {selected.researchOnly&&<p className="cs-simple-import-warning" role="status">ISBNdb matched this exact ISBN. Its metadata is for research only until the provider’s storage and image-use rights are reviewed. No catalogue record or cover will be saved from this result.</p>}
    <div className="cs-simple-import-chosen-cover">
-    {selected.coverUrl?<img src={selected.coverUrl} alt={'Verified cover for '+selected.title} referrerPolicy="no-referrer" onError={e=>{e.currentTarget.hidden=true}}/>:<span>No verified cover available</span>}
-    <div><strong>{selected.coverKind==='work'?'Main book cover':'Selected edition cover'}</strong><p>{selected.coverKind==='work'?'This is a verified book-level cover matched to the title and author. Its edition will keep its own ISBN; no unrelated edition artwork will be assigned.':selected.coverKind==='edition'?'The cover image is available for edition ISBN '+selected.isbn13+'.':'The source did not return a usable cover. This book cannot be imported yet.'}</p></div>
+    {selected.coverUrl||selected.previewCoverUrl?
+     <img src={selected.coverUrl||selected.previewCoverUrl||''}
+      alt={'Cover artwork shown for '+selected.title} referrerPolicy="no-referrer"
+      onError={e=>{e.currentTarget.style.display='none'}}/>:
+     <span>No cover image supplied</span>}
+    <div>
+     <strong>{selected.coverKind==='work'?'Verified work-level cover':selected.coverKind==='edition'?'Verified edition cover':selected.previewCoverUrl?'Google Books cover preview':'Cover not available'}</strong>
+     <p>{selected.coverKind==='work'?'This artwork is associated with the confirmed Open Library work, not necessarily this particular ISBN.':
+      selected.coverKind==='edition'?'Open Library supplied an image for this exact ISBN.':
+      selected.previewCoverUrl?'Google Books provides the image shown above. It is a preview, not yet verified as artwork for the exact ISBN.':
+      'No cover image was supplied by this detail lookup.'}</p>
+     {!selected.coverUrl&&selected.previewCoverUrl&&<p>Cover verification is still required before importing. The image is not automatically added to the catalogue.</p>}
+    </div>
    </div>
    <dl>
     <div><dt>ISBN</dt><dd>{selected.isbn13||'Missing'}</dd></div>
     <div><dt>Format</dt><dd>{selected.format==='unknown'?'Needs confirmation':selected.format}</dd></div>
-    <div><dt>Cover</dt><dd>{selected.coverUrl?'Available':'Missing — import blocked'}</dd></div>
+    <div><dt>Cover</dt><dd>{selected.coverUrl?'Verified source cover':selected.previewCoverUrl?'Preview available · verification required':'No usable source cover found'}</dd></div>
     <div><dt>Edition language</dt><dd>{languageLabel(selected.language)}</dd></div>
     <div><dt>Publisher</dt><dd>{selected.publisher||'Missing'}</dd></div>
     <div><dt>Release date</dt><dd>{selected.publishedDate||'Missing'}</dd></div>
@@ -158,7 +169,7 @@ export function CatalogueImportCentre(){
      placeholder="Write your own synopsis or enter text you have permission to publish."/>
     <small>Google Books descriptions are shown as a reference, not copied into the permanent catalogue automatically.</small>
    </label>}
-   {(missing.length>0||!synopsisReady||!formatReady)&&<p className="cs-simple-import-warning" role="alert">Cannot import yet: {missing.length?missingText(missing):!synopsisReady?'description':'edition format'}. {selected.coverUrl?'Choose verified details for this ISBN.':'The search illustration alone does not prove that a usable cover is available. Try another edition or book result.'} Nothing has been saved.</p>}
+   {(missing.length>0||!synopsisReady||!formatReady)&&<p className="cs-simple-import-warning" role="alert">Cannot import yet: {missing.length?missingText(missing):!synopsisReady?'description':'edition format'}. {selected.coverUrl?'Choose verified details for this ISBN.':selected.previewCoverUrl?'The displayed preview cannot yet be used as a verified edition cover.':'No usable cover was confirmed for this edition.'} Nothing has been saved.</p>}
    <div className="cs-simple-import-review-actions">
     <a href={selected.sourceUrl} target="_blank" rel="noopener noreferrer">View source</a>
     <button type="button" disabled={!canSave||Boolean(importing)} onClick={()=>void save(selected,originalSynopsis,reviewedFormat)}>Import this book</button>
