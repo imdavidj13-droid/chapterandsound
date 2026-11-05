@@ -252,3 +252,30 @@
 .cs-representative-cover-choice small{font-size:.78rem;color:#627968}
 .cs-representative-cover-choice button{padding:11px 8px;border:1px solid #255a3c;background:#255a3c;color:#fff;border-radius:9px;cursor:pointer;font-weight:700}
 .cs-representative-cover-choice button:disabled{background:#e6f0e6;color:#245335;border-color:#cadcc9;cursor:default}
+
+
+/* Admin importer: two compact columns on wide screens, one on narrow screens.
+   Cards align at their own natural heights so expanded editions do not stretch
+   unrelated cards in the adjacent column. */
+.cs-simple-import-grid{
+ display:grid;
+ grid-template-columns:minmax(0,1fr);
+ gap:12px;
+ align-items:start;
+}
+.cs-simple-import-grid .cs-simple-import-result{
+ margin:0;
+ min-width:0;
+}
+.cs-simple-import-grid .cs-simple-import-description{
+ min-width:0;
+ overflow-wrap:anywhere;
+}
+.cs-simple-import-grid details{
+ min-width:0;
+}
+@media(min-width:1050px){
+ .cs-simple-import-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+ }
+}
