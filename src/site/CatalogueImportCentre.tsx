@@ -90,6 +90,7 @@ export function CatalogueImportCentre(){
   {items.length>0&&<div className="cs-simple-import-results">
    <h4>Search results <span>{groupSearchResults(items).length} possible books · {items.length} source records</span></h4>
    <p className="cs-simple-import-muted">Results are grouped for easier browsing using matching titles and author names. Groups are provisional, not confirmed catalogue identities. Check each edition before saving.</p>
+   <div className="cs-simple-import-grid">
    {groupSearchResults(items).map(group=>{
     const display=group.items.find(entry=>Boolean(entry.coverUrl))||group.items[0]!;
     return <article className="cs-simple-import-result" key={group.id} style={{alignItems:'flex-start'}}>
@@ -118,6 +119,7 @@ export function CatalogueImportCentre(){
      </div>
     </article>;
    })}
+   </div>
   </div>}
   {selected&&<section className="cs-simple-import-review" aria-label="Missing details">
    <div className="cs-simple-import-review-heading"><div>
