@@ -66,3 +66,21 @@ test('explicit execute requires confirmation and canonical owner origin',()=>{
   assert.match(wrongOrigin.stderr,/exact HTTPS production origin/);
  }finally{rmSync(f.root,{recursive:true,force:true})}
 });
+
+test('canary must be explicitly selected from the hash-bound allowlist',()=>{
+ const f=fixture();
+ try{
+  const selected=run(f.plan,f.preflight,['--canary-key','/works/OL123W']);
+  assert.equal(selected.status,0,selected.stderr);
+  const preview=JSON.parse(selected.stdout);
+  assert.equal(preview.eligible,1);
+  assert.equal(preview.selectedForCanary,1);
+  assert.equal(preview.canaryKey,'/works/OL123W');
+  const unknown=run(f.plan,f.preflight,['--canary-key','/works/OL999W']);
+  assert.notEqual(unknown.status,0);
+  assert.match(unknown.stderr,/not uniquely eligible/);
+  const implicit=run(f.plan,f.preflight,['--execute','--confirm','IMPORT_PRIVATE_DRAFTS']);
+  assert.notEqual(implicit.status,0);
+  assert.match(implicit.stderr,/requires an explicit --canary-key/);
+ }finally{rmSync(f.root,{recursive:true,force:true})}
+});
