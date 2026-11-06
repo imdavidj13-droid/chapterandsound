@@ -57,6 +57,30 @@ npx --no-install tsx scripts/execute-catalogue-production-import.ts
 The runner checks the preflight digest, candidate keys and freshness, then
 prints the eligible count. This is not the import.
 
+## One-book canary preparation (read-only)
+
+After the fresh preflight and tests, run:
+
+```powershell
+.\scripts\prepare-catalogue-canary.ps1
+```
+
+This selects **one edition-backed book** from the SHA-256-bound eligible
+manifest and displays its title, author, Open Library work ID, and number of
+editions. It then verifies the precise candidate against the runner using
+`--canary-key` in *read-only preview* mode. It does **not** require cookies
+or import books.
+
+The production execution runner now requires an explicit eligible
+`--canary-key /works/OL...W`, and live execution is limited to exactly
+**one** candidate, even if `--limit` is increased. No implicit first-book
+production selection is permitted. Never send your session cookie to ChatGPT.
+
+Do not attempt live writes until the actual Worker deployment is verified,
+the preflight remains fresh, an administrator session is available, the
+single book is accepted for private draft import, and a post-write audit
+is ready. Use a new preflight if the four-hour validity window expires.
+
 ## Step 4 — Controlled execution (separate explicit owner approval needed)
 
 There is intentionally NO production import command in the normal workflow.
