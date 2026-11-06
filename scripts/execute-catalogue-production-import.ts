@@ -99,10 +99,21 @@ async function main(){
   if(!entries.some(e=>e.kind===item.kind&&e.key===item.workSourceKey&&e.file===item.file))
    throw Error('Preflight contains a work that is absent from the plan');
  }
- const selected=entries.filter(e=>allow.has(e.kind+':'+e.key+':'+e.file));
+ const canaryKey=value('--canary-key');
+ if(flag('--execute')&&!canaryKey)
+  throw Error('Production execution requires an explicit --canary-key; never auto-select the first work.');
+ if(canaryKey&&!workPattern.test(canaryKey))
+  throw Error('Invalid --canary-key. Supply the exact /works/OL...W identifier.');
+ const eligibleEntries=entries.filter(e=>allow.has(e.kind+':'+e.key+':'+e.file));
+ const selected=canaryKey?eligibleEntries.filter(e=>e.key===canaryKey):eligibleEntries;
+ if(canaryKey&&selected.length!==1)
+  throw Error('Canary work is not uniquely eligible in this fresh preflight.');
+ if(flag('--execute')&&selected.length!==1)
+  throw Error('Production execution is restricted to exactly one approved canary work.');
  if(!flag('--execute')){
   process.stdout.write(JSON.stringify({dryRun:true,productionWrites:0,
-   eligible:selected.length,heldByPreflight:entries.length-selected.length,
+   eligible:eligibleEntries.length,selectedForCanary:selected.length,canaryKey:canaryKey||null,
+   heldByPreflight:entries.length-eligibleEntries.length,
    limit,productionExecutionAvailable:false,
    note:'Preview only. Run --execute with explicit approval and owner authentication to write.'},null,2)+'\n');
   return;
@@ -112,6 +123,7 @@ async function main(){
  const origin=value('--origin');
  if(!origin||!/^https:\/\/[^/]+$/.test(origin)||new URL(origin).hostname!=='chapterandsound.imdavidj13.workers.dev')
   throw Error('Provide the exact HTTPS production origin with --origin and no trailing slash.');
+ if(limit!==1)throw Error('Production execution is currently canary-only: --limit must be 1.');
  const cookie=process.env.CATALOGUE_ADMIN_COOKIE;
  if(!cookie||cookie.length<20)
   throw Error('Set CATALOGUE_ADMIN_COOKIE privately in your local environment. Do not share it in chat.');
